@@ -766,7 +766,7 @@ def load_episodes_from_file(filepath: str) -> list:
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             data = json.load(f)
-        
+    
         # Convert type strings to EpisodeType
         for episode in data:
             type_str = episode.get('type', 'text')
@@ -814,7 +814,7 @@ async def ingest_episodes(episodes_data: list, graphiti: Graphiti, use_ner: bool
                     print(f'  ✓ Extracted {enriched_episode["entity_count"]} entities:')
                     for entity_type, entity_list in enriched_episode['entities_by_type'].items():
                         print(f'    - {entity_type}: {", ".join(entity_list[:5])}')
-                
+        
                 # Create enriched content
                 content = enricher.create_enriched_content(enriched_episode)
             else:
@@ -933,7 +933,7 @@ async def search_query(query: str, graphiti: Graphiti, method: str = 'question-a
         print(f'🔍 SEARCH: "{query}"')
         print(f'Method: {method}')
         print('='*80)
-        
+    
         if method == 'standard':
             results = await search_episodes(graphiti, query)
         elif method == 'connection':
@@ -945,7 +945,7 @@ async def search_query(query: str, graphiti: Graphiti, method: str = 'question-a
         else:
             logger.error(f"Unknown search method: {method}")
             results = await search_episodes(graphiti, query)
-        
+
         # Export to JSON if requested
         if export_json and results:
             export_results_to_json(results, export_json, query, method)
@@ -1133,8 +1133,8 @@ async def clean_database(graphiti, confirm=False, nodes_only=False):
             print('='*80)
             print(f'Remaining nodes: {remaining}')
             print('Some nodes may not have been deleted. Please check manually.')
-        print('='*80)
-        
+            print('='*80)
+            
     except Exception as e:
         logger.error(f'Error cleaning database: {e}')
         print(f'\n❌ Error cleaning database: {e}')
