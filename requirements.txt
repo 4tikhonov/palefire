@@ -1,0 +1,18 @@
+# Pale Fire - Requirements
+
+# Core dependencies
+graphiti-core>=0.3.0
+python-dotenv>=1.0.0
+
+# NER dependencies (optional but recommended)
+spacy>=3.7.0
+# Run: python -m spacy download en_core_web_sm
+
+# FastAPI and server
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+
+# Additional utilities
+python-multipart>=0.0.6  # For file uploads
+
