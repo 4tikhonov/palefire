@@ -1,0 +1,185 @@
+version: '3.8'
+
+services:
+  # Neo4j Database
+  neo4j:
+    image: neo4j:5.15.0
+    container_name: palefire-neo4j
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    environment:
+      - NEO4J_AUTH=neo4j/palefire123
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
+      - NEO4J_dbms_memory_heap_initial__size=512m
+      - NEO4J_dbms_memory_heap_max__size=2G
+      - NEO4J_dbms_memory_pagecache_size=512m
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - neo4j_import:/var/lib/neo4j/import
+      - neo4j_plugins:/plugins
+    networks:
+      - palefire-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # Ollama LLM Server
+  ollama:
+    image: ollama/ollama:latest
+    container_name: palefire-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - palefire-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # Uncomment if you don't have GPU
+    # command: serve
+
+  # Pale Fire API
+  palefire-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: palefire-api
+    ports:
+      - "8000:8000"
+    environment:
+      # Neo4j Configuration
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=palefire123
+      
+      # LLM Configuration
+      - LLM_PROVIDER=ollama
+      - OLLAMA_BASE_URL=http://ollama:11434/v1
+      - OLLAMA_MODEL=deepseek-r1:7b
+      - OLLAMA_SMALL_MODEL=deepseek-r1:7b
+      
+      # Embedder Configuration
+      - EMBEDDER_PROVIDER=ollama
+      - OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+      - OLLAMA_EMBEDDING_DIM=768
+      
+      # Search Configuration
+      - DEFAULT_SEARCH_METHOD=question-aware
+      - SEARCH_RESULT_LIMIT=20
+      - SEARCH_TOP_K=5
+      
+      # Ranking Weights
+      - WEIGHT_CONNECTION=0.15
+      - WEIGHT_TEMPORAL=0.20
+      - WEIGHT_QUERY_MATCH=0.20
+      - WEIGHT_ENTITY_TYPE=0.15
+      
+      # NER Configuration
+      - NER_ENABLED=true
+      - NER_USE_SPACY=true
+      - SPACY_MODEL=en_core_web_sm
+      
+      # Logging
+      - LOG_LEVEL=INFO
+      
+      # API Key (optional, for security)
+      - OPENAI_API_KEY=dummy-key-for-ollama
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    networks:
+      - palefire-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    command: python api.py
+
+  # Pale Fire CLI (optional, for manual operations)
+  palefire-cli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: palefire-cli
+    environment:
+      # Same environment as API
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=palefire123
+      - LLM_PROVIDER=ollama
+      - OLLAMA_BASE_URL=http://ollama:11434/v1
+      - OLLAMA_MODEL=deepseek-r1:7b
+      - OLLAMA_SMALL_MODEL=deepseek-r1:7b
+      - EMBEDDER_PROVIDER=ollama
+      - OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+      - OLLAMA_EMBEDDING_DIM=768
+      - DEFAULT_SEARCH_METHOD=question-aware
+      - SEARCH_RESULT_LIMIT=20
+      - SEARCH_TOP_K=5
+      - WEIGHT_CONNECTION=0.15
+      - WEIGHT_TEMPORAL=0.20
+      - WEIGHT_QUERY_MATCH=0.20
+      - WEIGHT_ENTITY_TYPE=0.15
+      - NER_ENABLED=true
+      - NER_USE_SPACY=true
+      - SPACY_MODEL=en_core_web_sm
+      - LOG_LEVEL=INFO
+      - OPENAI_API_KEY=dummy-key-for-ollama
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    networks:
+      - palefire-network
+    profiles:
+      - cli
+    command: tail -f /dev/null  # Keep container running for manual commands
+    restart: unless-stopped
+
+volumes:
+  neo4j_data:
+    driver: local
+  neo4j_logs:
+    driver: local
+  neo4j_import:
+    driver: local
+  neo4j_plugins:
+    driver: local
+  ollama_data:
+    driver: local
+
+networks:
+  palefire-network:
+    driver: bridge
+
