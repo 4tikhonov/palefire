@@ -1,0 +1,88 @@
+{
+  "query": "Who was the California Attorney General in 2020?",
+  "method": "question-aware",
+  "timestamp": "2025-12-26T14:45:00.123456+00:00",
+  "total_results": 5,
+  "results": [
+    {
+      "rank": 1,
+      "uuid": "abc123-def456-ghi789",
+      "name": "Kamala Harris",
+      "summary": "Attorney General of California from 2011 to 2017, previously district attorney for San Francisco.",
+      "labels": ["Person", "PoliticalFigure"],
+      "attributes": {
+        "position": "Attorney General",
+        "state": "California",
+        "term_start": "January 3, 2011",
+        "term_end": "January 3, 2017"
+      },
+      "scoring": {
+        "final_score": 0.9234,
+        "original_score": 0.8456,
+        "connection_score": 0.7823,
+        "temporal_score": 1.0,
+        "query_match_score": 0.9123,
+        "entity_type_score": 2.0
+      },
+      "connections": {
+        "count": 15,
+        "entities": [
+          {
+            "name": "California",
+            "type": "LOC",
+            "labels": ["Entity", "LOC"],
+            "uuid": "xyz789-abc123-def456"
+          },
+          {
+            "name": "San Francisco",
+            "type": "LOC",
+            "labels": ["Entity", "LOC"],
+            "uuid": "uvw456-rst789-mno012"
+          },
+          {
+            "name": "District Attorney",
+            "type": "ORG",
+            "labels": ["Entity", "ORG"],
+            "uuid": "pqr345-stu678-vwx901"
+          },
+          {
+            "name": "United States Senate",
+            "type": "ORG",
+            "labels": ["Entity", "ORG"],
+            "uuid": "jkl234-mno567-pqr890"
+          }
+        ],
+        "relationship_types": [
+          "WORKED_AT",
+          "LOCATED_IN",
+          "HELD_POSITION"
+        ]
+      },
+      "temporal_info": {
+        "created_at": "2025-12-26T12:00:00Z",
+        "valid_at": "2011-01-03T00:00:00Z",
+        "invalid_at": "2017-01-03T00:00:00Z",
+        "properties": {
+          "term_start": "January 3, 2011",
+          "term_end": "January 3, 2017"
+        }
+      },
+      "recognized_entities": {
+        "PER": ["Kamala Harris"],
+        "LOC": ["California", "San Francisco"],
+        "ORG": ["Attorney General"],
+        "DATE": ["January 3, 2011", "January 3, 2017", "2020"]
+      },
+      "all_entities": [
+        {"text": "Kamala Harris", "type": "PER", "start": 0, "end": 13},
+        {"text": "California", "type": "LOC", "start": 45, "end": 55},
+        {"text": "San Francisco", "type": "LOC", "start": 78, "end": 91},
+        {"text": "Attorney General", "type": "ORG", "start": 25, "end": 41},
+        {"text": "January 3, 2011", "type": "DATE", "start": 102, "end": 117},
+        {"text": "January 3, 2017", "type": "DATE", "start": 121, "end": 136},
+        {"text": "2020", "type": "DATE", "start": 140, "end": 144}
+      ]
+    }
+  ]
+}
+

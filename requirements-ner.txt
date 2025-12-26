@@ -1,0 +1,12 @@
+# NER (Named Entity Recognition) Dependencies
+# Install with: pip install -r requirements-ner.txt
+
+# spaCy - Industrial-strength NLP library
+spacy>=3.7.0,<4.0.0
+
+# After installing spacy, download the English model:
+# python -m spacy download en_core_web_sm
+
+# Note: The pattern-based fallback requires no additional dependencies
+# and will be used automatically if spaCy is not available
+
