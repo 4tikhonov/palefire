@@ -1,4 +1,5 @@
 # Pale Fire - Intelligent Knowledge Graph Search System
+This framework created by [Slava Tykhonov](https://github.com/4tikhonov/) and highly experimental.
 
 > Named after Vladimir Nabokov's novel, where a poem becomes the subject of extensive commentary and interpretation—just like how this system builds a rich knowledge graph from text and enables intelligent exploration through questions.
 
@@ -11,6 +12,7 @@ Pale Fire is an advanced knowledge graph search system featuring:
 - **📊 5-Factor Ranking** - Combines semantic, connectivity, temporal, query matching, and entity-type intelligence
 - **⚡ CLI Interface** - Easy-to-use command-line interface for ingestion and queries
 - **🔧 Modular Architecture** - Clean separation of concerns for maintainability
+- **📚 Theoretical Foundation** - Based on Pale Fire's interpretive framework (see [docs/PROS-CONS.md](docs/PROS-CONS.md))
 
 ## Quick Start
 
@@ -328,6 +330,8 @@ python palefire-cli.py query "Question 2?"
 
 All documentation is located in the [`docs/`](docs/) folder. See **[docs/README.md](docs/README.md)** for the complete documentation index.
 
+> **New:** Research documentation now available! See [docs/PROS-CONS.md](docs/PROS-CONS.md) for the theoretical framework and [docs/EVALUATION.md](docs/EVALUATION.md) for evaluation methodology.
+
 ### Getting Started
 - **[docs/PALEFIRE_SETUP.md](docs/PALEFIRE_SETUP.md)** - Setup instructions
 - **[docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - Quick reference card
@@ -345,14 +349,39 @@ All documentation is located in the [`docs/`](docs/) folder. See **[docs/README.
 
 ### Advanced
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Architecture details
+- **[docs/TESTING.md](docs/TESTING.md)** - Testing guide and best practices
 - **[docs/DATABASE_CLEANUP.md](docs/DATABASE_CLEANUP.md)** - Database cleanup guide
 - **[docs/EXPORT_FEATURE.md](docs/EXPORT_FEATURE.md)** - JSON export feature
 - **[docs/ENTITY_TYPES_UPDATE.md](docs/ENTITY_TYPES_UPDATE.md)** - Entity types in connections
+
+### Research & Theory
+- **[docs/PROS-CONS.md](docs/PROS-CONS.md)** - Pale Fire framework for dataset representation
+- **[docs/EVALUATION.md](docs/EVALUATION.md)** - Evaluation framework for interpretive AI systems
 
 ### Changelog
 - **[docs/CHANGELOG_CONFIG.md](docs/CHANGELOG_CONFIG.md)** - Configuration migration
 - **[docs/MIGRATION_SUMMARY.md](docs/MIGRATION_SUMMARY.md)** - Migration summary
 - **[docs/EXPORT_CHANGES.md](docs/EXPORT_CHANGES.md)** - Export format changes
+
+## Testing
+
+Pale Fire includes a comprehensive test suite with **79 tests** (62 passing, 17 skipped).
+
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=. --cov-report=html
+
+# Use test runner script
+./run_tests.sh coverage
+```
+
+See:
+- **[TESTING_SUMMARY.md](TESTING_SUMMARY.md)** - Quick test overview
+- **[docs/TESTING.md](docs/TESTING.md)** - Complete testing guide
+- **[tests/README.md](tests/README.md)** - Test directory reference
 
 ## Requirements
 
@@ -365,6 +394,12 @@ All documentation is located in the [`docs/`](docs/) folder. See **[docs/README.
 ### NER (Optional but Recommended)
 - spacy
 - en_core_web_sm model
+
+### Testing
+- pytest
+- pytest-asyncio
+- pytest-cov
+- pytest-mock
 
 ## Performance
 
