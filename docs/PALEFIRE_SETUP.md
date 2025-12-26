@@ -13,9 +13,9 @@ Pale Fire is an advanced knowledge graph search system built on Graphiti, featur
 ### 1. Install Dependencies
 
 ```bash
-cd /Users/vyacheslavtykhonov/projects/open-webui/backend/palefire
+cd /path/to/palefire
 
-# Install base dependencies (from parent project)
+# Install base dependencies
 pip install graphiti-core python-dotenv
 
 # Install NER dependencies (optional but recommended)

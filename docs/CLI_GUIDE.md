@@ -7,7 +7,7 @@ Pale Fire now includes a powerful command-line interface for ingesting episodes 
 ## Installation
 
 ```bash
-cd /Users/vyacheslavtykhonov/projects/open-webui/backend/palefire
+cd /path/to/palefire
 
 # Install dependencies
 pip install -r requirements-ner.txt
