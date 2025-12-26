@@ -14,9 +14,11 @@ Pale Fire is an advanced knowledge graph search system featuring:
 
 ## Quick Start
 
+### CLI Usage
+
 ```bash
 # 1. Install dependencies
-pip install -r requirements-ner.txt
+pip install -r requirements.txt
 python -m spacy download en_core_web_sm
 
 # 2. Configure environment
@@ -30,6 +32,24 @@ python palefire-cli.py ingest --demo
 
 # 5. Ask a question
 python palefire-cli.py query "Who was the California Attorney General in 2020?"
+```
+
+### API Usage
+
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Configure environment
+cp env.example .env  # Edit with your settings
+
+# 3. Start API server
+python api.py
+
+# 4. Access API
+# - Base URL: http://localhost:8000
+# - Interactive docs: http://localhost:8000/docs
+# - ReDoc: http://localhost:8000/redoc
 ```
 
 ## Features
@@ -171,10 +191,12 @@ palefire/
 │   ├── __init__.py
 │   └── PaleFireCore.py         # EntityEnricher + QuestionTypeDetector
 ├── example_episodes.json        # Example data
-├── CLI_GUIDE.md                # Complete CLI documentation
-├── QUICK_REFERENCE.md          # Quick reference card
-├── ARCHITECTURE.md             # Architecture details
-└── [other documentation]
+├── docs/                        # Documentation folder
+│   ├── CLI_GUIDE.md            # Complete CLI documentation
+│   ├── QUICK_REFERENCE.md      # Quick reference card
+│   ├── ARCHITECTURE.md         # Architecture details
+│   └── [other documentation]
+└── [other files]
 ```
 
 ## 5-Factor Ranking System
@@ -254,7 +276,7 @@ WEIGHT_QUERY_MATCH=0.20
 WEIGHT_ENTITY_TYPE=0.15
 ```
 
-See [CONFIGURATION.md](CONFIGURATION.md) for complete documentation.
+See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for complete documentation.
 
 ## Examples
 
@@ -304,15 +326,33 @@ python palefire-cli.py query "Question 2?"
 
 ## Documentation
 
-- **[CONFIGURATION.md](CONFIGURATION.md)** - Complete configuration guide
-- **[CLI_GUIDE.md](CLI_GUIDE.md)** - Complete CLI documentation
-- **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Quick reference card
-- **[PALEFIRE_SETUP.md](PALEFIRE_SETUP.md)** - Setup instructions
-- **ARCHITECTURE.md** - Architecture details (if exists)
-- **RANKING_SYSTEM.md** - Ranking system documentation (if exists)
-- **NER_ENRICHMENT.md** - NER system guide (if exists)
-- **QUESTION_TYPE_DETECTION.md** - Question-type detection guide (if exists)
-- **QUERY_MATCH_SCORING.md** - Query matching details (if exists)
+All documentation is located in the [`docs/`](docs/) folder. See **[docs/README.md](docs/README.md)** for the complete documentation index.
+
+### Getting Started
+- **[docs/PALEFIRE_SETUP.md](docs/PALEFIRE_SETUP.md)** - Setup instructions
+- **[docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - Quick reference card
+- **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)** - Complete configuration guide
+
+### API & CLI
+- **[docs/API_GUIDE.md](docs/API_GUIDE.md)** - REST API documentation
+- **[docs/CLI_GUIDE.md](docs/CLI_GUIDE.md)** - Complete CLI documentation
+
+### Features
+- **[docs/RANKING_SYSTEM.md](docs/RANKING_SYSTEM.md)** - 5-factor ranking system
+- **[docs/NER_ENRICHMENT.md](docs/NER_ENRICHMENT.md)** - NER system guide
+- **[docs/QUESTION_TYPE_DETECTION.md](docs/QUESTION_TYPE_DETECTION.md)** - Question-type detection
+- **[docs/QUERY_MATCH_SCORING.md](docs/QUERY_MATCH_SCORING.md)** - Query matching details
+
+### Advanced
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Architecture details
+- **[docs/DATABASE_CLEANUP.md](docs/DATABASE_CLEANUP.md)** - Database cleanup guide
+- **[docs/EXPORT_FEATURE.md](docs/EXPORT_FEATURE.md)** - JSON export feature
+- **[docs/ENTITY_TYPES_UPDATE.md](docs/ENTITY_TYPES_UPDATE.md)** - Entity types in connections
+
+### Changelog
+- **[docs/CHANGELOG_CONFIG.md](docs/CHANGELOG_CONFIG.md)** - Configuration migration
+- **[docs/MIGRATION_SUMMARY.md](docs/MIGRATION_SUMMARY.md)** - Migration summary
+- **[docs/EXPORT_CHANGES.md](docs/EXPORT_CHANGES.md)** - Export format changes
 
 ## Requirements
 
@@ -365,7 +405,7 @@ python -m spacy download en_core_web_sm
 
 ## Future Enhancements
 
-- [ ] REST API wrapper
+- [x] REST API wrapper (see [docs/API_GUIDE.md](docs/API_GUIDE.md))
 - [ ] Web UI
 - [ ] Result caching
 - [ ] Multi-language support
@@ -387,8 +427,8 @@ Inherits license from parent Open WebUI project.
 ## Support
 
 For issues or questions:
-1. Check documentation files
-2. Review CLI_GUIDE.md
+1. Check documentation files in [docs/](docs/)
+2. Review [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md)
 3. Check logs for error messages
 4. Verify environment configuration
 
