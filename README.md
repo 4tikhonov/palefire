@@ -3,6 +3,33 @@ This framework created by [Slava Tykhonov](https://github.com/4tikhonov/) and hi
 
 > Named after Vladimir Nabokov's novel, where a poem becomes the subject of extensive commentary and interpretation—just like how this system builds a rich knowledge graph from text and enables intelligent exploration through questions.
 
+## Example
+
+Pale Fire can transform factually correct and evidence-confirmed data points from research datasets into human-readable descriptions based on annotations created by querying knowledge graphs on event entities and LLM integration of new knowledge into understandable narratives.
+
+**Use Case Example**: If you have data observations on strikes registered on a specific date and place, Pale Fire can:
+
+- Query the knowledge graph for related entities (location, date, event type)
+- Retrieve contextual information such as weather conditions and temperature from connected nodes
+- Find evidence from witnesses and related sources
+- Synthesize all this information into a coherent, human-readable narrative
+
+For instance, given a data point like:
+```
+Event: Strike
+Date: March 15, 2023
+Location: San Francisco, CA
+```
+
+Pale Fire can generate a narrative that includes:
+- Historical weather data for that date and location
+- Temperature records and conditions
+- Related witness accounts or news reports
+- Contextual information about similar events
+- Temporal relationships to other events in the knowledge graph
+
+This transforms raw data points into rich, contextualized stories that are both factually accurate and humanly comprehensible.
+
 ## Overview
 
 Pale Fire is an advanced knowledge graph search system featuring:
@@ -15,6 +42,29 @@ Pale Fire is an advanced knowledge graph search system featuring:
 - **📚 Theoretical Foundation** - Based on Pale Fire's interpretive framework (see [docs/PROS-CONS.md](docs/PROS-CONS.md))
 
 ## Quick Start
+
+### Docker (Recommended)
+
+```bash
+# 1. Start all services
+docker-compose up -d
+
+# 2. Setup (pull models)
+make setup
+
+# 3. Ingest demo data
+make ingest-demo
+
+# 4. Run a query
+make query
+
+# 5. Access services
+# - API: http://localhost:8000
+# - API Docs: http://localhost:8000/docs
+# - Neo4j: http://localhost:7474
+```
+
+See **[docs/DOCKER.md](docs/DOCKER.md)** for complete Docker documentation.
 
 ### CLI Usage
 
@@ -333,7 +383,8 @@ All documentation is located in the [`docs/`](docs/) folder. See **[docs/README.
 > **New:** Research documentation now available! See [docs/PROS-CONS.md](docs/PROS-CONS.md) for the theoretical framework and [docs/EVALUATION.md](docs/EVALUATION.md) for evaluation methodology.
 
 ### Getting Started
-- **[docs/PALEFIRE_SETUP.md](docs/PALEFIRE_SETUP.md)** - Setup instructions
+- **[docs/DOCKER.md](docs/DOCKER.md)** - Docker deployment guide (recommended)
+- **[docs/PALEFIRE_SETUP.md](docs/PALEFIRE_SETUP.md)** - Manual setup instructions
 - **[docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - Quick reference card
 - **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)** - Complete configuration guide
 
@@ -349,6 +400,7 @@ All documentation is located in the [`docs/`](docs/) folder. See **[docs/README.
 
 ### Advanced
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Architecture details
+- **[docs/REFACTORING_UTILS.md](docs/REFACTORING_UTILS.md)** - Code organization and utils refactoring
 - **[docs/TESTING.md](docs/TESTING.md)** - Testing guide and best practices
 - **[docs/DATABASE_CLEANUP.md](docs/DATABASE_CLEANUP.md)** - Database cleanup guide
 - **[docs/EXPORT_FEATURE.md](docs/EXPORT_FEATURE.md)** - JSON export feature
@@ -385,17 +437,23 @@ See:
 
 ## Requirements
 
-### Core
+### Docker (Recommended)
+- Docker 20.10+
+- Docker Compose 2.0+
+- (Optional) NVIDIA Docker for GPU support
+
+### Manual Installation
+**Core:**
 - Python 3.8+
 - graphiti-core
 - python-dotenv
 - Neo4j database
 
-### NER (Optional but Recommended)
+**NER (Optional but Recommended):**
 - spacy
 - en_core_web_sm model
 
-### Testing
+**Testing:**
 - pytest
 - pytest-asyncio
 - pytest-cov
