@@ -15,6 +15,7 @@ import sys
 from datetime import datetime, timezone
 from logging import INFO
 from pathlib import Path
+from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -32,7 +33,7 @@ from graphiti_core.embedder.openai import OpenAIEmbedder, OpenAIEmbedderConfig
 from graphiti_core.cross_encoder.openai_reranker_client import OpenAIRerankerClient
 
 # Import Pale Fire core modules
-from modules import EntityEnricher, QuestionTypeDetector
+from modules import EntityEnricher, QuestionTypeDetector, KeywordExtractor
 
 # Import utility functions
 from utils.palefire_utils import (
@@ -157,6 +158,152 @@ async def ingest_episodes(episodes_data: list, graphiti: Graphiti, use_ner: bool
         await graphiti.close()
 
 
+def extract_keywords_from_text(
+    text: str,
+    method: str = 'tfidf',
+    num_keywords: int = 10,
+    min_word_length: int = 3,
+    max_word_length: int = 50,
+    use_stemming: bool = False,
+    tfidf_weight: float = 1.0,
+    textrank_weight: float = 0.5,
+    word_freq_weight: float = 0.3,
+    position_weight: float = 0.2,
+    title_weight: float = 2.0,
+    first_sentence_weight: float = 1.5,
+    enable_ngrams: bool = True,
+    min_ngram: int = 2,
+    max_ngram: int = 4,
+    ngram_weight: float = 1.2,
+    documents_file: Optional[str] = None,
+    output_file: Optional[str] = None,
+    debug: bool = False
+):
+    """
+    Extract keywords from text using Gensim.
+    
+    Args:
+        text: Input text to extract keywords from
+        method: Extraction method ('tfidf', 'textrank', 'word_freq', 'combined')
+        num_keywords: Number of keywords to extract
+        min_word_length: Minimum word length
+        max_word_length: Maximum word length
+        use_stemming: Whether to use stemming
+        tfidf_weight: Weight for TF-IDF scores
+        textrank_weight: Weight for TextRank scores
+        word_freq_weight: Weight for word frequency scores
+        position_weight: Weight for position-based scoring
+        title_weight: Weight multiplier for words in titles
+        first_sentence_weight: Weight multiplier for words in first sentence
+        documents_file: Optional path to JSON file with documents for IDF
+        output_file: Optional path to output JSON file
+        debug: Enable debug output
+    """
+    try:
+        if debug:
+            import sys
+            debug_print('\n' + '='*80, file=sys.stderr)
+            debug_print('🔑 KEYWORD EXTRACTION', file=sys.stderr)
+            debug_print('='*80, file=sys.stderr)
+            debug_print(f'Method: {method}', file=sys.stderr)
+            debug_print(f'Number of keywords: {num_keywords}', file=sys.stderr)
+            debug_print(f'Text length: {len(text)} characters', file=sys.stderr)
+        
+        # Load documents if provided
+        documents = None
+        if documents_file:
+            try:
+                with open(documents_file, 'r', encoding='utf-8') as f:
+                    documents_data = json.load(f)
+                    if isinstance(documents_data, list):
+                        documents = documents_data
+                    else:
+                        logger.warning(f"Documents file should contain a list, got {type(documents_data)}")
+            except Exception as e:
+                logger.error(f"Error loading documents file: {e}")
+        
+        # Create keyword extractor
+        extractor = KeywordExtractor(
+            method=method,
+            num_keywords=num_keywords,
+            min_word_length=min_word_length,
+            max_word_length=max_word_length,
+            use_stemming=use_stemming,
+            tfidf_weight=tfidf_weight,
+            textrank_weight=textrank_weight,
+            word_freq_weight=word_freq_weight,
+            position_weight=position_weight,
+            title_weight=title_weight,
+            first_sentence_weight=first_sentence_weight,
+            enable_ngrams=enable_ngrams,
+            min_ngram=min_ngram,
+            max_ngram=max_ngram,
+            ngram_weight=ngram_weight,
+        )
+        
+        # Extract keywords
+        keywords = extractor.extract(text, documents)
+        
+        if debug:
+            import sys
+            debug_print(f'\nExtracted {len(keywords)} keywords:', file=sys.stderr)
+            for i, kw in enumerate(keywords, 1):
+                kw_type = kw.get('type', 'unigram')
+                debug_print(f'  {i}. {kw["keyword"]} (score: {kw["score"]:.4f}, type: {kw_type})', file=sys.stderr)
+        
+        # Prepare output
+        output = {
+            'method': method,
+            'num_keywords': len(keywords),
+            'keywords': keywords,
+            'parameters': {
+                'num_keywords': num_keywords,
+                'min_word_length': min_word_length,
+                'max_word_length': max_word_length,
+                'use_stemming': use_stemming,
+                'tfidf_weight': tfidf_weight,
+                'textrank_weight': textrank_weight,
+                'word_freq_weight': word_freq_weight,
+                'position_weight': position_weight,
+                'title_weight': title_weight,
+                'first_sentence_weight': first_sentence_weight,
+                'enable_ngrams': enable_ngrams,
+                'min_ngram': min_ngram,
+                'max_ngram': max_ngram,
+                'ngram_weight': ngram_weight,
+            }
+        }
+        
+        # Output results
+        if output_file:
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(output, f, indent=2, ensure_ascii=False)
+            if debug:
+                import sys
+                debug_print(f'\n✅ Keywords saved to {output_file}', file=sys.stderr)
+        else:
+            # Always output JSON to stdout (debug messages go to stderr)
+            print(json.dumps(output, indent=2, ensure_ascii=False))
+        
+        if debug:
+            # Debug messages go to stderr so they don't interfere with JSON output
+            import sys
+            debug_print('\n' + '='*80, file=sys.stderr)
+            debug_print('✅ KEYWORD EXTRACTION COMPLETE', file=sys.stderr)
+            debug_print('='*80, file=sys.stderr)
+        
+    except ImportError as e:
+        logger.error(f"Gensim not available: {e}")
+        logger.error("Install with: pip install gensim")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Error extracting keywords: {e}")
+        if debug:
+            import traceback
+            traceback.print_exc()
+        sys.exit(1)
+
+
 async def search_query(query: str, graphiti: Graphiti, method: str = 'question-aware', export_json: str = None, debug: bool = False):
     """Execute a search query using the specified method."""
     results = None
@@ -213,6 +360,12 @@ Examples:
 
   # Enable debug output
   %(prog)s query "test query" --debug
+
+  # Extract keywords from text
+  %(prog)s keywords "Your text here" --method tfidf --num-keywords 10
+
+  # Extract keywords with custom weights
+  %(prog)s keywords "Your text here" --method combined --tfidf-weight 1.5 --textrank-weight 0.8
         '''
     )
     
@@ -247,6 +400,49 @@ Examples:
                              help='Delete only nodes (keep indexes and constraints)')
     clean_parser.add_argument('--debug', action='store_true',
                              help='Enable debug output (verbose printing)')
+    
+    # Keywords command
+    keywords_parser = subparsers.add_parser('keywords', help='Extract keywords from text using Gensim')
+    keywords_parser.add_argument('text', type=str, help='Text to extract keywords from')
+    keywords_parser.add_argument('--method', type=str, default='tfidf',
+                                choices=['tfidf', 'textrank', 'word_freq', 'combined'],
+                                help='Extraction method (default: tfidf)')
+    keywords_parser.add_argument('--num-keywords', type=int, default=10, dest='num_keywords',
+                                help='Number of keywords to extract (default: 10)')
+    keywords_parser.add_argument('--min-word-length', type=int, default=3, dest='min_word_length',
+                                help='Minimum word length (default: 3)')
+    keywords_parser.add_argument('--max-word-length', type=int, default=50, dest='max_word_length',
+                                help='Maximum word length (default: 50)')
+    keywords_parser.add_argument('--use-stemming', action='store_true', dest='use_stemming',
+                                help='Use stemming for preprocessing')
+    keywords_parser.add_argument('--tfidf-weight', type=float, default=1.0, dest='tfidf_weight',
+                                help='Weight for TF-IDF scores in combined method (default: 1.0)')
+    keywords_parser.add_argument('--textrank-weight', type=float, default=0.5, dest='textrank_weight',
+                                help='Weight for TextRank scores in combined method (default: 0.5)')
+    keywords_parser.add_argument('--word-freq-weight', type=float, default=0.3, dest='word_freq_weight',
+                                help='Weight for word frequency scores in combined method (default: 0.3)')
+    keywords_parser.add_argument('--position-weight', type=float, default=0.2, dest='position_weight',
+                                help='Weight for position-based scoring (default: 0.2)')
+    keywords_parser.add_argument('--title-weight', type=float, default=2.0, dest='title_weight',
+                                help='Weight multiplier for words in titles/headers (default: 2.0)')
+    keywords_parser.add_argument('--first-sentence-weight', type=float, default=1.5, dest='first_sentence_weight',
+                                help='Weight multiplier for words in first sentence (default: 1.5)')
+    keywords_parser.add_argument('--enable-ngrams', action='store_true', default=True, dest='enable_ngrams',
+                                help='Enable n-gram extraction (default: True)')
+    keywords_parser.add_argument('--no-ngrams', dest='enable_ngrams', action='store_false',
+                                help='Disable n-gram extraction')
+    keywords_parser.add_argument('--min-ngram', type=int, default=2, dest='min_ngram',
+                                help='Minimum n-gram size (1 for unigrams, 2-4 for phrases) (default: 2)')
+    keywords_parser.add_argument('--max-ngram', type=int, default=4, dest='max_ngram',
+                                help='Maximum n-gram size (2, 3, or 4) (default: 4)')
+    keywords_parser.add_argument('--ngram-weight', type=float, default=1.2, dest='ngram_weight',
+                                help='Weight multiplier for n-grams (default: 1.2)')
+    keywords_parser.add_argument('--documents', type=str, dest='documents_file',
+                                help='Path to JSON file with list of documents for IDF calculation')
+    keywords_parser.add_argument('-o', '--output', '-output', type=str, dest='output_file',
+                                help='Path to output JSON file (default: print to stdout)')
+    keywords_parser.add_argument('--debug', action='store_true',
+                                help='Enable debug output (verbose printing)')
     
     return parser
 
@@ -321,6 +517,30 @@ async def main_cli(args):
         
         # Clean database
         await clean_database(graphiti, confirm=args.confirm, nodes_only=args.nodes_only, debug=DEBUG)
+    
+    elif args.command == 'keywords':
+        # Extract keywords from text
+        extract_keywords_from_text(
+            text=args.text,
+            method=args.method,
+            num_keywords=args.num_keywords,
+            min_word_length=args.min_word_length,
+            max_word_length=args.max_word_length,
+            use_stemming=args.use_stemming,
+            tfidf_weight=args.tfidf_weight,
+            textrank_weight=args.textrank_weight,
+            word_freq_weight=args.word_freq_weight,
+            position_weight=args.position_weight,
+            title_weight=args.title_weight,
+            first_sentence_weight=args.first_sentence_weight,
+            enable_ngrams=args.enable_ngrams,
+            min_ngram=args.min_ngram,
+            max_ngram=args.max_ngram,
+            ngram_weight=args.ngram_weight,
+            documents_file=args.documents_file,
+            output_file=args.output_file,
+            debug=DEBUG
+        )
         
     else:
         if DEBUG:
