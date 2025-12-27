@@ -1,7 +1,9 @@
 # Pale Fire - Intelligent Knowledge Graph Search System
 This framework is being developed by [Slava Tykhonov](https://www.linkedin.com/in/vyacheslavtikhonov/) and highly experimental.
 
-> Named after Vladimir Nabokov's novel ["Pale Fire"](https://en.wikipedia.org/wiki/Pale_Fire), where a poem becomes the subject of extensive commentary and interpretation—just like how this system builds a rich knowledge graph from text and enables intelligent exploration through questions. "The novel is presented as a 999-line poem, written by the fictional poet John Shade, with a foreword, lengthy commentary, and index written by Shade's neighbor and academic colleague, Charles Kinbote. Together these elements form a narrative in which both fictional authors are central characters. Pale Fire's unusual structure has attracted much attention, and it is often cited as an important example of metafiction, as well as an analog precursor to hypertext fiction, and a poioumenon."
+> Named after Vladimir Nabokov's novel ["Pale Fire"](https://en.wikipedia.org/wiki/Pale_Fire), where a poem becomes the subject of extensive commentary and interpretation—just like how this system builds a rich knowledge graph from text and enables intelligent exploration through questions. 
+
+"The novel is presented as a 999-line poem, written by the fictional poet John Shade, with a foreword, lengthy commentary, and index written by Shade's neighbor and academic colleague, Charles Kinbote. Together these elements form a narrative in which both fictional authors are central characters. Pale Fire's unusual structure has attracted much attention, and it is often cited as an important example of metafiction, as well as an analog precursor to hypertext fiction, and a poioumenon."
 
 ## Example
 
