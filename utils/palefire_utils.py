@@ -19,6 +19,12 @@ from modules import EntityEnricher, QuestionTypeDetector
 logger = logging.getLogger(__name__)
 
 
+def debug_print(debug: bool, *args, **kwargs):
+    """Print only if debug is True."""
+    if debug:
+        print(*args, **kwargs)
+
+
 async def get_node_connections_with_entities(graphiti, node_uuid):
     """
     Get the number of connections and connected entity names for a given node.
@@ -297,7 +303,7 @@ async def search_central_node(graphiti, query):
     return None
 
 
-async def search_episodes_with_custom_ranking(graphiti, query, connection_weight=None):
+async def search_episodes_with_custom_ranking(graphiti, query, connection_weight=None, debug: bool = False):
     """
     Enhanced search with custom ranking that weighs entities by their connections.
     
@@ -306,12 +312,13 @@ async def search_episodes_with_custom_ranking(graphiti, query, connection_weight
         query: Search query string
         connection_weight: Weight factor for connection count (0.0 to 1.0)
                           Higher values give more importance to well-connected nodes
+        debug: If True, enable verbose debug output
     """
     if connection_weight is None:
         connection_weight = config.WEIGHT_CONNECTION
     
-    print('\nPerforming enhanced search with connection-based ranking:')
-    print(f'Connection weight factor: {connection_weight}')
+    debug_print(debug, '\nPerforming enhanced search with connection-based ranking:')
+    debug_print(debug, f'Connection weight factor: {connection_weight}')
     
     # Use a predefined search configuration recipe and modify its limit
     node_search_config = NODE_HYBRID_SEARCH_RRF.model_copy(deep=True)
@@ -327,7 +334,7 @@ async def search_episodes_with_custom_ranking(graphiti, query, connection_weight
     enhanced_results = []
     max_connections = 0
     
-    print('\nFetching connection counts for each node...')
+    debug_print(debug, '\nFetching connection counts for each node...')
     for node in node_search_results.nodes:
         # Get connection count for this node
         connection_count = await get_node_connections(graphiti, node.uuid)
@@ -359,35 +366,35 @@ async def search_episodes_with_custom_ranking(graphiti, query, connection_weight
     enhanced_results.sort(key=lambda x: x['final_score'], reverse=True)
     
     # Print top results
-    print('\n=== Enhanced Search Results (Top 5) ===')
+    debug_print(debug, '\n=== Enhanced Search Results (Top 5) ===')
     for i, result in enumerate(enhanced_results[:5], 1):
         node = result['node']
-        print(f'\n[Rank {i}]')
-        print(f'Node UUID: {node.uuid}')
-        print(f'Node Name: {node.name}')
+        debug_print(debug, f'\n[Rank {i}]')
+        debug_print(debug, f'Node UUID: {node.uuid}')
+        debug_print(debug, f'Node Name: {node.name}')
         node_summary = node.summary[:100] + '...' if len(node.summary) > 100 else node.summary
-        print(f'Content Summary: {node_summary}')
-        print(f"Node Labels: {', '.join(node.labels)}")
-        print(f'Connections: {result["connection_count"]}')
-        print(f'Original Score: {result["original_score"]:.4f}')
-        print(f'Connection Score: {result["connection_score"]:.4f}')
-        print(f'Final Score: {result["final_score"]:.4f}')
+        debug_print(debug, f'Content Summary: {node_summary}')
+        debug_print(debug, f"Node Labels: {', '.join(node.labels)}")
+        debug_print(debug, f'Connections: {result["connection_count"]}')
+        debug_print(debug, f'Original Score: {result["original_score"]:.4f}')
+        debug_print(debug, f'Connection Score: {result["connection_score"]:.4f}')
+        debug_print(debug, f'Final Score: {result["final_score"]:.4f}')
         if hasattr(node, 'attributes') and node.attributes:
-            print('Attributes:')
+            debug_print(debug, 'Attributes:')
             for key, value in node.attributes.items():
-                print(f'  {key}: {value}')
-        print('---')
+                debug_print(debug, f'  {key}: {value}')
+        debug_print(debug, '---')
     
     return enhanced_results
 
 
-async def search_episodes(graphiti, query):
+async def search_episodes(graphiti, query, debug: bool = False):
     """Standard search using RRF hybrid search."""
-    print(
+    debug_print(debug,
         '\nPerforming node search using _search method with standard recipe NODE_HYBRID_SEARCH_RRF:'
     )
     logger.info(f"Standard search with query: '{query}'")
-    print(f'🔎 Query: "{query}"')
+    debug_print(debug, f'🔎 Query: "{query}"')
 
     # Use a predefined search configuration recipe and modify its limit
     node_search_config = NODE_HYBRID_SEARCH_RRF.model_copy(deep=True)
@@ -398,22 +405,22 @@ async def search_episodes(graphiti, query):
         query=query,
         config=node_search_config,
     )
-    print(f'   Found {len(node_search_results.nodes)} results')
+    debug_print(debug, f'   Found {len(node_search_results.nodes)} results')
 
     # Print node search results
-    print('\nNode Search Results:')
+    debug_print(debug, '\nNode Search Results:')
     for node in node_search_results.nodes:
-        print(f'Node UUID: {node.uuid}')
-        print(f'Node Name: {node.name}')
+        debug_print(debug, f'Node UUID: {node.uuid}')
+        debug_print(debug, f'Node Name: {node.name}')
         node_summary = node.summary[:100] + '...' if len(node.summary) > 100 else node.summary
-        print(f'Content Summary: {node_summary}')
-        print(f"Node Labels: {', '.join(node.labels)}")
-        print(f'Created At: {node.created_at}')
+        debug_print(debug, f'Content Summary: {node_summary}')
+        debug_print(debug, f"Node Labels: {', '.join(node.labels)}")
+        debug_print(debug, f'Created At: {node.created_at}')
         if hasattr(node, 'attributes') and node.attributes:
-            print('Attributes:')
+            debug_print(debug, 'Attributes:')
             for key, value in node.attributes.items():
-                print(f'  {key}: {value}')
-        print('---')
+                debug_print(debug, f'  {key}: {value}')
+        debug_print(debug, '---')
     return node_search_results
 
 
@@ -425,7 +432,8 @@ async def search_episodes_with_question_aware_ranking(
     temporal_weight=None,
     query_match_weight=None,
     entity_type_weight=None,
-    query_year=None
+    query_year=None,
+    debug: bool = False
 ):
     """
     INTELLIGENT search with question-type detection and entity-type weighting.
@@ -465,19 +473,19 @@ async def search_episodes_with_question_aware_ranking(
     # Calculate semantic weight (remaining weight after other factors)
     semantic_weight = 1.0 - connection_weight - temporal_weight - query_match_weight - entity_type_weight
     
-    print('\n🧠 Performing QUESTION-AWARE search with intelligent ranking:')
-    print(f'  Question Type: {question_info["type"]} - {question_info["description"]}')
-    print(f'  Confidence: {question_info["confidence"]:.2f}')
+    debug_print(debug, '\n🧠 Performing QUESTION-AWARE search with intelligent ranking:')
+    debug_print(debug, f'  Question Type: {question_info["type"]} - {question_info["description"]}')
+    debug_print(debug, f'  Confidence: {question_info["confidence"]:.2f}')
     if question_info['entity_weights']:
-        print(f'  Entity Type Preferences: {", ".join(f"{k}={v:.1f}x" for k, v in list(question_info["entity_weights"].items())[:5])}')
-    print(f'\n  Weight Distribution:')
-    print(f'    Semantic: {semantic_weight:.2f} (RRF hybrid search)')
-    print(f'    Connection: {connection_weight:.2f} (graph connectivity)')
-    print(f'    Temporal: {temporal_weight:.2f} (time period match)')
-    print(f'    Query Match: {query_match_weight:.2f} (term matching)')
-    print(f'    Entity Type: {entity_type_weight:.2f} (question-type alignment)')
+        debug_print(debug, f'  Entity Type Preferences: {", ".join(f"{k}={v:.1f}x" for k, v in list(question_info["entity_weights"].items())[:5])}')
+    debug_print(debug, f'\n  Weight Distribution:')
+    debug_print(debug, f'    Semantic: {semantic_weight:.2f} (RRF hybrid search)')
+    debug_print(debug, f'    Connection: {connection_weight:.2f} (graph connectivity)')
+    debug_print(debug, f'    Temporal: {temporal_weight:.2f} (time period match)')
+    debug_print(debug, f'    Query Match: {query_match_weight:.2f} (term matching)')
+    debug_print(debug, f'    Entity Type: {entity_type_weight:.2f} (question-type alignment)')
     if query_year:
-        print(f'  Query year: {query_year}')
+        debug_print(debug, f'  Query year: {query_year}')
     
     # Use a predefined search configuration recipe and modify its limit
     node_search_config = NODE_HYBRID_SEARCH_RRF.model_copy(deep=True)
@@ -485,12 +493,12 @@ async def search_episodes_with_question_aware_ranking(
     
     # Execute the node search
     logger.info(f"Executing search with query: '{query}'")
-    print(f'\n🔎 Searching for: "{query}"')
+    debug_print(debug, f'\n🔎 Searching for: "{query}"')
     node_search_results = await graphiti._search(
         query=query,
         config=node_search_config,
     )
-    print(f'   Found {len(node_search_results.nodes)} initial results from hybrid search')
+    debug_print(debug, f'   Found {len(node_search_results.nodes)} initial results from hybrid search')
     
     # Enhance results with all factors and rerank
     enhanced_results = []
@@ -500,7 +508,7 @@ async def search_episodes_with_question_aware_ranking(
     if enricher is None:
         enricher = EntityEnricher(use_spacy=config.NER_USE_SPACY)
     
-    print('\nAnalyzing nodes with question-aware scoring...')
+    debug_print(debug, '\nAnalyzing nodes with question-aware scoring...')
     for node in node_search_results.nodes:
         # Get connection details
         connection_info = await get_node_connections_with_entities(graphiti, node.uuid)
@@ -571,29 +579,29 @@ async def search_episodes_with_question_aware_ranking(
     enhanced_results.sort(key=lambda x: x['final_score'], reverse=True)
     
     # Print top results
-    print('\n' + '='*80)
-    print(f'🏆 QUESTION-AWARE RANKING RESULTS (Top {config.SEARCH_TOP_K})')
-    print('='*80)
+    debug_print(debug, '\n' + '='*80)
+    debug_print(debug, f'🏆 QUESTION-AWARE RANKING RESULTS (Top {config.SEARCH_TOP_K})')
+    debug_print(debug, '='*80)
     
     for i, result in enumerate(enhanced_results[:config.SEARCH_TOP_K], 1):
         node = result['node']
-        print(f'\n[Rank {i}] {node.name}')
-        print(f'UUID: {node.uuid}')
+        debug_print(debug, f'\n[Rank {i}] {node.name}')
+        debug_print(debug, f'UUID: {node.uuid}')
         node_summary = node.summary[:100] + '...' if len(node.summary) > 100 else node.summary
-        print(f'Summary: {node_summary}')
+        debug_print(debug, f'Summary: {node_summary}')
         
         # Display extracted entity types
         entities_by_type = result['enriched_node'].get('entities_by_type', {})
         if entities_by_type:
-            print(f'\n🏷️  Entity Types in Node:')
+            debug_print(debug, f'\n🏷️  Entity Types in Node:')
             for ent_type, ents in list(entities_by_type.items())[:5]:
                 weight = question_info['entity_weights'].get(ent_type, 1.0)
                 indicator = '⭐' if weight > 1.2 else ''
-                print(f'    {ent_type}: {", ".join(ents[:3])} {indicator}')
+                debug_print(debug, f'    {ent_type}: {", ".join(ents[:3])} {indicator}')
         
         # Display connection information
-        print(f'\n📊 Connection Analysis:')
-        print(f'  Total: {result["connection_count"]} connections')
+        debug_print(debug, f'\n📊 Connection Analysis:')
+        debug_print(debug, f'  Total: {result["connection_count"]} connections')
         if result['connected_entities']:
             # Format entities with their types
             entity_strs = []
@@ -611,34 +619,34 @@ async def search_episodes_with_question_aware_ranking(
             entities_str = ', '.join(entity_strs)
             if len(result['connected_entities']) > 6:
                 entities_str += f' ... (+{len(result["connected_entities"]) - 6} more)'
-            print(f'  Connected to: {entities_str}')
+            debug_print(debug, f'  Connected to: {entities_str}')
         
         # Display temporal information
         if result['temporal_info'] and result['temporal_info'].get('properties'):
-            print(f'\n🕐 Temporal Data:')
+            debug_print(debug, f'\n🕐 Temporal Data:')
             props = result['temporal_info']['properties']
             date_fields = ['term_start', 'term_end', 'start_date', 'end_date', 'year']
             for field in date_fields:
                 if field in props:
-                    print(f'  {field}: {props[field]}')
+                    debug_print(debug, f'  {field}: {props[field]}')
         
         # Display comprehensive scoring
-        print(f'\n📈 SCORING BREAKDOWN:')
-        print(f'  ├─ Semantic (RRF):     {result["original_score"]:.4f} × {semantic_weight:.2f} = {result["original_score"] * semantic_weight:.4f}')
-        print(f'  ├─ Connections:        {result["connection_score"]:.4f} × {connection_weight:.2f} = {result["connection_score"] * connection_weight:.4f}')
-        print(f'  ├─ Temporal Match:     {result["temporal_score"]:.4f} × {temporal_weight:.2f} = {result["temporal_score"] * temporal_weight:.4f}')
-        print(f'  ├─ Query Term Match:   {result["query_match_score"]:.4f} × {query_match_weight:.2f} = {result["query_match_score"] * query_match_weight:.4f}')
+        debug_print(debug, f'\n📈 SCORING BREAKDOWN:')
+        debug_print(debug, f'  ├─ Semantic (RRF):     {result["original_score"]:.4f} × {semantic_weight:.2f} = {result["original_score"] * semantic_weight:.4f}')
+        debug_print(debug, f'  ├─ Connections:        {result["connection_score"]:.4f} × {connection_weight:.2f} = {result["connection_score"] * connection_weight:.4f}')
+        debug_print(debug, f'  ├─ Temporal Match:     {result["temporal_score"]:.4f} × {temporal_weight:.2f} = {result["temporal_score"] * temporal_weight:.4f}')
+        debug_print(debug, f'  ├─ Query Term Match:   {result["query_match_score"]:.4f} × {query_match_weight:.2f} = {result["query_match_score"] * query_match_weight:.4f}')
         entity_boost = result["entity_type_multiplier"]
         boost_indicator = f' 🎯 {entity_boost:.1f}x BOOST!' if entity_boost >= 1.5 else ''
-        print(f'  ├─ Entity Type Match:  {entity_boost:.4f} multiplier{boost_indicator}')
-        print(f'  └─ FINAL SCORE:        {result["final_score"]:.4f}')
+        debug_print(debug, f'  ├─ Entity Type Match:  {entity_boost:.4f} multiplier{boost_indicator}')
+        debug_print(debug, f'  └─ FINAL SCORE:        {result["final_score"]:.4f}')
         
-        print('─' * 80)
+        debug_print(debug, '─' * 80)
     
     return enhanced_results
 
 
-def export_results_to_json(results, filepath: str, query: str, method: str):
+def export_results_to_json(results, filepath: str, query: str, method: str, debug: bool = False):
     """
     Export search results to a JSON file.
     
@@ -647,6 +655,7 @@ def export_results_to_json(results, filepath: str, query: str, method: str):
         filepath: Path to output JSON file
         query: Original search query
         method: Search method used
+        debug: If True, enable verbose debug output
     """
     try:
         # Prepare export data
@@ -717,15 +726,15 @@ def export_results_to_json(results, filepath: str, query: str, method: str):
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(export_data, f, indent=2, ensure_ascii=False, default=str)
         
-        print(f'\n💾 Results exported to: {filepath}')
-        print(f'   Total results: {export_data["total_results"]}')
+        debug_print(debug, f'\n💾 Results exported to: {filepath}')
+        debug_print(debug, f'   Total results: {export_data["total_results"]}')
         
     except Exception as e:
         logger.error(f'Error exporting results to JSON: {e}')
-        print(f'❌ Failed to export results: {e}')
+        debug_print(debug, f'❌ Failed to export results: {e}')
 
 
-async def clean_database(graphiti, confirm=False, nodes_only=False):
+async def clean_database(graphiti, confirm=False, nodes_only=False, debug: bool = False):
     """
     Clean/clear the Neo4j database.
     
@@ -733,6 +742,7 @@ async def clean_database(graphiti, confirm=False, nodes_only=False):
         graphiti: Graphiti instance
         confirm: If True, skip confirmation prompt
         nodes_only: If True, delete only nodes (keep indexes and constraints)
+        debug: If True, enable verbose debug output
     """
     try:
         # Get database statistics before cleaning
@@ -749,32 +759,32 @@ async def clean_database(graphiti, confirm=False, nodes_only=False):
             node_count = record['node_count'] if record else 0
             rel_count = record['relationship_count'] if record else 0
         
-        print('\n' + '='*80)
-        print('🗑️  DATABASE CLEANUP')
-        print('='*80)
-        print(f'Current database contents:')
-        print(f'  Nodes: {node_count}')
-        print(f'  Relationships: {rel_count}')
-        print()
+        debug_print(debug, '\n' + '='*80)
+        debug_print(debug, '🗑️  DATABASE CLEANUP')
+        debug_print(debug, '='*80)
+        debug_print(debug, f'Current database contents:')
+        debug_print(debug, f'  Nodes: {node_count}')
+        debug_print(debug, f'  Relationships: {rel_count}')
+        debug_print(debug, '')
         
         if node_count == 0:
-            print('✅ Database is already empty!')
+            debug_print(debug, '✅ Database is already empty!')
             return
         
         # Confirmation prompt
         if not confirm:
-            print('⚠️  WARNING: This will permanently delete all data!')
+            debug_print(debug, '⚠️  WARNING: This will permanently delete all data!')
             if nodes_only:
-                print('   Mode: Nodes only (indexes and constraints will be preserved)')
+                debug_print(debug, '   Mode: Nodes only (indexes and constraints will be preserved)')
             else:
-                print('   Mode: Complete cleanup (all nodes, relationships, and data)')
-            print()
+                debug_print(debug, '   Mode: Complete cleanup (all nodes, relationships, and data)')
+            debug_print(debug, '')
             response = input('Are you sure you want to continue? (yes/no): ')
             if response.lower() not in ['yes', 'y']:
-                print('❌ Cleanup cancelled.')
+                debug_print(debug, '❌ Cleanup cancelled.')
                 return
         
-        print('\n🔄 Cleaning database...')
+        debug_print(debug, '\n🔄 Cleaning database...')
         
         if nodes_only:
             # Delete only nodes and relationships
@@ -798,25 +808,25 @@ async def clean_database(graphiti, confirm=False, nodes_only=False):
             record = await result.single()
             remaining = record['count'] if record else 0
         
-        print('\n' + '='*80)
+        debug_print(debug, '\n' + '='*80)
         if remaining == 0:
-            print('✅ DATABASE CLEANED SUCCESSFULLY')
-            print('='*80)
-            print(f'Deleted:')
-            print(f'  Nodes: {node_count}')
-            print(f'  Relationships: {rel_count}')
-            print()
-            print('The database is now empty and ready for new data.')
+            debug_print(debug, '✅ DATABASE CLEANED SUCCESSFULLY')
+            debug_print(debug, '='*80)
+            debug_print(debug, f'Deleted:')
+            debug_print(debug, f'  Nodes: {node_count}')
+            debug_print(debug, f'  Relationships: {rel_count}')
+            debug_print(debug, '')
+            debug_print(debug, 'The database is now empty and ready for new data.')
         else:
-            print('⚠️  CLEANUP INCOMPLETE')
-            print('='*80)
-            print(f'Remaining nodes: {remaining}')
-            print('Some nodes may not have been deleted. Please check manually.')
-            print('='*80)
+            debug_print(debug, '⚠️  CLEANUP INCOMPLETE')
+            debug_print(debug, '='*80)
+            debug_print(debug, f'Remaining nodes: {remaining}')
+            debug_print(debug, 'Some nodes may not have been deleted. Please check manually.')
+            debug_print(debug, '='*80)
             
     except Exception as e:
         logger.error(f'Error cleaning database: {e}')
-        print(f'\n❌ Error cleaning database: {e}')
+        debug_print(debug, f'\n❌ Error cleaning database: {e}')
         raise
     finally:
         await graphiti.close()
