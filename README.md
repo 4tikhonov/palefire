@@ -28,6 +28,16 @@ Pale Fire can generate a narrative that includes:
 - Contextual information about similar events
 - Temporal relationships to other events in the knowledge graph
 
+**Example Narrative Output**:
+
+> On March 15, 2023, a labor strike occurred in San Francisco, California. The day was characterized by mild spring weather, with temperatures reaching 62°F (17°C) and partly cloudy conditions—typical for early spring in the Bay Area. According to weather records, the morning began with light fog that cleared by mid-day, providing clear visibility for the demonstration that took place in the city's financial district.
+>
+> Witness accounts from local news reports indicate that approximately 500 workers gathered outside the headquarters of a major tech company, carrying signs and chanting demands for better working conditions. The strike was part of a broader wave of labor actions that had been occurring across California's tech sector throughout early 2023, following similar events in Los Angeles on March 8th and Oakland on March 12th.
+>
+> This event was temporally connected to a series of related labor actions: it occurred just one week after a similar strike in Seattle, Washington, and preceded another major demonstration in San Jose scheduled for March 22nd. The knowledge graph reveals that these events were part of a coordinated effort by tech workers' unions across the West Coast, responding to industry-wide concerns about workplace safety and compensation.
+>
+> Historical context from the knowledge graph shows that San Francisco has a long history of labor activism, with notable strikes occurring in 2018 and 2020. The 2023 strike shares similar characteristics with these previous events, particularly in terms of location (financial district) and participant demographics (tech sector workers).
+
 This transforms raw data points into rich, contextualized stories that are both factually accurate and humanly comprehensible.
 
 ## Overview
