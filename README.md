@@ -7,7 +7,7 @@ This framework is being developed by [Slava Tykhonov](https://www.linkedin.com/i
 
 ## Example
 
-Pale Fire can transform factually correct and evidence-confirmed data points from research datasets into human-readable descriptions based on annotations created by querying knowledge graphs on event entities and LLM integration of new knowledge into understandable narratives.
+Pale Fire can transform factually correct and evidence-confirmed data points from research datasets into human-readable descriptions based on annotations created by querying knowledge graphs on event entities and LLM integration of new knowledge into understandable narratives. In opposite, it can turn back any human-readable annotation to factually correct data points and link the provenance information as reference.
 
 **Use Case Example**: If you have data observations on strikes registered on a specific date and place, Pale Fire can:
 
