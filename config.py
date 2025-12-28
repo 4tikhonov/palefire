@@ -35,6 +35,7 @@ OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'deepseek-r1:7b')
 OLLAMA_SMALL_MODEL = os.environ.get('OLLAMA_SMALL_MODEL', 'deepseek-r1:7b')
 OLLAMA_VERIFICATION_MODEL = os.environ.get('OLLAMA_VERIFICATION_MODEL', None)  # Optional: separate model for NER verification (defaults to OLLAMA_MODEL)
 OLLAMA_VERIFICATION_TIMEOUT = int(os.environ.get('OLLAMA_VERIFICATION_TIMEOUT', '300'))  # Timeout in seconds for verification requests (default: 300 = 5 minutes)
+OLLAMA_PARALLEL_REQUESTS = os.environ.get('OLLAMA_PARALLEL_REQUESTS', 'true').lower() in ('true', '1', 'yes')  # Enable parallel Ollama requests for better performance (default: True)
 OLLAMA_API_KEY = os.environ.get('OLLAMA_API_KEY', 'ollama')  # Placeholder
 
 # OpenAI Configuration
@@ -149,6 +150,7 @@ def get_llm_config():
             'small_model': OLLAMA_SMALL_MODEL,
             'verification_model': verification_model,
             'verification_timeout': OLLAMA_VERIFICATION_TIMEOUT,
+            'parallel_requests': OLLAMA_PARALLEL_REQUESTS,
             'base_url': OLLAMA_BASE_URL,
         }
     else:  # openai
@@ -157,6 +159,7 @@ def get_llm_config():
             'model': OPENAI_MODEL,
             'small_model': OPENAI_SMALL_MODEL,
             'verification_model': OPENAI_MODEL,  # Use same model for verification
+            'parallel_requests': True,  # OpenAI API typically supports parallel requests
             'base_url': OPENAI_BASE_URL,
         }
 
@@ -189,6 +192,7 @@ def print_config():
     llm_cfg = get_llm_config()
     print(f"LLM Model: {llm_cfg['model']}")
     print(f"LLM Verification Model: {llm_cfg.get('verification_model', llm_cfg['model'])}")
+    print(f"LLM Parallel Requests: {llm_cfg.get('parallel_requests', True)}")
     print(f"LLM Base URL: {llm_cfg['base_url']}")
     
     emb_cfg = get_embedder_config()
