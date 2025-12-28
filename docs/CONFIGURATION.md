@@ -46,8 +46,14 @@ OPENAI_API_KEY=your-api-key-here
 OLLAMA_BASE_URL=http://10.147.18.253:11434/v1
 OLLAMA_MODEL=deepseek-r1:7b
 OLLAMA_SMALL_MODEL=deepseek-r1:7b
+OLLAMA_VERIFICATION_MODEL=gpt-oss:latest  # Optional: separate model for NER verification (defaults to OLLAMA_MODEL)
+OLLAMA_VERIFICATION_TIMEOUT=300  # Timeout in seconds for verification requests (default: 300 = 5 minutes)
 OLLAMA_API_KEY=ollama  # Placeholder
 ```
+
+**Notes**:
+- `OLLAMA_VERIFICATION_MODEL` is optional. If not specified, the system will use `OLLAMA_MODEL` for verification. This allows you to use a specialized, lightweight model (like `gpt-oss:latest`) specifically for NER verification while using a different model for other LLM operations.
+- `OLLAMA_VERIFICATION_TIMEOUT` sets the timeout for LLM verification requests. Increase this value if you're processing large numbers of entities or using slower models. Default is 300 seconds (5 minutes).
 
 #### OpenAI Settings
 
@@ -222,6 +228,7 @@ Neo4j URI: bolt://10.147.18.253:7687
 Neo4j User: neo4j
 LLM Provider: ollama
 LLM Model: deepseek-r1:7b
+LLM Verification Model: gpt-oss:latest
 LLM Base URL: http://10.147.18.253:11434/v1
 Embedder Provider: ollama
 Embedder Model: nomic-embed-text

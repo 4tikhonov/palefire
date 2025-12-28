@@ -21,6 +21,11 @@ pip install graphiti-core python-dotenv
 # Install NER dependencies (optional but recommended)
 pip install -r requirements-ner.txt
 python -m spacy download en_core_web_sm
+
+# Install keyword extraction dependencies
+pip install gensim>=4.3.0
+# Optional: For better stemming support
+pip install nltk
 ```
 
 ### 2. Configure Environment
@@ -47,6 +52,7 @@ OPENAI_API_KEY=your_api_key_here
 # Ollama Configuration
 OLLAMA_BASE_URL=http://10.147.18.253:11434/v1
 OLLAMA_MODEL=deepseek-r1:7b
+OLLAMA_VERIFICATION_MODEL=gpt-oss:latest  # Optional: separate model for NER verification
 
 # Search Configuration
 DEFAULT_SEARCH_METHOD=question-aware

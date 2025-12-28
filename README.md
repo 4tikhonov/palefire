@@ -53,7 +53,7 @@ Pale Fire is an advanced knowledge graph search system featuring:
 - **🔧 Modular Architecture** - Clean separation of concerns for maintainability
 - **🤖 AI Agent Daemon** - Long-running daemon service that keeps Gensim and spaCy models loaded in memory for instant access
 - **🔑 Keyword Extraction** - Extract keywords and n-grams (2-4 words) using Gensim with configurable weights (TF-IDF, TextRank, Word Frequency)
-- **📄 File Parsing** - Extract text from multiple formats: TXT, CSV, PDF, Excel (.xlsx, .xls), OpenDocument (.ods)
+- **📄 File Parsing** - Extract text from multiple formats: TXT, CSV, PDF, Excel (.xlsx, .xls), OpenDocument (.ods), URLs/HTML
 - **📚 Theoretical Foundation** - Based on Pale Fire's interpretive framework (see [docs/PROS-CONS.md](docs/PROS-CONS.md))
 
 ## Quick Start
@@ -248,10 +248,12 @@ python palefire-cli.py parse-txt document.txt
 python palefire-cli.py parse-csv data.csv
 python palefire-cli.py parse-pdf document.pdf
 python palefire-cli.py parse-spreadsheet data.xlsx
+python palefire-cli.py parse-url https://example.com
 
 # Parse with options
 python palefire-cli.py parse-csv data.csv --delimiter ";"
 python palefire-cli.py parse-pdf document.pdf --max-pages 10
+python palefire-cli.py parse-url https://example.com --extract-keywords --keywords-method ner
 ```
 
 ### Manage AI Agent Daemon
@@ -326,6 +328,14 @@ palefire/
 │   │   ├── pdf_parser.py       # PDF parser
 │   │   └── spreadsheet_parser.py  # Excel/ODS parser
 │   └── docker-compose.agent.yml  # Docker compose for agent
+├── prompts/                     # AI/LLM prompts directory
+│   ├── system/                 # System prompts
+│   ├── queries/                # Query-related prompts
+│   ├── extraction/             # Extraction prompts
+│   └── templates/              # Reusable prompt templates
+├── examples/                    # Example files for tests
+│   ├── input/                  # Test input files
+│   └── output/                 # Test output files
 ├── example_episodes.json        # Example data
 ├── docs/                        # Documentation folder
 │   ├── CLI_GUIDE.md            # Complete CLI documentation
@@ -336,6 +346,7 @@ palefire/
 ```
 
 See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for complete architecture documentation.
+See **[prompts/README.md](prompts/README.md)** for prompts organization guide.
 
 ## 5-Factor Ranking System
 
@@ -401,6 +412,7 @@ NEO4J_PASSWORD=your_password
 LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434/v1
 OLLAMA_MODEL=deepseek-r1:7b
+OLLAMA_VERIFICATION_MODEL=gpt-oss:latest  # Optional: separate model for NER verification
 
 # Search Configuration
 DEFAULT_SEARCH_METHOD=question-aware
@@ -627,11 +639,12 @@ pip install nltk
 ### File parsing dependencies missing
 ```bash
 # Install all parsing dependencies
-pip install PyPDF2>=3.0.0 openpyxl>=3.1.0 xlrd>=2.0.0 odfpy>=1.4.0
+pip install PyPDF2>=3.0.0 openpyxl>=3.1.0 xlrd>=2.0.0 odfpy>=1.4.0 requests>=2.31.0 beautifulsoup4>=4.12.0
 
 # Or install individually as needed
 pip install PyPDF2>=3.0.0  # For PDF files
 pip install openpyxl>=3.1.0  # For .xlsx files
+pip install requests>=2.31.0 beautifulsoup4>=4.12.0  # For URL/HTML parsing
 pip install xlrd>=2.0.0  # For .xls files
 pip install odfpy>=1.4.0  # For .ods files
 ```
@@ -788,6 +801,7 @@ The AI Agent includes integrated file parsers for extracting text from various f
 - **CSV**: Comma-separated values with delimiter auto-detection
 - **PDF**: Text and table extraction (PyPDF2 or pdfplumber)
 - **Spreadsheets**: Excel (.xlsx, .xls) and OpenDocument (.ods) with multi-sheet support
+- **URL/HTML**: Extract text from web pages using BeautifulSoup with script/style removal
 
 ```python
 from agents import get_daemon

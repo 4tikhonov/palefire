@@ -20,7 +20,8 @@ palefire/
 │   │   ├── txt_parser.py       # Text file parser
 │   │   ├── csv_parser.py       # CSV parser
 │   │   ├── pdf_parser.py       # PDF parser
-│   │   └── spreadsheet_parser.py  # Excel/ODS parser
+│   │   ├── spreadsheet_parser.py  # Excel/ODS parser
+│   │   └── url_parser.py       # URL/HTML parser
 │   ├── docker-compose.agent.yml  # Docker compose for agent
 │   ├── Dockerfile.agent        # Dockerfile for agent
 │   └── DOCKER.md               # Docker documentation
@@ -69,7 +70,7 @@ The main CLI application that orchestrates everything:
 3. **Search Functions** - 5 different ranking approaches
 4. **Main Function** - Ingestion and search workflows
 5. **Agent Management** - Start/stop/status daemon commands
-6. **File Parsing** - Parse various file formats (TXT, CSV, PDF, Spreadsheet)
+6. **File Parsing** - Parse various file formats (TXT, CSV, PDF, Spreadsheet, URL/HTML)
 7. **Keyword Extraction** - Extract keywords with optional daemon integration
 
 ### `agents/AIAgent.py`
@@ -155,9 +156,22 @@ File parsing system for extracting text from various formats:
 
 **Supported:** `.xlsx`, `.xls`, `.xlsm`, `.ods`
 
+#### **URLParser**
+- Parses HTML pages from URLs
+- Uses BeautifulSoup for HTML parsing
+- Removes script/style tags by default
+- Extracts metadata (title, description, keywords, links)
+- Splits content into pages/sections based on headings
+- Configurable timeout and headers
+
+**Supported:** URLs (http://, https://)
+
+**Dependencies:** `requests>=2.31.0`, `beautifulsoup4>=4.12.0`
+
 #### **Parser Registry**
-- Automatic parser selection based on file extension
-- Factory function `get_parser(file_path)`
+- Automatic parser selection based on file extension or URL detection
+- Factory function `get_parser(file_path)` - detects URLs automatically
+- Helper function `is_url(path)` - checks if path is a URL
 - Extensible for new file types
 
 ## Import Structure
@@ -170,7 +184,7 @@ from modules import EntityEnricher, QuestionTypeDetector, KeywordExtractor
 from agents import ModelManager, AIAgentDaemon, get_daemon
 
 # File parsers
-from agents.parsers import TXTParser, CSVParser, PDFParser, SpreadsheetParser, get_parser
+from agents.parsers import TXTParser, CSVParser, PDFParser, SpreadsheetParser, URLParser, get_parser, is_url
 
 # Usage
 enricher = EntityEnricher(use_spacy=True)
@@ -253,18 +267,22 @@ result = parser.parse('document.pdf')
 
 ### File Parsing Flow
 ```
-1. User provides file path
+1. User provides file path or URL
    ↓
 2. Parser registry selects parser
-   ├─ Check file extension
+   ├─ Check if input is URL (is_url())
+   ├─ If URL: Use URLParser
+   ├─ If file: Check file extension
    └─ Instantiate appropriate parser
    ↓
-3. Parser validates file
-   ├─ Check file exists
-   ├─ Check file is readable
-   └─ Check file size > 0
+3. Parser validates input
+   ├─ For files: Check file exists, readable, size > 0
+   ├─ For URLs: Validate URL format (scheme, netloc)
+   └─ Return error if invalid
    ↓
-4. Parse file
+4. Parse file/URL
+   ├─ For files: Read from filesystem
+   ├─ For URLs: Fetch with requests, parse HTML with BeautifulSoup
    ├─ Extract text content
    ├─ Extract metadata
    ├─ Extract tables (if applicable)
@@ -272,7 +290,7 @@ result = parser.parse('document.pdf')
    ↓
 5. Return ParseResult
    ├─ text: Full extracted text
-   ├─ metadata: File information
+   ├─ metadata: File/URL information
    ├─ pages: Page-by-page text (optional)
    ├─ tables: Extracted tables (optional)
    └─ success: Boolean status
@@ -371,6 +389,8 @@ llm_config = LLMConfig(
 - `openpyxl>=3.1.0` - Excel .xlsx files
 - `xlrd>=2.0.0` - Excel .xls files
 - `odfpy>=1.4.0` - OpenDocument Spreadsheet (.ods) files
+- `requests>=2.31.0` - URL fetching
+- `beautifulsoup4>=4.12.0` - HTML parsing
 
 ## Extending the System
 
@@ -614,9 +634,11 @@ Parser System
 │   ├── TXTParser
 │   ├── CSVParser
 │   ├── PDFParser
-│   └── SpreadsheetParser
+│   ├── SpreadsheetParser
+│   └── URLParser
 └── Parser Registry
-    └── get_parser() - Factory function
+    ├── get_parser() - Factory function (auto-detects URLs)
+    └── is_url() - URL detection helper
 ```
 
 **ParseResult Structure**:
@@ -632,10 +654,12 @@ Parser System
 ```
 
 **Parser Selection**:
-1. Extract file extension
-2. Lookup in `PARSERS` registry
-3. Instantiate appropriate parser
-4. Return parser instance
+1. Check if input is URL using `is_url()`
+2. If URL: Return `URLParser` instance
+3. If file: Extract file extension
+4. Lookup in `PARSERS` registry
+5. Instantiate appropriate parser
+6. Return parser instance
 
 **Error Handling**:
 - Invalid file: Returns `ParseResult` with `success=False` and error message
@@ -690,9 +714,9 @@ async def parse_file(file: UploadFile):
 
 ### Planned Features
 - [x] AI Agent daemon for model persistence
-- [x] File parsers (TXT, CSV, PDF, Spreadsheet)
+- [x] File parsers (TXT, CSV, PDF, Spreadsheet, URL/HTML)
 - [x] Keyword extraction with n-grams
-- [ ] REST API wrapper
+- [x] REST API wrapper
 - [ ] Web UI
 - [ ] Batch processing API
 - [ ] Result caching

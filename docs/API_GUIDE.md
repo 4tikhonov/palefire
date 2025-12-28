@@ -186,6 +186,144 @@ Search the knowledge graph with intelligent ranking.
 }
 ```
 
+### POST `/keywords` - Extract Keywords
+
+Extract important keywords from text using Gensim with configurable weights and methods.
+
+**Request Body:**
+```json
+{
+  "text": "Artificial intelligence and machine learning are transforming technology. Deep learning algorithms process data efficiently.",
+  "method": "tfidf",
+  "num_keywords": 10,
+  "min_word_length": 3,
+  "max_word_length": 50,
+  "use_stemming": false,
+  "tfidf_weight": 1.0,
+  "textrank_weight": 0.5,
+  "word_freq_weight": 0.3,
+  "position_weight": 0.2,
+  "title_weight": 2.0,
+  "first_sentence_weight": 1.5,
+  "documents": null
+}
+```
+
+**Request Parameters:**
+- `text` (required): Text to extract keywords from
+- `method` (optional): Extraction method (`tfidf`, `textrank`, `word_freq`, `combined`) - default: `tfidf`
+- `num_keywords` (optional): Number of keywords to extract (1-100) - default: 10
+- `min_word_length` (optional): Minimum word length (1-50) - default: 3
+- `max_word_length` (optional): Maximum word length (1-100) - default: 50
+- `use_stemming` (optional): Enable stemming - default: false
+- `tfidf_weight` (optional): Weight for TF-IDF scores (combined method) - default: 1.0
+- `textrank_weight` (optional): Weight for TextRank scores (combined method) - default: 0.5
+- `word_freq_weight` (optional): Weight for word frequency scores (combined method) - default: 0.3
+- `position_weight` (optional): Weight for position-based scoring - default: 0.2
+- `title_weight` (optional): Weight multiplier for words in titles/headers - default: 2.0
+- `first_sentence_weight` (optional): Weight multiplier for first sentence words - default: 1.5
+- `documents` (optional): Array of strings for document corpus (for IDF calculation in TF-IDF method)
+
+**Response:**
+```json
+{
+  "method": "tfidf",
+  "num_keywords": 10,
+  "keywords": [
+    {
+      "keyword": "artificial",
+      "score": 0.8234
+    },
+    {
+      "keyword": "intelligence",
+      "score": 0.7123
+    },
+    {
+      "keyword": "machine",
+      "score": 0.6543
+    },
+    {
+      "keyword": "learning",
+      "score": 0.6123
+    },
+    {
+      "keyword": "deep",
+      "score": 0.5891
+    }
+  ],
+  "parameters": {
+    "num_keywords": 10,
+    "min_word_length": 3,
+    "max_word_length": 50,
+    "use_stemming": false,
+    "tfidf_weight": 1.0,
+    "textrank_weight": 0.5,
+    "word_freq_weight": 0.3,
+    "position_weight": 0.2,
+    "title_weight": 2.0,
+    "first_sentence_weight": 1.5
+  },
+  "timestamp": "2025-01-15T10:30:00.123456+00:00"
+}
+```
+
+**Example Requests:**
+
+```bash
+# Basic keyword extraction
+curl -X POST http://localhost:8000/keywords \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Artificial intelligence and machine learning are transforming technology.",
+    "num_keywords": 5
+  }'
+
+# Using TextRank method
+curl -X POST http://localhost:8000/keywords \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Your text here",
+    "method": "textrank",
+    "num_keywords": 10
+  }'
+
+# Combined method with custom weights
+curl -X POST http://localhost:8000/keywords \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Your text here",
+    "method": "combined",
+    "tfidf_weight": 1.5,
+    "textrank_weight": 0.8,
+    "title_weight": 3.0
+  }'
+
+# With document corpus for better IDF calculation
+curl -X POST http://localhost:8000/keywords \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Your text here",
+    "method": "tfidf",
+    "documents": [
+      "Document 1 text...",
+      "Document 2 text...",
+      "Document 3 text..."
+    ]
+  }'
+```
+
+**Error Responses:**
+
+```json
+{
+  "detail": "Keyword extraction not available. Install gensim: pip install gensim>=4.3.0"
+}
+```
+
+**Status Code:** 503 (Service Unavailable) - When gensim is not installed
+
+**Note:** This endpoint requires `gensim>=4.3.0` to be installed. Install with `pip install gensim>=4.3.0`. For better stemming support, also install NLTK: `pip install nltk`.
+
 ### DELETE `/clean` - Clean Database
 
 Clear all data from the Neo4j database.
@@ -239,6 +377,18 @@ results = response.json()
 print(f"Found {results['total_results']} results")
 for result in results['results']:
     print(f"{result['rank']}. {result['name']} (score: {result['scoring']['final_score']:.4f})")
+
+# Extract keywords
+keywords_data = {
+    "text": "Artificial intelligence and machine learning are transforming technology.",
+    "method": "tfidf",
+    "num_keywords": 10
+}
+response = requests.post(f"{BASE_URL}/keywords", json=keywords_data)
+keywords = response.json()
+print(f"Extracted {keywords['num_keywords']} keywords:")
+for kw in keywords['keywords']:
+    print(f"  - {kw['keyword']} (score: {kw['score']:.4f})")
 ```
 
 ### JavaScript/TypeScript
@@ -284,6 +434,22 @@ console.log(`Found ${searchData.total_results} results`);
 searchData.results.forEach(result => {
   console.log(`${result.rank}. ${result.name} (score: ${result.scoring.final_score})`);
 });
+
+// Extract keywords
+const keywordsResponse = await fetch(`${BASE_URL}/keywords`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    text: 'Artificial intelligence and machine learning are transforming technology.',
+    method: 'tfidf',
+    num_keywords: 10
+  })
+});
+const keywordsData = await keywordsResponse.json();
+console.log(`Extracted ${keywordsData.num_keywords} keywords:`);
+keywordsData.keywords.forEach(kw => {
+  console.log(`  - ${kw.keyword} (score: ${kw.score})`);
+});
 ```
 
 ### cURL
@@ -313,6 +479,15 @@ curl -X POST http://localhost:8000/search \
     "query": "Who is Kamala Harris?",
     "method": "question-aware",
     "limit": 5
+  }'
+
+# Extract keywords
+curl -X POST http://localhost:8000/keywords \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Artificial intelligence and machine learning are transforming technology.",
+    "method": "tfidf",
+    "num_keywords": 10
   }'
 
 # Clean database
@@ -434,6 +609,7 @@ volumes:
 | `/ingest` | 100-500ms per episode |
 | `/search` (standard) | 100-300ms |
 | `/search` (question-aware) | 500-2000ms |
+| `/keywords` | 50-500ms (depends on text length and method) |
 | `/clean` | 100-5000ms (depends on data size) |
 
 ### Optimization Tips

@@ -10,8 +10,14 @@ Pale Fire now includes a powerful command-line interface for ingesting episodes 
 cd /path/to/palefire
 
 # Install dependencies
+pip install -r requirements.txt
 pip install -r requirements-ner.txt
 python -m spacy download en_core_web_sm
+
+# Install keyword extraction dependencies
+pip install gensim>=4.3.0
+# Optional: For better stemming support
+pip install nltk
 
 # Configure environment
 cp .env.example .env  # Edit with your settings
@@ -111,6 +117,99 @@ LLM Base URL: http://10.147.18.253:11434/v1
 Embedder Model: nomic-embed-text
 ```
 
+### `keywords` - Extract Keywords from Text
+
+Extract important keywords from any text using Gensim with configurable weights and methods.
+
+**Usage:**
+```bash
+python palefire-cli.py keywords TEXT [OPTIONS]
+```
+
+**Options:**
+- `--method METHOD` - Extraction method:
+  - `tfidf` - TF-IDF scoring (default)
+  - `textrank` - Graph-based TextRank algorithm
+  - `word_freq` - Simple word frequency
+  - `combined` - Weighted combination of all methods
+- `--num-keywords N` - Number of keywords to extract (default: 10)
+- `--min-word-length N` - Minimum word length (default: 3)
+- `--max-word-length N` - Maximum word length (default: 50)
+- `--use-stemming` - Enable stemming for preprocessing
+- `--tfidf-weight FLOAT` - Weight for TF-IDF scores in combined method (default: 1.0)
+- `--textrank-weight FLOAT` - Weight for TextRank scores (default: 0.5)
+- `--word-freq-weight FLOAT` - Weight for word frequency scores (default: 0.3)
+- `--position-weight FLOAT` - Weight for position-based scoring (default: 0.2)
+- `--title-weight FLOAT` - Weight multiplier for words in titles/headers (default: 2.0)
+- `--first-sentence-weight FLOAT` - Weight multiplier for first sentence words (default: 1.5)
+- `--documents FILE` - Path to JSON file with document corpus for IDF calculation
+- `--output FILE` - Save results to JSON file (default: print to stdout)
+- `--debug` - Enable debug output
+
+**Examples:**
+```bash
+# Basic keyword extraction
+python palefire-cli.py keywords "Artificial intelligence and machine learning are transforming technology"
+
+# Extract more keywords with TF-IDF
+python palefire-cli.py keywords "Your text here" --method tfidf --num-keywords 20
+
+# Use TextRank method
+python palefire-cli.py keywords "Your text here" --method textrank
+
+# Combined method with custom weights
+python palefire-cli.py keywords "Your text here" \
+  --method combined \
+  --tfidf-weight 1.5 \
+  --textrank-weight 0.8 \
+  --title-weight 3.0
+
+# Extract keywords with stemming
+python palefire-cli.py keywords "Your text here" --use-stemming
+
+# Save to JSON file
+python palefire-cli.py keywords "Your text here" --output keywords.json
+
+# Use document corpus for better IDF calculation
+python palefire-cli.py keywords "Your text here" \
+  --documents corpus.json \
+  --method tfidf
+```
+
+**Output Format:**
+```json
+{
+  "method": "tfidf",
+  "num_keywords": 10,
+  "keywords": [
+    {"keyword": "artificial", "score": 0.8234},
+    {"keyword": "intelligence", "score": 0.7123},
+    {"keyword": "machine", "score": 0.6543}
+  ],
+  "parameters": {
+    "num_keywords": 10,
+    "min_word_length": 3,
+    "max_word_length": 50,
+    "use_stemming": false,
+    "tfidf_weight": 1.0,
+    "textrank_weight": 0.5,
+    "word_freq_weight": 0.3,
+    "position_weight": 0.2,
+    "title_weight": 2.0,
+    "first_sentence_weight": 1.5
+  }
+}
+```
+
+**Use Cases:**
+- Extract key terms from documents
+- Generate tags for content
+- Identify important concepts in text
+- Preprocessing for search indexing
+- Content summarization
+
+**Note:** Gensim is required for this command. Install with `pip install gensim>=4.3.0`. For better stemming support, also install NLTK: `pip install nltk`.
+
 ### `clean` - Clean/Clear Database
 
 Clean or clear all data from the Neo4j database.
@@ -173,6 +272,204 @@ The database is now empty and ready for new data.
 - Clear old data before new ingestion
 - Remove corrupted data
 - Start fresh with a clean slate
+
+### File Parsing Commands
+
+Pale Fire supports parsing various file formats and URLs to extract text content and keywords.
+
+#### `parse` - Auto-detect and Parse Files
+
+Automatically detect file type and parse accordingly.
+
+**Usage:**
+```bash
+python palefire-cli.py parse FILE [OPTIONS]
+```
+
+**Options:**
+- `--prompt, -p TEXT` - Natural language command (e.g., "parse PDF file example.pdf")
+- `--extract-keywords` - Extract keywords from parsed text
+- `--keywords-method METHOD` - Keyword extraction method (tfidf, textrank, word_freq, combined, ner)
+- `--verify-ner` - Verify NER results using LLM (only for ner method)
+- `--deep` - Process text sentence-by-sentence (only for ner method)
+- `--blocksize N` - Number of sentences per block when using --deep (default: 1)
+- `--num-keywords N` - Number of keywords to extract (default: 20)
+- `--output, -o FILE` - Output JSON file
+
+**Examples:**
+```bash
+# Auto-detect and parse
+python palefire-cli.py parse document.pdf
+
+# Parse with natural language
+python palefire-cli.py parse --prompt "parse PDF file example.pdf, first 10 pages only"
+
+# Parse and extract keywords
+python palefire-cli.py parse document.pdf --extract-keywords --keywords-method ner
+```
+
+#### `parse-txt` - Parse Text Files
+
+Parse plain text files (.txt).
+
+**Usage:**
+```bash
+python palefire-cli.py parse-txt FILE [OPTIONS]
+```
+
+**Options:**
+- `--encoding ENCODING` - Text encoding (default: utf-8)
+- `--extract-keywords` - Extract keywords
+- `--keywords-method METHOD` - Keyword extraction method
+- `--output, -o FILE` - Output JSON file
+
+**Examples:**
+```bash
+python palefire-cli.py parse-txt document.txt
+python palefire-cli.py parse-txt document.txt --extract-keywords --keywords-method ner
+```
+
+#### `parse-csv` - Parse CSV Files
+
+Parse comma-separated values files (.csv).
+
+**Usage:**
+```bash
+python palefire-cli.py parse-csv FILE [OPTIONS]
+```
+
+**Options:**
+- `--delimiter CHAR` - CSV delimiter (default: ,)
+- `--include-headers` - Include header row (default: True)
+- `--no-headers` - Do not include header row
+- `--extract-keywords` - Extract keywords
+- `--output, -o FILE` - Output JSON file
+
+**Examples:**
+```bash
+python palefire-cli.py parse-csv data.csv
+python palefire-cli.py parse-csv data.csv --delimiter ";"
+```
+
+#### `parse-pdf` - Parse PDF Files
+
+Parse PDF documents (.pdf).
+
+**Usage:**
+```bash
+python palefire-cli.py parse-pdf FILE [OPTIONS]
+```
+
+**Options:**
+- `--max-pages N` - Maximum number of pages to parse
+- `--extract-tables` - Extract tables (default: True)
+- `--no-tables` - Do not extract tables
+- `--extract-keywords` - Extract keywords
+- `--output, -o FILE` - Output JSON file
+
+**Examples:**
+```bash
+python palefire-cli.py parse-pdf document.pdf
+python palefire-cli.py parse-pdf document.pdf --max-pages 10
+python palefire-cli.py parse-pdf document.pdf --extract-keywords --keywords-method ner --verify-ner
+```
+
+#### `parse-spreadsheet` - Parse Spreadsheet Files
+
+Parse Excel and OpenDocument spreadsheet files (.xlsx, .xls, .ods).
+
+**Usage:**
+```bash
+python palefire-cli.py parse-spreadsheet FILE [OPTIONS]
+```
+
+**Options:**
+- `--sheets SHEET1 SHEET2 ...` - Sheet names to parse (default: all)
+- `--include-headers` - Include header rows (default: True)
+- `--no-headers` - Do not include header rows
+- `--extract-keywords` - Extract keywords
+- `--output, -o FILE` - Output JSON file
+
+**Examples:**
+```bash
+python palefire-cli.py parse-spreadsheet data.xlsx
+python palefire-cli.py parse-spreadsheet data.xlsx --sheets "Summary" "Details"
+```
+
+#### `parse-url` - Parse HTML Pages from URLs
+
+Parse HTML content from web pages using BeautifulSoup.
+
+**Usage:**
+```bash
+python palefire-cli.py parse-url URL [OPTIONS]
+```
+
+**Options:**
+- `--prompt, -p TEXT` - Natural language command (e.g., "parse URL https://example.com")
+- `--timeout N` - Request timeout in seconds (default: 30)
+- `--remove-scripts` - Remove script and style tags (default: True)
+- `--keep-scripts` - Keep script and style tags
+- `--extract-keywords` - Extract keywords from parsed text
+- `--keywords-method METHOD` - Keyword extraction method (tfidf, textrank, word_freq, combined, ner)
+- `--verify-ner` - Verify NER results using LLM (only for ner method)
+- `--deep` - Process text sentence-by-sentence with ordered index (only for ner method)
+- `--blocksize N` - Number of sentences per block when --deep is used (default: 1)
+- `--num-keywords N` - Number of keywords to extract (default: 20)
+- `--output, -o FILE` - Output JSON file
+- `--debug` - Enable debug output
+
+**Examples:**
+```bash
+# Basic URL parsing
+python palefire-cli.py parse-url https://example.com
+
+# Parse with keyword extraction
+python palefire-cli.py parse-url https://example.com --extract-keywords
+
+# Parse with NER extraction
+python palefire-cli.py parse-url https://example.com --extract-keywords --keywords-method ner
+
+# Parse with NER verification
+python palefire-cli.py parse-url https://example.com --extract-keywords --keywords-method ner --verify-ner
+
+# Parse with deep processing
+python palefire-cli.py parse-url https://example.com --extract-keywords --keywords-method ner --deep --blocksize 3
+
+# Using natural language prompt
+python palefire-cli.py parse-url --prompt "parse URL https://example.com and extract keywords with NER"
+
+# Save to file
+python palefire-cli.py parse-url https://example.com --output result.json
+```
+
+**Dependencies:**
+- `requests>=2.31.0` - For fetching URLs
+- `beautifulsoup4>=4.12.0` - For parsing HTML content
+
+Install with:
+```bash
+pip install requests beautifulsoup4
+```
+
+**Output Format:**
+```json
+{
+  "text": "Extracted text content...",
+  "metadata": {
+    "url": "https://example.com",
+    "title": "Page Title",
+    "status_code": 200,
+    "content_type": "text/html",
+    "description": "Meta description",
+    "keywords": "meta, keywords",
+    "links": [...]
+  },
+  "pages": [...],
+  "success": true,
+  "keywords": [...]
+}
+```
 
 ## Episode File Format
 

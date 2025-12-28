@@ -6,7 +6,8 @@ Complete documentation for the Pale Fire knowledge graph search system.
 
 ### Getting Started
 
-- **[PALEFIRE_SETUP.md](PALEFIRE_SETUP.md)** - Installation and setup guide
+- **[DOCKER.md](DOCKER.md)** - Docker deployment guide (recommended)
+- **[PALEFIRE_SETUP.md](PALEFIRE_SETUP.md)** - Manual installation and setup guide
 - **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Quick command reference
 - **[CONFIGURATION.md](CONFIGURATION.md)** - Configuration options and environment variables
 
@@ -25,9 +26,17 @@ Complete documentation for the Pale Fire knowledge graph search system.
 ### Advanced Topics
 
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture and design
+- **[REFACTORING_UTILS.md](REFACTORING_UTILS.md)** - Code organization and utils refactoring
+- **[TESTING.md](TESTING.md)** - Testing guide and best practices
+- **[TEST_SUITE_SUMMARY.md](TEST_SUITE_SUMMARY.md)** - Test suite overview and statistics
 - **[DATABASE_CLEANUP.md](DATABASE_CLEANUP.md)** - Database cleanup and maintenance
 - **[EXPORT_FEATURE.md](EXPORT_FEATURE.md)** - JSON export functionality
 - **[ENTITY_TYPES_UPDATE.md](ENTITY_TYPES_UPDATE.md)** - Entity types in connections
+
+### Research & Theory
+
+- **[PROS-CONS.md](PROS-CONS.md)** - Pale Fire framework for dataset representation
+- **[EVALUATION.md](EVALUATION.md)** - Evaluation framework for interpretive AI systems
 
 ### Changelog & Migration
 
@@ -42,19 +51,26 @@ Complete documentation for the Pale Fire knowledge graph search system.
 ## 🚀 Quick Links
 
 ### For New Users
-1. Start with [PALEFIRE_SETUP.md](PALEFIRE_SETUP.md)
-2. Check [QUICK_REFERENCE.md](QUICK_REFERENCE.md)
-3. Try the [CLI_GUIDE.md](CLI_GUIDE.md)
+1. Start with [DOCKER.md](DOCKER.md) for easy deployment
+2. Or follow [PALEFIRE_SETUP.md](PALEFIRE_SETUP.md) for manual setup
+3. Check [QUICK_REFERENCE.md](QUICK_REFERENCE.md)
+4. Try the [CLI_GUIDE.md](CLI_GUIDE.md)
 
 ### For Developers
 1. Read [ARCHITECTURE.md](ARCHITECTURE.md)
 2. Explore [API_GUIDE.md](API_GUIDE.md)
 3. Review [CONFIGURATION.md](CONFIGURATION.md)
+4. Run tests with [TESTING.md](TESTING.md)
 
 ### For Advanced Users
 1. Understand [RANKING_SYSTEM.md](RANKING_SYSTEM.md)
 2. Learn about [NER_ENRICHMENT.md](NER_ENRICHMENT.md)
 3. Master [QUESTION_TYPE_DETECTION.md](QUESTION_TYPE_DETECTION.md)
+
+### For Researchers
+1. Explore [PROS-CONS.md](PROS-CONS.md) - Theoretical framework
+2. Review [EVALUATION.md](EVALUATION.md) - Evaluation methodology
+3. Study [ARCHITECTURE.md](ARCHITECTURE.md) - System design
 
 ## 📖 Documentation Organization
 
@@ -63,7 +79,8 @@ docs/
 ├── README.md                      # This file
 │
 ├── Getting Started/
-│   ├── PALEFIRE_SETUP.md         # Setup guide
+│   ├── DOCKER.md                 # Docker deployment
+│   ├── PALEFIRE_SETUP.md         # Manual setup guide
 │   ├── QUICK_REFERENCE.md        # Quick reference
 │   └── CONFIGURATION.md          # Configuration
 │
@@ -79,9 +96,15 @@ docs/
 │
 ├── Advanced/
 │   ├── ARCHITECTURE.md           # Architecture
+│   ├── TESTING.md                # Testing guide
+│   ├── TEST_SUITE_SUMMARY.md     # Test suite summary
 │   ├── DATABASE_CLEANUP.md       # Database cleanup
 │   ├── EXPORT_FEATURE.md         # Export feature
 │   └── ENTITY_TYPES_UPDATE.md    # Entity types
+│
+├── Research & Theory/
+│   ├── PROS-CONS.md              # Pale Fire framework
+│   └── EVALUATION.md             # Evaluation methodology
 │
 └── Changelog/
     ├── CHANGELOG_CONFIG.md       # Config migration
