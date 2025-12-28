@@ -23,6 +23,7 @@ pytest --cov=. --cov-report=html
 | `test_palefire_core.py` | EntityEnricher & QuestionTypeDetector | 25+ tests |
 | `test_search_functions.py` | Search and helper functions | 20+ tests |
 | `test_api.py` | FastAPI endpoints and models | 15+ tests |
+| `test_ai_agent.py` | AI Agent (ModelManager, Daemon, Parsers) | 47+ tests |
 
 ## Test Coverage
 
@@ -32,6 +33,8 @@ Current test coverage by module:
 - **modules/PaleFireCore.py**: Entity extraction, question detection
 - **Search functions**: Query parsing, scoring, ranking
 - **api.py**: Pydantic models, endpoint logic
+- **agents/AIAgent.py**: ModelManager, AIAgentDaemon lifecycle, keyword/entity extraction
+- **agents/parsers/**: File parsers (TXT, CSV, PDF, Spreadsheet)
 
 ## Running Tests
 
