@@ -1,0 +1,7 @@
+# Reusable prompt templates directory
+
+Store reusable prompt templates here, such as:
+- Template files with variables
+- Prompt building blocks
+- Composable prompt components
+

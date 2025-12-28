@@ -1,0 +1,7 @@
+# System prompts directory
+
+Store system-level prompts here, such as:
+- Entity extraction system prompts
+- Question type detection prompts
+- Knowledge graph generation prompts
+
