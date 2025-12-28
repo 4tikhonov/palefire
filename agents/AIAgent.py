@@ -900,7 +900,8 @@ class AIAgentDaemon:
             # Score based on entity type importance
             type_weights = {
                 'PER': 1.0, 'ORG': 0.9, 'LOC': 0.8, 'GPE': 0.8,
-                'PRODUCT': 0.7, 'EVENT': 0.7, 'FAC': 0.6, 'WORK_OF_ART': 0.6,
+                'PRODUCT': 0.7, 'EVENT': 0.7, 'BOOK': 0.7, 'MODEL': 0.7, 'SOFTWARE': 0.6,
+                'FAC': 0.6, 'WORK_OF_ART': 0.6,
                 'LAW': 0.5, 'LANGUAGE': 0.5, 'DATE': 0.4, 'TIME': 0.3,
                 'MONEY': 0.3, 'PERCENT': 0.2, 'ORDINAL': 0.2, 'CARDINAL': 0.1, 'QUANTITY': 0.1,
                 'OTHER': 0.1,  # Not a recognized entity type - low priority
@@ -1138,7 +1139,8 @@ class AIAgentDaemon:
             # Score based on entity type importance
             type_weights = {
                 'PER': 1.0, 'ORG': 0.9, 'LOC': 0.8, 'GPE': 0.8,
-                'PRODUCT': 0.7, 'EVENT': 0.7, 'FAC': 0.6, 'WORK_OF_ART': 0.6,
+                'PRODUCT': 0.7, 'EVENT': 0.7, 'BOOK': 0.7, 'MODEL': 0.7, 'SOFTWARE': 0.6,
+                'FAC': 0.6, 'WORK_OF_ART': 0.6,
                 'LAW': 0.5, 'LANGUAGE': 0.5, 'DATE': 0.4, 'TIME': 0.3,
                 'MONEY': 0.3, 'PERCENT': 0.2, 'ORDINAL': 0.2, 'CARDINAL': 0.1, 'QUANTITY': 0.1,
                 'OTHER': 0.1,  # Not a recognized entity type - low priority
