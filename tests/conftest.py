@@ -5,10 +5,16 @@ Shared pytest fixtures for all test modules.
 import pytest
 import sys
 import os
+from pathlib import Path
 from unittest.mock import Mock, AsyncMock
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Test directories for examples
+TEST_ROOT = Path(__file__).parent.parent
+EXAMPLES_INPUT_DIR = TEST_ROOT / 'examples' / 'input'
+EXAMPLES_OUTPUT_DIR = TEST_ROOT / 'examples' / 'output'
 
 
 @pytest.fixture
@@ -207,6 +213,20 @@ def sample_config():
         'WEIGHT_QUERY_MATCH': 0.20,
         'WEIGHT_ENTITY_TYPE': 0.15
     }
+
+
+@pytest.fixture
+def examples_input_dir():
+    """Path to examples/input directory for test files."""
+    EXAMPLES_INPUT_DIR.mkdir(parents=True, exist_ok=True)
+    return EXAMPLES_INPUT_DIR
+
+
+@pytest.fixture
+def examples_output_dir():
+    """Path to examples/output directory for test outputs."""
+    EXAMPLES_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    return EXAMPLES_OUTPUT_DIR
 
 
 # Pytest configuration hooks

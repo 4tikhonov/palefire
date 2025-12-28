@@ -118,6 +118,30 @@ class TestFeatureName:
             function(invalid_input)
 ```
 
+## Test Directories
+
+### `examples/input/`
+Directory for test input files (sample documents, CSV files, PDFs, etc.). Use this directory for persistent test files that should be version-controlled.
+
+**Usage:**
+```python
+@pytest.fixture
+def sample_file(examples_input_dir):
+    return examples_input_dir / 'sample.txt'
+```
+
+### `examples/output/`
+Directory for test output files (parsed results, extracted keywords, etc.). Use this directory for storing test outputs for verification.
+
+**Usage:**
+```python
+@pytest.fixture
+def output_file(examples_output_dir):
+    return examples_output_dir / 'result.json'
+```
+
+**Note:** Tests currently use `tempfile` for temporary files, but these directories are available for integration tests that need persistent test files.
+
 ## Continuous Integration
 
 Tests run automatically on:

@@ -32,6 +32,7 @@ class KeywordExtractionMethod(str, Enum):
     textrank = "textrank"
     word_freq = "word_freq"
     combined = "combined"
+    ner = "ner"
 
 
 # ============================================================================
@@ -83,6 +84,9 @@ class KeywordExtractionRequest(BaseModel):
     max_ngram: int = Field(4, description="Maximum n-gram size (2, 3, or 4)", ge=2, le=4)
     ngram_weight: float = Field(1.2, description="Weight multiplier for n-grams", ge=0.0)
     documents: Optional[List[str]] = Field(None, description="Optional document corpus for IDF calculation")
+    verify_ner: bool = Field(False, description="Verify NER results using LLM (only for method='ner')")
+    deep: bool = Field(False, description="Process text sentence-by-sentence with ordered index (only for method='ner')")
+    blocksize: int = Field(1, description="Number of sentences per block when deep=True (default: 1 = sentence-by-sentence)", ge=1)
 
 
 # ============================================================================
@@ -159,6 +163,7 @@ class KeywordInfo(BaseModel):
     keyword: str
     score: float
     type: Optional[str] = Field(None, description="Type of keyword: 'unigram', '2-gram', '3-gram', or '4-gram'")
+    reasoning: Optional[str] = Field(None, description="LLM reasoning for NER-based extraction")
 
 
 class KeywordExtractionResponse(BaseModel):
@@ -167,6 +172,7 @@ class KeywordExtractionResponse(BaseModel):
     num_keywords: int
     keywords: List[KeywordInfo]
     parameters: Dict[str, Any]
+    verified: bool = Field(False, description="Whether the results were verified by LLM")
     timestamp: str
 
 
@@ -181,6 +187,8 @@ class FileParseResponse(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict, description="File metadata")
     pages: List[str] = Field(default_factory=list, description="Page-by-page text (for multi-page documents)")
     tables: List[Dict[str, Any]] = Field(default_factory=list, description="Extracted tables")
+    keywords: Optional[List[KeywordInfo]] = Field(None, description="Extracted keywords from text")
+    verified: bool = Field(False, description="Whether the keywords were verified by LLM")
     error: Optional[str] = Field(None, description="Error message if parsing failed")
     file_type: Optional[str] = Field(None, description="Detected file type")
     timestamp: str

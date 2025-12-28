@@ -32,6 +32,16 @@ def _pdf_libraries_available():
         except ImportError:
             return False
 
+# Helper function for URL parser testing
+def _url_libraries_available():
+    """Check if URL parsing libraries are available."""
+    try:
+        import requests
+        from bs4 import BeautifulSoup
+        return True
+    except ImportError:
+        return False
+
 # Import agent modules
 from agents import ModelManager, AIAgentDaemon, get_daemon
 
@@ -42,7 +52,9 @@ try:
         CSVParser,
         PDFParser,
         SpreadsheetParser,
+        URLParser,
         get_parser,
+        is_url,
     )
     PARSERS_AVAILABLE = True
 except ImportError:
@@ -52,7 +64,9 @@ except ImportError:
     CSVParser = None
     PDFParser = None
     SpreadsheetParser = None
+    URLParser = None
     get_parser = None
+    is_url = None
 
 
 class TestModelManager:
@@ -446,6 +460,54 @@ class TestSpreadsheetParser:
 
 
 @pytest.mark.skipif(not PARSERS_AVAILABLE, reason="Parsers not available")
+@pytest.mark.skipif(not _url_libraries_available(), reason="URL parsing libraries not available")
+class TestURLParser:
+    """Test URL parser."""
+    
+    def test_url_parser_init(self):
+        """Test URL parser initialization."""
+        parser = URLParser()
+        assert parser is not None
+        assert parser.timeout == 30
+    
+    def test_url_parser_init_with_timeout(self):
+        """Test URL parser initialization with custom timeout."""
+        parser = URLParser(timeout=60)
+        assert parser.timeout == 60
+    
+    def test_url_parser_validate_url(self):
+        """Test URL parser URL validation."""
+        parser = URLParser()
+        assert parser.validate_file('https://example.com')
+        assert parser.validate_file('http://example.com')
+        assert not parser.validate_file('not-a-url')
+        assert not parser.validate_file('/path/to/file.txt')
+    
+    def test_url_parser_supported_extensions(self):
+        """Test URL parser supported extensions (should be empty)."""
+        parser = URLParser()
+        extensions = parser.get_supported_extensions()
+        assert extensions == []  # URLs don't have file extensions
+    
+    def test_url_parser_parse_invalid_url(self):
+        """Test URL parser with invalid URL."""
+        parser = URLParser()
+        result = parser.parse('not-a-valid-url')
+        
+        assert not result.success
+        assert result.error is not None
+    
+    @pytest.mark.skipif(not _url_libraries_available(), reason="requests/beautifulsoup4 not available")
+    def test_is_url_helper(self):
+        """Test is_url helper function."""
+        assert is_url('https://example.com')
+        assert is_url('http://example.com/path')
+        assert not is_url('not-a-url')
+        assert not is_url('/path/to/file.txt')
+        assert not is_url('file.txt')
+
+
+@pytest.mark.skipif(not PARSERS_AVAILABLE, reason="Parsers not available")
 class TestParserRegistry:
     """Test parser registry and factory."""
     
@@ -468,6 +530,18 @@ class TestParserRegistry:
         """Test getting Spreadsheet parser for .xlsx."""
         parser = get_parser('test.xlsx')
         assert isinstance(parser, SpreadsheetParser)
+    
+    @pytest.mark.skipif(not _url_libraries_available(), reason="requests/beautifulsoup4 not available")
+    def test_get_parser_url(self):
+        """Test getting URL parser for URL."""
+        parser = get_parser('https://example.com')
+        assert isinstance(parser, URLParser)
+    
+    @pytest.mark.skipif(not _url_libraries_available(), reason="requests/beautifulsoup4 not available")
+    def test_get_parser_url_http(self):
+        """Test getting URL parser for HTTP URL."""
+        parser = get_parser('http://example.com')
+        assert isinstance(parser, URLParser)
     
     def test_get_parser_unsupported(self):
         """Test getting parser for unsupported file type."""

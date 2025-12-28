@@ -60,6 +60,15 @@ When creating new prompts:
 [Template content here...]
 ```
 
+## Current Prompts
+
+### System Prompts (`system/`)
+- **`parser_detection_prompt.md`** - LLM prompt for detecting which file parser to use based on natural language commands
+- **`parser_detection_examples.md`** - Examples and test cases for parser detection
+
+### Templates (`templates/`)
+- **`parser_detection_function.json`** - Function calling schema for parser detection (OpenAI/Claude format)
+
 ## Best Practices
 
 1. ✅ Keep prompts modular and reusable

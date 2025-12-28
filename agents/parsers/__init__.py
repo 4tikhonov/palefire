@@ -9,6 +9,7 @@ from .txt_parser import TXTParser
 from .csv_parser import CSVParser
 from .pdf_parser import PDFParser
 from .spreadsheet_parser import SpreadsheetParser
+from .url_parser import URLParser
 
 __all__ = [
     'BaseParser',
@@ -17,6 +18,7 @@ __all__ = [
     'CSVParser',
     'PDFParser',
     'SpreadsheetParser',
+    'URLParser',
 ]
 
 # Parser registry
@@ -30,12 +32,30 @@ PARSERS = {
 }
 
 
-def get_parser(file_path: str) -> BaseParser:
+def is_url(path: str) -> bool:
     """
-    Get appropriate parser for file based on extension.
+    Check if the given path is a URL.
     
     Args:
-        file_path: Path to file
+        path: Path or URL to check
+        
+    Returns:
+        True if path is a URL, False otherwise
+    """
+    from urllib.parse import urlparse
+    try:
+        result = urlparse(path)
+        return all([result.scheme, result.netloc])
+    except Exception:
+        return False
+
+
+def get_parser(file_path: str) -> BaseParser:
+    """
+    Get appropriate parser for file based on extension or URL.
+    
+    Args:
+        file_path: Path to file or URL
         
     Returns:
         Parser instance
@@ -43,6 +63,10 @@ def get_parser(file_path: str) -> BaseParser:
     Raises:
         ValueError: If no parser available for file type
     """
+    # Check if it's a URL
+    if is_url(file_path):
+        return URLParser()
+    
     from pathlib import Path
     ext = Path(file_path).suffix.lower()
     

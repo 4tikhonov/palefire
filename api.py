@@ -396,34 +396,56 @@ async def extract_keywords(request: KeywordExtractionRequest):
     try:
         logger.info(f"Extracting keywords (method: {request.method.value}, num: {request.num_keywords})")
         
-        # Create extractor with requested parameters
-        extractor = KeywordExtractor(
-            method=request.method.value,
-            num_keywords=request.num_keywords,
-            min_word_length=request.min_word_length,
-            max_word_length=request.max_word_length,
-            use_stemming=request.use_stemming,
-            tfidf_weight=request.tfidf_weight,
-            textrank_weight=request.textrank_weight,
-            word_freq_weight=request.word_freq_weight,
-            position_weight=request.position_weight,
-            title_weight=request.title_weight,
-            first_sentence_weight=request.first_sentence_weight,
-            enable_ngrams=request.enable_ngrams,
-            min_ngram=request.min_ngram,
-            max_ngram=request.max_ngram,
-            ngram_weight=request.ngram_weight,
-        )
-        
-        # Extract keywords
-        keywords = extractor.extract(request.text, request.documents)
+        # If NER method, use AI Agent daemon
+        if request.method.value == 'ner':
+            if not AGENT_AVAILABLE:
+                raise HTTPException(
+                    status_code=503,
+                    detail="NER keyword extraction requires AI Agent daemon."
+                )
+            
+            daemon = get_daemon(use_spacy=True)
+            if not daemon.model_manager.is_initialized():
+                daemon.model_manager.initialize(use_spacy=True)
+            
+            keywords = daemon.extract_keywords(
+                request.text,
+                num_keywords=request.num_keywords,
+                method='ner',
+                verify_ner=request.verify_ner,
+                deep=request.deep,
+                blocksize=request.blocksize
+            )
+        else:
+            # Create extractor with requested parameters
+            extractor = KeywordExtractor(
+                method=request.method.value,
+                num_keywords=request.num_keywords,
+                min_word_length=request.min_word_length,
+                max_word_length=request.max_word_length,
+                use_stemming=request.use_stemming,
+                tfidf_weight=request.tfidf_weight,
+                textrank_weight=request.textrank_weight,
+                word_freq_weight=request.word_freq_weight,
+                position_weight=request.position_weight,
+                title_weight=request.title_weight,
+                first_sentence_weight=request.first_sentence_weight,
+                enable_ngrams=request.enable_ngrams,
+                min_ngram=request.min_ngram,
+                max_ngram=request.max_ngram,
+                ngram_weight=request.ngram_weight,
+            )
+            
+            # Extract keywords
+            keywords = extractor.extract(request.text, request.documents)
         
         # Convert to response format
         keyword_list = [
             KeywordInfo(
                 keyword=kw['keyword'],
                 score=kw['score'],
-                type=kw.get('type', 'unigram')
+                type=kw.get('type', 'unigram'),
+                reasoning=kw.get('reasoning')
             )
             for kw in keywords
         ]
@@ -444,6 +466,7 @@ async def extract_keywords(request: KeywordExtractionRequest):
             'min_ngram': request.min_ngram,
             'max_ngram': request.max_ngram,
             'ngram_weight': request.ngram_weight,
+            'verify_ner': request.verify_ner
         }
         
         return KeywordExtractionResponse(
@@ -451,6 +474,7 @@ async def extract_keywords(request: KeywordExtractionRequest):
             num_keywords=len(keyword_list),
             keywords=keyword_list,
             parameters=parameters,
+            verified=request.verify_ner if request.method.value == 'ner' else False,
             timestamp=datetime.now(timezone.utc).isoformat()
         )
         
@@ -521,6 +545,12 @@ async def parse_file(
     max_pages: Optional[int] = Form(None, description="Maximum pages to parse (for PDF files)", ge=1),
     extract_tables: bool = Form(True, description="Extract tables (for PDF/spreadsheet files)"),
     sheet_names: Optional[str] = Form(None, description="Comma-separated sheet names (for spreadsheet files)"),
+    extract_keywords: bool = Form(False, description="Extract keywords from parsed text"),
+    keywords_method: str = Form("combined", description="Keyword extraction method (tfidf, textrank, word_freq, combined, ner)"),
+    num_keywords: int = Form(20, description="Number of keywords to extract"),
+    verify_ner: bool = Form(False, description="Verify NER results using LLM (only for keywords_method='ner')"),
+    deep: bool = Form(False, description="Process text sentence-by-sentence with ordered index (only for keywords_method='ner')"),
+    blocksize: int = Form(1, description="Number of sentences per block when deep=True (default: 1 = sentence-by-sentence)", ge=1),
 ):
     """
     Parse a file and extract text content.
@@ -552,7 +582,7 @@ async def parse_file(
         
         try:
             # Get daemon instance
-            daemon = get_daemon(use_spacy=False)
+            daemon = get_daemon(use_spacy=extract_keywords and keywords_method == 'ner')
             
             # Prepare parser options
             parser_options = {}
@@ -570,12 +600,36 @@ async def parse_file(
             # Parse file
             result = daemon.parse_file(tmp_path, file_type=detected_type, **parser_options)
             
+            # Extract keywords if requested
+            keywords = None
+            if extract_keywords and result.get('success'):
+                keywords_data = daemon.extract_keywords(
+                    result.get('text', ''),
+                    num_keywords=num_keywords,
+                    method=keywords_method,
+                    verify_ner=verify_ner,
+                    deep=deep,
+                    blocksize=blocksize
+                )
+                if keywords_data:
+                    keywords = [
+                        KeywordInfo(
+                            keyword=kw['keyword'],
+                            score=kw['score'],
+                            type=kw.get('type'),
+                            reasoning=kw.get('reasoning')
+                        )
+                        for kw in keywords_data
+                    ]
+            
             return FileParseResponse(
                 success=result.get('success', False),
                 text=result.get('text', ''),
                 metadata=result.get('metadata', {}),
                 pages=result.get('pages', []),
                 tables=result.get('tables', []),
+                keywords=keywords,
+                verified=verify_ner if keywords_method == 'ner' else False,
                 error=result.get('error'),
                 file_type=detected_type,
                 timestamp=datetime.now(timezone.utc).isoformat()

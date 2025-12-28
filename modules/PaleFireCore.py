@@ -62,7 +62,32 @@ class EntityEnricher:
         'WORK_OF_ART': 'WORK_OF_ART',
         'ORDINAL': 'ORDINAL',
         'CARDINAL': 'CARDINAL',
-        'QUANTITY': 'QUANTITY'
+        'QUANTITY': 'QUANTITY',
+        'OTHER': 'OTHER'  # Not a recognized entity type
+    }
+    
+    # Entity types that need rich context for LLM verification
+    # These are the important named entities that often have false positives
+    CONTEXT_REQUIRED_TYPES = {
+        'PER': 'Person names indicate human beings being mentioned',
+        'ORG': 'Organization name indicate companies, agencies, institutions, none-profits, etc.',
+        'LOC': 'Locations indicate physical places like mountains, lakes, etc.',
+        'GPE': 'Geopolitical entities indicate countries, cities, states, etc.',
+        'PRODUCT': 'Products indicate objects, vehicles, foods, etc. (not services)',
+        'EVENT': 'Events indicate named hurricanes, battles, wars, sports events, etc.',
+        'FAC': 'Facilities indicate buildings, airports, highways, bridges, etc.',
+        'WORK_OF_ART': 'Works of art indicate titles of books, songs, etc.',
+        'LAW': 'Laws indicate named documents made into laws.',
+        'NORP': 'NORP indicates nationalities or religious or political groups.',
+        'DATE': 'Dates indicate absolute or relative dates or periods.',
+        'TIME': 'Times indicate times smaller than a day.',
+        'MONEY': 'Money indicates monetary values, including unit.',
+        'PERCENT': 'Percent indicates percentage values.',
+        'LANGUAGE': 'Language indicates any named language.',
+        'ORDINAL': 'Ordinal indicates ordinal numbers (first, second, etc.).',
+        'CARDINAL': 'Cardinal indicates cardinal numbers that do not fall under another type.',
+        'QUANTITY': 'Quantity indicates measurements, such as weight or distance.',
+        'OTHER': 'Not a recognized entity type',
     }
     
     def __init__(self, use_spacy=True):
@@ -72,8 +97,17 @@ class EntityEnricher:
         else:
             logger.info("⚠ Using pattern-based NER (install spaCy for better results)")
     
-    def extract_entities_spacy(self, text: str) -> List[Dict[str, Any]]:
-        """Extract entities using spaCy NER."""
+    def extract_entities_spacy(self, text: str, context_window: int = 100) -> List[Dict[str, Any]]:
+        """
+        Extract entities using spaCy NER with rich context for important entity types.
+        
+        Args:
+            text: Text to extract entities from
+            context_window: Number of characters before/after entity to include as context
+        
+        Returns:
+            List of entity dictionaries. Important entity types (PER, ORG, LOC, etc.) include 'context' field.
+        """
         if not self.use_spacy:
             return []
         
@@ -82,13 +116,77 @@ class EntityEnricher:
         
         for ent in doc.ents:
             entity_type = self.ENTITY_TYPES.get(ent.label_, ent.label_)
-            entities.append({
+            
+            # Base entity data
+            entity_data = {
                 'text': ent.text,
                 'type': entity_type,
                 'start': ent.start_char,
                 'end': ent.end_char,
                 'label': ent.label_  # Original spaCy label
-            })
+            }
+            
+            # Only add rich context for important entity types that need verification
+            if entity_type in self.CONTEXT_REQUIRED_TYPES:
+                # Extract rich context around the entity
+                context_start = max(0, ent.start_char - context_window)
+                context_end = min(len(text), ent.end_char + context_window)
+                context_before = text[context_start:ent.start_char].strip()
+                context_after = text[ent.end_char:context_end].strip()
+                
+                # Get sentence context (spaCy provides sentence boundaries)
+                sentence_start = ent.sent.start_char if hasattr(ent, 'sent') and ent.sent else context_start
+                sentence_end = ent.sent.end_char if hasattr(ent, 'sent') and ent.sent else context_end
+                sentence_context = text[sentence_start:sentence_end].strip()
+                
+                # Get surrounding sentences for broader context
+                if hasattr(ent, 'sent') and ent.sent:
+                    # Get previous sentence
+                    prev_sent = None
+                    try:
+                        # Iterate through all sentences to find the one before ent.sent
+                        current_sent = ent.sent
+                        for sent in doc.sents:
+                            if sent.end == current_sent.start:
+                                prev_sent = sent
+                                break
+                    except:
+                        pass
+                    
+                    # Get next sentence
+                    next_sent = None
+                    try:
+                        # Find the next sentence after this one
+                        current_sent = ent.sent
+                        for sent in doc.sents:
+                            if sent.start > current_sent.end:
+                                next_sent = sent
+                                break
+                    except:
+                        pass
+                    
+                    # Build extended context
+                    extended_context_parts = []
+                    if prev_sent:
+                        extended_context_parts.append(prev_sent.text.strip())
+                    extended_context_parts.append(sentence_context)
+                    if next_sent:
+                        extended_context_parts.append(next_sent.text.strip())
+                    extended_context = ' '.join(extended_context_parts)
+                else:
+                    extended_context = sentence_context
+                
+                # Add context only for important entity types
+                entity_data['context'] = {
+                    'description': self.CONTEXT_REQUIRED_TYPES.get(entity_type, ''),
+                    'before': context_before,
+                    'after': context_after,
+                    'sentence': sentence_context,
+                    'extended': extended_context,  # Full sentence + surrounding sentences
+                    'window_size': context_window
+                }
+            
+            entities.append(entity_data)
         
         return entities
     
@@ -134,10 +232,19 @@ class EntityEnricher:
         
         return entities
     
-    def extract_entities(self, text: str) -> List[Dict[str, Any]]:
-        """Extract entities using available method."""
+    def extract_entities(self, text: str, context_window: int = 100) -> List[Dict[str, Any]]:
+        """
+        Extract entities using available method.
+        
+        Args:
+            text: Text to extract entities from
+            context_window: Number of characters before/after entity to include as context (for spaCy only)
+        
+        Returns:
+            List of entity dictionaries with context information
+        """
         if self.use_spacy:
-            return self.extract_entities_spacy(text)
+            return self.extract_entities_spacy(text, context_window=context_window)
         else:
             return self.extract_entities_pattern(text)
     
