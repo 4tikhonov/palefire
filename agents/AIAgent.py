@@ -294,14 +294,15 @@ class AIAgentDaemon:
             return self.extract_keywords_ner(text, num_keywords=num_keywords, verify_ner=verify_ner, deep=deep, blocksize=blocksize)
         
         # Otherwise, use gensim-based methods
-        extractor = self.model_manager.keyword_extractor
-        
-        # Update extractor parameters if provided
-        if kwargs:
-            # Create a new extractor with updated parameters
-            extractor = KeywordExtractor(**kwargs)
-        
-        return extractor.extract(text, num_keywords=num_keywords, method=method)
+        # Create a new extractor with the desired parameters
+        extractor_kwargs = {
+            'method': method,
+            'num_keywords': num_keywords,
+            **kwargs  # Additional parameters
+        }
+        extractor = KeywordExtractor(**extractor_kwargs)
+
+        return extractor.extract(text)
     
     def _parse_gemma3_markdown(self, response: str, original_entities: List[Dict[str, Any]], model_name: str = "LLM") -> List[Dict[str, Any]]:
         """
