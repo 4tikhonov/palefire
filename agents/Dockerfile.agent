@@ -1,0 +1,76 @@
+# Pale Fire - AI Agent Dockerfile
+# Multi-stage build for optimized image size
+
+# Stage 1: Builder
+FROM python:3.11-slim AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements (build context is parent directory)
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+# Install additional dependencies for keyword extraction
+RUN pip install --no-cache-dir --user gensim>=4.3.0 nltk
+
+# Download spaCy model
+RUN python -m spacy download en_core_web_sm
+
+# Download NLTK data (optional, for better stemming)
+RUN python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords')" || true
+
+# Stage 2: Runtime
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Python packages from builder
+COPY --from=builder /root/.local /root/.local
+
+# Copy spaCy model from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages/en_core_web_sm* /usr/local/lib/python3.11/site-packages/
+
+# Copy NLTK data from builder (if downloaded)
+# Use RUN with mount to conditionally copy if directory exists
+RUN --mount=from=builder,source=/root/nltk_data,target=/tmp/nltk_data \
+    if [ -d /tmp/nltk_data ]; then cp -r /tmp/nltk_data /root/; fi || true
+
+# Make sure scripts in .local are usable
+ENV PATH=/root/.local/bin:$PATH
+
+# Copy application files (build context is parent directory)
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p logs data /tmp
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PALEFIRE_PIDFILE=/tmp/palefire_ai_agent.pid
+ENV PALEFIRE_USE_SPACY=true
+ENV PALEFIRE_DAEMON=true
+
+# Health check - verify the agent process is running
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD pgrep -f "palefire-agent-service.py" > /dev/null || exit 1
+
+# Default command - run the agent service
+CMD ["python", "agents/palefire-agent-service.py"]
+

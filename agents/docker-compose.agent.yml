@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # Pale Fire AI Agent Daemon
+  palefire-agent:
+    build:
+      context: ..
+      dockerfile: agents/Dockerfile.agent
+    container_name: palefire-ai-agent
+    environment:
+      # Agent Configuration
+      - PALEFIRE_PIDFILE=/tmp/palefire_ai_agent.pid
+      - PALEFIRE_USE_SPACY=true
+      - PALEFIRE_DAEMON=false  # Docker handles daemonization, run in foreground
+      
+      # Logging
+      - LOG_LEVEL=INFO
+      - PYTHONUNBUFFERED=1
+      
+      # Optional: NLTK data path
+      - NLTK_DATA=/root/nltk_data
+    volumes:
+      # Mount logs directory for persistence (relative to parent directory)
+      - ../logs:/app/logs
+      # Mount data directory if needed (relative to parent directory)
+      - ../data:/app/data
+      # Optional: Mount models directory if you want to persist downloaded models
+      # - ./models:/root/.local/lib/python3.11/site-packages
+    networks:
+      - palefire-network
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'palefire-agent-service.py' > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    # Run in foreground (Docker handles daemonization)
+    command: python agents/palefire-agent-service.py
+
+networks:
+  palefire-network:
+    driver: bridge
+    # Use existing network if main docker-compose.yml is running
+    # Set to external: true and name: palefire-network if running alongside main compose
+    external: false
+

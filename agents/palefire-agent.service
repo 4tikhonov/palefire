@@ -1,0 +1,20 @@
+[Unit]
+Description=Pale Fire AI Agent Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=/path/to/palefire
+Environment="PALEFIRE_PIDFILE=/tmp/palefire_ai_agent.pid"
+Environment="PALEFIRE_USE_SPACY=true"
+Environment="PALEFIRE_DAEMON=true"
+ExecStart=/usr/bin/python3 /path/to/palefire/agents/palefire-agent-service.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+

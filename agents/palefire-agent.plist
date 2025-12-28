@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.palefire.aiagent</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/path/to/palefire/agents/palefire-agent-service.py</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/palefire_ai_agent.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/palefire_ai_agent.error.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PALEFIRE_PIDFILE</key>
+        <string>/tmp/palefire_ai_agent.pid</string>
+        <key>PALEFIRE_USE_SPACY</key>
+        <string>true</string>
+        <key>PALEFIRE_DAEMON</key>
+        <string>true</string>
+    </dict>
+</dict>
+</plist>
+
