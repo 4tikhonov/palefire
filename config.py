@@ -33,6 +33,8 @@ LLM_PROVIDER = os.environ.get('LLM_PROVIDER', 'ollama')
 OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://10.147.18.253:11434/v1')
 OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'deepseek-r1:7b')
 OLLAMA_SMALL_MODEL = os.environ.get('OLLAMA_SMALL_MODEL', 'deepseek-r1:7b')
+OLLAMA_VERIFICATION_MODEL = os.environ.get('OLLAMA_VERIFICATION_MODEL', None)  # Optional: separate model for NER verification (defaults to OLLAMA_MODEL)
+OLLAMA_VERIFICATION_TIMEOUT = int(os.environ.get('OLLAMA_VERIFICATION_TIMEOUT', '300'))  # Timeout in seconds for verification requests (default: 300 = 5 minutes)
 OLLAMA_API_KEY = os.environ.get('OLLAMA_API_KEY', 'ollama')  # Placeholder
 
 # OpenAI Configuration
@@ -139,10 +141,14 @@ def validate_config():
 def get_llm_config():
     """Get LLM configuration based on provider."""
     if LLM_PROVIDER == 'ollama':
+        # Use verification model if specified and not empty, otherwise fallback to main model
+        verification_model = OLLAMA_VERIFICATION_MODEL if (OLLAMA_VERIFICATION_MODEL and OLLAMA_VERIFICATION_MODEL.strip()) else OLLAMA_MODEL
         return {
             'api_key': OLLAMA_API_KEY,
             'model': OLLAMA_MODEL,
             'small_model': OLLAMA_SMALL_MODEL,
+            'verification_model': verification_model,
+            'verification_timeout': OLLAMA_VERIFICATION_TIMEOUT,
             'base_url': OLLAMA_BASE_URL,
         }
     else:  # openai
@@ -150,6 +156,7 @@ def get_llm_config():
             'api_key': OPENAI_API_KEY,
             'model': OPENAI_MODEL,
             'small_model': OPENAI_SMALL_MODEL,
+            'verification_model': OPENAI_MODEL,  # Use same model for verification
             'base_url': OPENAI_BASE_URL,
         }
 
@@ -181,6 +188,7 @@ def print_config():
     
     llm_cfg = get_llm_config()
     print(f"LLM Model: {llm_cfg['model']}")
+    print(f"LLM Verification Model: {llm_cfg.get('verification_model', llm_cfg['model'])}")
     print(f"LLM Base URL: {llm_cfg['base_url']}")
     
     emb_cfg = get_embedder_config()
