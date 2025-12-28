@@ -14,6 +14,7 @@ import threading
 from typing import Optional, Dict, Any, List
 from pathlib import Path
 import json
+import re
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -21,6 +22,14 @@ logger = logging.getLogger(__name__)
 # Import models
 from modules.KeywordBase import KeywordExtractor
 from modules.PaleFireCore import EntityEnricher
+
+# Try to import config for LLM access
+try:
+    import config
+    CONFIG_AVAILABLE = True
+except ImportError:
+    CONFIG_AVAILABLE = False
+    logger.warning("Config module not available, LLM verification disabled")
 
 # Import parsers (optional)
 try:
@@ -264,17 +273,25 @@ class AIAgentDaemon:
         
         logger.info("AI Agent Daemon stopped")
     
-    def extract_keywords(self, text: str, **kwargs) -> List[Dict[str, Any]]:
+    def extract_keywords(self, text: str, method: str = 'combined', num_keywords: int = 20, verify_ner: bool = False, **kwargs) -> List[Dict[str, Any]]:
         """
         Extract keywords using the loaded model.
         
         Args:
             text: Text to extract keywords from
+            method: Extraction method ('tfidf', 'textrank', 'word_freq', 'combined', 'ner')
+            num_keywords: Number of keywords to extract
+            verify_ner: If True and method is 'ner', verify results using LLM
             **kwargs: Additional arguments for KeywordExtractor.extract()
         
         Returns:
             List of keyword dictionaries
         """
+        # If NER method is requested, use spaCy NER for keyword extraction
+        if method == 'ner':
+            return self.extract_keywords_ner(text, num_keywords=num_keywords, verify_ner=verify_ner)
+        
+        # Otherwise, use gensim-based methods
         extractor = self.model_manager.keyword_extractor
         
         # Update extractor parameters if provided
@@ -282,7 +299,631 @@ class AIAgentDaemon:
             # Create a new extractor with updated parameters
             extractor = KeywordExtractor(**kwargs)
         
-        return extractor.extract(text)
+        return extractor.extract(text, num_keywords=num_keywords, method=method)
+    
+    def _parse_gemma3_markdown(self, response: str, original_entities: List[Dict[str, Any]], model_name: str = "LLM") -> List[Dict[str, Any]]:
+        """
+        Parse Gemma3 markdown format response and convert to entity format.
+        
+        Gemma3 format example:
+        **Organizations (ORG)**
+        *   Ask.now.museum
+        *   Elastic Search
+        
+        **People/Entities (PER)**
+        *   John Doe
+        
+        Args:
+            response: Markdown-formatted response from Gemma3
+            original_entities: Original entities from spaCy for matching
+            model_name: Name of the LLM model used (for logging)
+            
+        Returns:
+            List of parsed entities in standard format
+        """
+        result = []
+        
+        # Pattern to match headers like "**Organizations (ORG)**" or "**People/Entities (PER)**"
+        header_pattern = r'\*\*([^*]+?)\s*\((\w+)\)\*\*'
+        
+        # Split response into lines
+        lines = response.split('\n')
+        current_type = None
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Check if this is a header with entity type
+            header_match = re.match(header_pattern, line)
+            if header_match:
+                current_type = header_match.group(2)  # Extract entity type (ORG, PER, etc.)
+                continue
+            
+            # Check if this is a bullet point (starts with *, -, or •)
+            if re.match(r'^[\*\-\•]\s+', line):
+                # Extract entity name (remove bullet, trim, remove parenthetical descriptions)
+                entity_text = re.sub(r'^[\*\-\•]\s+', '', line)
+                # Remove parenthetical descriptions like "(appears frequently)" or "(as an open-source LLM provider)"
+                entity_text = re.sub(r'\s*\([^)]+\)\s*$', '', entity_text).strip()
+                
+                if entity_text and current_type:
+                    # Try to match with original entity (case-insensitive)
+                    entity_lower = entity_text.lower()
+                    original = next(
+                        (e for e in original_entities 
+                         if e['text'].strip().lower() == entity_lower or 
+                            entity_lower in e['text'].strip().lower() or
+                            e['text'].strip().lower() in entity_lower),
+                        None
+                    )
+                    
+                    if original:
+                        result.append({
+                            'text': original['text'],  # Use original text for exact match
+                            'type': current_type,
+                            'verified': True,
+                            'start': original.get('start', 0),
+                            'end': original.get('end', 0),
+                            'confidence': 1.0,
+                            'reasoning': f"Verified as {current_type} by LLM model {model_name}"
+                        })
+                    else:
+                        # Entity not found in original list, but LLM identified it
+                        result.append({
+                            'text': entity_text,
+                            'type': current_type,
+                            'verified': True,
+                            'start': 0,
+                            'end': 0,
+                            'confidence': 0.8,  # Lower confidence for new entities
+                            'reasoning': f"Identified as {current_type} by LLM model {model_name} (not in original spaCy results)"
+                        })
+        
+        return result
+    
+    def verify_ner_with_llm(self, text: str, entities: List[Dict[str, Any]], debug: bool = False) -> List[Dict[str, Any]]:
+        """
+        Verify and correct spaCy NER results using LLM.
+        
+        Args:
+            text: Original text
+            entities: List of entities from spaCy
+            debug: Enable debug output
+        
+        Returns:
+            List of verified entities (with REMOVE type for false positives)
+        """
+        if not CONFIG_AVAILABLE:
+            logger.warning("Config not available, skipping LLM verification")
+            return entities
+        
+        try:
+            llm_cfg = config.get_llm_config()
+            if not llm_cfg.get('api_key'):
+                logger.warning("LLM API key not configured, skipping verification")
+                return entities
+            
+            from utils.llm_client import SimpleOllamaClient
+            
+            # Use verification model if specified, otherwise fallback to main model
+            main_model = llm_cfg.get('model', 'unknown')
+            verification_model = llm_cfg.get('verification_model')
+            # Handle None, empty string, or whitespace-only strings
+            llm_model = verification_model if (verification_model and verification_model.strip()) else main_model
+            
+            # Log which model is being used
+            if verification_model and verification_model != main_model:
+                logger.info(f"Using verification model: {llm_model} (main model: {main_model})")
+            else:
+                logger.warning(f"OLLAMA_VERIFICATION_MODEL not set - using main model for verification: {llm_model}. Set OLLAMA_VERIFICATION_MODEL in .env to use a separate verification model.")
+            
+            # Get timeout for verification requests
+            verification_timeout = llm_cfg.get('verification_timeout', 300)  # Default 5 minutes
+            
+            if debug:
+                logger.debug(f"Using verification timeout: {verification_timeout}s")
+            
+            llm_client = SimpleOllamaClient(
+                model=llm_model,
+                base_url=llm_cfg['base_url'],
+                api_key=llm_cfg['api_key'],
+                timeout=verification_timeout
+            )
+            
+            # Collect all entities and their context first
+            # Get CONTEXT_REQUIRED_TYPES from EntityEnricher
+            entity_type_descriptions = EntityEnricher.CONTEXT_REQUIRED_TYPES
+            
+            # Step 1: Collect all unique context information
+            entity_contexts = {}  # Map entity text -> context info
+            
+            for e in entities:
+                entity_type = e.get('type', 'UNKNOWN')
+                entity_text = e.get('text', '').strip()
+                
+                if not entity_text:
+                    continue
+                
+                # Collect context information
+                if 'context' in e:
+                    ctx = e['context']
+                    sentence = ctx.get('sentence', '').strip()
+                    
+                    # Store context for this entity
+                    entity_contexts[entity_text] = {
+                        'sentence': sentence,
+                        'description': entity_type_descriptions.get(entity_type, f'{entity_type} entity')
+                    }
+                else:
+                    # No context available, use type description only
+                    entity_contexts[entity_text] = {
+                        'sentence': '',
+                        'description': entity_type_descriptions.get(entity_type, f'{entity_type} entity')
+                    }
+            
+            # Step 2: Build context header
+            context_header_parts = []
+            
+            # Add entity type descriptions for all entity types found
+            entity_types_found = set()
+            for e in entities:
+                entity_type = e.get('type', 'UNKNOWN')
+                if entity_type and entity_type != 'UNKNOWN':
+                    entity_types_found.add(entity_type)
+            
+            if entity_types_found:
+                context_header_parts.append("Entity type definitions:")
+                for entity_type in sorted(entity_types_found):
+                    description = entity_type_descriptions.get(entity_type, f'{entity_type} entity')
+                    context_header_parts.append(f"- {entity_type}: {description}")
+            
+            context_header = '\n'.join(context_header_parts) if context_header_parts else ''
+            
+            # Step 3: Prepare entities for verification
+            entities_for_verification = []
+            for e in entities:
+                entity_type = e.get('type', 'UNKNOWN')
+                entity_text = e.get('text', '').strip()
+                
+                if not entity_text:
+                    continue
+                
+                # Get context for this entity
+                ctx_info = entity_contexts.get(entity_text, {
+                    'sentence': '',
+                    'description': entity_type_descriptions.get(entity_type, f'{entity_type} entity')
+                })
+                
+                # Minimal entity data - flat structure (no nested context) to save tokens
+                entity_data = {
+                    'text': entity_text,
+                    'type': entity_type,
+                    'desc': ctx_info['description'],  # Type description from CONTEXT_REQUIRED_TYPES
+                    'sent': ctx_info['sentence'],  # Sentence containing the entity
+                    'verified': False
+                }
+                
+                entities_for_verification.append(entity_data)
+            
+            # Step 4: Build the prompt with context in header
+            system_prompt = """Verify spaCy NER entities."""
+            
+            # Add context header if available
+            if context_header:
+                system_prompt += f"\n\n{context_header}\n"
+            
+            # Add instructions with JSON template
+            system_prompt += "\n\nYou MUST return results as a JSON array. Format:\n[\n  {\n    \"text\": \"entity text\",\n    \"type\": \"ENTITY_TYPE\",\n    \"verified\": true,\n    \"reasoning\": \"explanation\"\n  }\n]\n\nUse type \"REMOVE\" for false positives. Example:\n[\n  {\n    \"text\": \"First\",\n    \"type\": \"ORDINAL\",\n    \"verified\": true,\n    \"reasoning\": \"Verified as ordinal number\"\n  },\n  {\n    \"text\": \"invalid\",\n    \"type\": \"REMOVE\",\n    \"verified\": false,\n    \"reasoning\": \"Not a valid entity\"\n  }\n]\n\nReturn ONLY valid JSON, no other text."
+            
+            # Minimize JSON - use compact format (no indentation) to reduce tokens
+            entities_json = json.dumps(entities_for_verification, separators=(',', ':'))
+            
+            # Final prompt with context in header
+            verification_prompt = f"""{system_prompt}
+{entities_json}"""
+            
+            if debug:
+                logger.debug(f"Verifying {len(entities)} entities with LLM (model: {llm_model})")
+            
+            # Log the request to logs folder
+            try:
+                log_dir = Path(__file__).parent.parent / 'logs'
+                log_dir.mkdir(parents=True, exist_ok=True)
+                timestamp = int(time.time())
+                log_file = log_dir / f"llm_request_ner_{timestamp}.txt"
+                with open(log_file, 'w', encoding='utf-8') as f:
+                    f.write(verification_prompt)
+            except Exception as e:
+                logger.warning(f"Failed to log LLM request: {e}")
+            
+            # Call LLM
+            response = llm_client.complete(
+                messages=[{"role": "user", "content": verification_prompt}],
+                temperature=0.1,
+                max_tokens=2000
+            )
+            
+            # Log the response
+            timestamp = int(time.time())
+            try:
+                log_dir = Path(__file__).parent.parent / 'logs'
+                log_dir.mkdir(parents=True, exist_ok=True)
+                log_file = log_dir / f"llm_response_ner_{timestamp}.txt"
+                with open(log_file, 'w', encoding='utf-8') as f:
+                    f.write(response)
+            except Exception as e:
+                logger.warning(f"Failed to log LLM response: {e}")
+            
+            # Extract JSON from response
+            json_match = re.search(r'\[\s*\{.*\}\s*\]', response, re.DOTALL)
+            if not json_match:
+                # Try finding any array-like structure
+                json_match = re.search(r'\[.*\]', response, re.DOTALL)
+            
+            verified_entities = None
+            
+            if json_match:
+                try:
+                    # Clean up common LLM artifacts before parsing
+                    json_str = json_match.group()
+                    # Remove potential comments or trailing commas
+                    json_str = re.sub(r',(\s*[\]\}])', r'\1', json_str)
+                    verified_entities = json.loads(json_str)
+                    # Log parsed JSON to file
+                    try:
+                        log_dir = Path(__file__).parent.parent / 'logs'
+                        log_dir.mkdir(parents=True, exist_ok=True)
+                        json_log_file = log_dir / f"llm_response_ner_{timestamp}.json"
+                        with open(json_log_file, 'w', encoding='utf-8') as f:
+                            json.dump(verified_entities, f, indent=2, ensure_ascii=False)
+                        logger.debug(f"Saved parsed JSON to {json_log_file}")
+                    except Exception as json_log_error:
+                        logger.warning(f"Failed to log parsed JSON: {json_log_error}")
+                except json.JSONDecodeError as e:
+                    logger.debug(f"Failed to parse JSON from LLM (model: {llm_model}): {e}. Trying Gemma3 markdown parser...")
+                    # Try Gemma3 markdown format as fallback
+                    try:
+                        verified_entities = self._parse_gemma3_markdown(response, entities, llm_model)
+                        if verified_entities:
+                            logger.info(f"Successfully parsed Gemma3 markdown format: {len(verified_entities)} entities")
+                            # Log parsed Gemma3 entities as JSON
+                            try:
+                                log_dir = Path(__file__).parent.parent / 'logs'
+                                log_dir.mkdir(parents=True, exist_ok=True)
+                                json_log_file = log_dir / f"llm_response_ner_{timestamp}.json"
+                                with open(json_log_file, 'w', encoding='utf-8') as f:
+                                    json.dump(verified_entities, f, indent=2, ensure_ascii=False)
+                                logger.debug(f"Saved parsed Gemma3 entities as JSON to {json_log_file}")
+                            except Exception as json_log_error:
+                                logger.warning(f"Failed to log parsed Gemma3 JSON: {json_log_error}")
+                    except Exception as gemma_error:
+                        logger.warning(f"Failed to parse as Gemma3 markdown (model: {llm_model}): {gemma_error}. Response was: {response[:200]}...")
+                        return entities
+            
+            # If no JSON found, try Gemma3 markdown format
+            if not verified_entities:
+                logger.debug(f"No JSON found in response, trying Gemma3 markdown parser...")
+                try:
+                    verified_entities = self._parse_gemma3_markdown(response, entities, llm_model)
+                    if verified_entities and len(verified_entities) > 0:
+                        logger.info(f"Successfully parsed Gemma3 markdown format: {len(verified_entities)} entities")
+                        # Log parsed Gemma3 entities as JSON
+                        try:
+                            log_dir = Path(__file__).parent.parent / 'logs'
+                            log_dir.mkdir(parents=True, exist_ok=True)
+                            json_log_file = log_dir / f"llm_response_ner_{timestamp}.json"
+                            with open(json_log_file, 'w', encoding='utf-8') as f:
+                                json.dump(verified_entities, f, indent=2, ensure_ascii=False)
+                            logger.debug(f"Saved parsed Gemma3 entities as JSON to {json_log_file}")
+                        except Exception as json_log_error:
+                            logger.warning(f"Failed to log parsed Gemma3 JSON: {json_log_error}")
+                    else:
+                        logger.warning(f"No entities found in Gemma3 markdown response (model: {llm_model}), using original entities")
+                        return entities
+                except Exception as gemma_error:
+                    logger.warning(f"Failed to parse as Gemma3 markdown (model: {llm_model}): {gemma_error}. Response was: {response[:200]}...")
+                    return entities
+            
+            if verified_entities and len(verified_entities) > 0:
+                
+                # Filter out REMOVE entities and entities marked as verified=False
+                result = []
+                for verified in verified_entities:
+                    if not isinstance(verified, dict):
+                        continue
+                        
+                    # Handle both 'text' and 'entity' keys for robustness
+                    v_type = verified.get('type')
+                    v_text = (verified.get('text') or verified.get('entity') or "").strip()
+                    v_reasoning = (verified.get('reasoning') or "").strip()
+                    v_verified = verified.get('verified', True)  # Default to True if not specified
+                    
+                    # Skip if type is REMOVE or verified is False
+                    if v_type == 'REMOVE' or v_verified is False:
+                        continue
+                    
+                    if v_text:
+                        # Find original entity to preserve position info
+                        # Use case-insensitive matching and strip whitespace
+                        verified_text_lower = v_text.lower()
+                        original = next((e for e in entities if e['text'].strip().lower() == verified_text_lower), None)
+                        
+                        if original:
+                            result.append({
+                                'text': v_text,
+                                'type': v_type or original.get('type', 'UNKNOWN'),
+                                'start': original.get('start', 0),
+                                'end': original.get('end', 0),
+                                'confidence': verified.get('confidence', 1.0),
+                                'reasoning': (v_reasoning or f"Verified as {v_type or 'entity'} by LLM model {llm_model}").strip()
+                            })
+                        else:
+                            # New entity from LLM or slight text variation
+                            result.append({
+                                'text': v_text,
+                                'type': v_type or 'UNKNOWN',
+                                'start': 0,
+                                'end': 0,
+                                'confidence': verified.get('confidence', 1.0),
+                                'reasoning': (v_reasoning or f"Identified as {v_type or 'entity'} by LLM model {llm_model}").strip()
+                            })
+                
+                if debug:
+                    removed_count = len(entities) - len(result)
+                    logger.debug(f"LLM verification (model: {llm_model}): kept {len(result)} entities, removed {removed_count} false positives")
+                
+                return result
+            else:
+                logger.warning(f"No valid entities found in LLM verification response (model: {llm_model}), using original entities")
+                return entities
+                
+        except Exception as e:
+            logger.warning(f"LLM verification failed (model: {llm_model}): {e}, using original entities")
+            if debug:
+                import traceback
+                traceback.print_exc()
+            return entities
+    
+    def extract_keywords_ner(self, text: str, num_keywords: int = 20, verify_ner: bool = False) -> List[Dict[str, Any]]:
+        """
+        Extract keywords using spaCy NER (Named Entity Recognition).
+        Returns named entities as keywords, sorted by importance.
+        """
+        enricher = self.model_manager.entity_enricher
+        
+        # 1. Extract original entities using spaCy (to get all occurrences/frequencies)
+        original_entities = enricher.extract_entities(text)
+        if not original_entities:
+            return []
+        
+        # 2. Verify with LLM if requested
+        verified_map = {} # Maps entity_text.lower() -> verified_entity_data
+        verification_successful = False
+        if verify_ner:
+            try:
+                llm_cfg = config.get_llm_config()
+                # Use verification model if specified, otherwise fallback to main model
+                main_model = llm_cfg.get('model', 'unknown')
+                verification_model = llm_cfg.get('verification_model')
+                llm_model = verification_model if (verification_model and verification_model.strip()) else main_model
+                logger.debug(f"Starting LLM verification (model: {llm_model}) for {len(original_entities)} entities")
+                # We send unique entities to LLM to save tokens, but keep frequencies
+                # Actually, verify_ner_with_llm expects the full list to handle context
+                verified_entities = self.verify_ner_with_llm(text, original_entities, debug=True)
+                
+                logger.debug(f"LLM verification returned {len(verified_entities) if verified_entities else 0} entities")
+                
+                # Check if verification actually succeeded
+                # If verification failed, verify_ner_with_llm returns original_entities without reasoning
+                if verified_entities and len(verified_entities) > 0:
+                    # Check if any entity has reasoning (indicates successful LLM verification)
+                    # When verification fails, original entities are returned without reasoning field
+                    entities_with_reasoning = [ve for ve in verified_entities if ve.get('reasoning')]
+                    has_reasoning = len(entities_with_reasoning) > 0
+                    
+                    logger.debug(f"Found {len(entities_with_reasoning)} entities with reasoning out of {len(verified_entities)} total")
+                    
+                    if has_reasoning:
+                        verification_successful = True
+                        logger.info(f"LLM verification (model: {llm_model}) successful: {len(entities_with_reasoning)} entities verified out of {len(verified_entities)} returned")
+                        
+                        # Warn if LLM returned significantly fewer entities than spaCy found
+                        if len(verified_entities) < len(original_entities) * 0.5:
+                            logger.warning(f"LLM (model: {llm_model}) returned only {len(verified_entities)} entities vs {len(original_entities)} from spaCy - some entities may be missing")
+                        
+                        # Create a map of verified results for easy lookup
+                        # Use normalized keys to handle text variations
+                        for ve in verified_entities:
+                            # Handle both 'text' and 'entity' keys (LLM might use either)
+                            v_text = (ve.get('text') or ve.get('entity') or "").strip()
+                            if not v_text:
+                                logger.debug(f"Skipping entity without text: {ve}")
+                                continue
+                                
+                            v_lower = v_text.lower()
+                            v_normalized = re.sub(r'\s+', ' ', v_lower).strip()
+                            
+                            # Ensure the entity dict has 'text' key for consistency
+                            if 'text' not in ve and 'entity' in ve:
+                                ve['text'] = ve['entity']
+                            
+                            # Store with both exact and normalized keys for flexible matching
+                            if v_lower not in verified_map:
+                                verified_map[v_lower] = ve
+                            if v_normalized != v_lower and v_normalized not in verified_map:
+                                verified_map[v_normalized] = ve
+                        
+                        logger.debug(f"Built verified_map with {len(verified_map)} entries")
+                    else:
+                        # No reasoning found - verification likely failed, use original entities
+                        logger.warning(f"LLM verification (model: {llm_model}) returned {len(verified_entities)} entities but NONE have reasoning - treating as failed")
+                        # Log sample entities to debug
+                        if verified_entities:
+                            sample = verified_entities[0]
+                            logger.debug(f"Sample entity keys: {list(sample.keys())}, has reasoning: {'reasoning' in sample}, entity: {sample}")
+                else:
+                    # Empty result - verification failed completely, use original entities
+                    logger.warning(f"LLM verification (model: {llm_model}) returned empty result - using original spaCy entities")
+            except Exception as e:
+                logger.error(f"LLM verification (model: {llm_model}) failed in extract_keywords_ner: {e}", exc_info=True)
+        
+        # 3. Count frequencies and calculate scores using original occurrences
+        entity_scores = {}
+        entity_types = {}
+        entity_reasonings = {}
+        entity_verified_status = {}  # Track if entity was verified by LLM
+        entity_display_texts = {} # Keep original casing
+        
+        logger.debug(f"Processing {len(original_entities)} original entities, verified_map has {len(verified_map)} entries")
+        
+        for entity in original_entities:
+            entity_text = entity['text'].strip()
+            entity_lower = entity_text.lower()
+            
+            # Normalize text for better matching (remove extra spaces, normalize punctuation)
+            normalized_lower = re.sub(r'\s+', ' ', entity_lower).strip()
+            
+            # Determine type and reasoning (from verified map or original)
+            matched_with_llm = False  # Track if we matched with LLM verification
+            if verify_ner and verification_successful:
+                # Try exact match first
+                ve = verified_map.get(entity_lower)
+                if not ve:
+                    # Try normalized match (handles spacing differences like "10/28" vs "10 / 28")
+                    ve = verified_map.get(normalized_lower)
+                
+                # If still not found, try matching by original spaCy type
+                # This helps when LLM corrected the type but text has slight variations
+                if not ve:
+                    original_type = entity.get('type', 'UNKNOWN')
+                    # Search verified_map for entities with matching type
+                    for key, verified_entity in verified_map.items():
+                        verified_type = verified_entity.get('type', 'UNKNOWN')
+                        verified_text = (verified_entity.get('text') or "").strip().lower()
+                        # Check if types match and texts are similar
+                        if verified_type == original_type:
+                            # Try fuzzy matching - check if one text contains the other
+                            if (entity_lower in verified_text or verified_text in entity_lower or
+                                normalized_lower in verified_text or verified_text in normalized_lower):
+                                ve = verified_entity
+                                logger.debug(f"Matched entity by type '{original_type}': '{entity_text}' -> '{verified_entity.get('text', '')}'")
+                                break
+                
+                if ve:
+                    matched_with_llm = True
+                    # Use LLM's verified type and reasoning
+                    llm_type = ve.get('type', 'UNKNOWN')
+                    llm_reasoning = ve.get('reasoning', '').strip()
+                    original_type = entity.get('type', 'UNKNOWN')
+                    
+                    # Always use LLM's type (it verified it)
+                    entity_type = llm_type
+                    
+                    # Use LLM's reasoning if available, otherwise create default
+                    if llm_reasoning:
+                        reasoning = llm_reasoning
+                    else:
+                        reasoning = f"Verified as {entity_type} by LLM model {llm_model}"
+                    
+                    # Log if type changed from spaCy to LLM
+                    if original_type != entity_type:
+                        logger.debug(f"Entity '{entity_text}': type changed from '{original_type}' (spaCy) to '{entity_type}' (LLM verified)")
+                else:
+                    # Entity not in verified map - could mean:
+                    # 1. LLM removed it (marked as REMOVE)
+                    # 2. Text variation prevented matching
+                    # For now, include it with original spaCy classification and note it wasn't verified
+                    entity_type = entity.get('type', 'UNKNOWN')
+                    reasoning = f"Not verified by LLM model {llm_model} - using spaCy classification ({entity_type})"
+            else:
+                # No verification requested, or verification failed - use original entity
+                entity_type = entity.get('type', 'UNKNOWN')
+                # Only add reasoning message if verification was attempted but failed
+                reasoning = f"Verification unavailable - using spaCy classification" if (verify_ner and not verification_successful) else ''
+            
+            # Score based on entity type importance
+            type_weights = {
+                'PER': 1.0, 'ORG': 0.9, 'LOC': 0.8, 'GPE': 0.8,
+                'PRODUCT': 0.7, 'EVENT': 0.7, 'FAC': 0.6, 'WORK_OF_ART': 0.6,
+                'LAW': 0.5, 'LANGUAGE': 0.5, 'DATE': 0.4, 'TIME': 0.3,
+                'MONEY': 0.3, 'PERCENT': 0.2, 'ORDINAL': 0.2, 'CARDINAL': 0.1, 'QUANTITY': 0.1,
+            }
+            
+            base_score = type_weights.get(entity_type, 0.5)
+            length_bonus = min(len(entity_text.split()) * 0.1, 0.3)
+            
+            if entity_lower not in entity_scores:
+                entity_scores[entity_lower] = 0.0
+                entity_types[entity_lower] = entity_type
+                entity_display_texts[entity_lower] = entity_text
+                # Always store reasoning if it exists (even if empty, but we set a default above)
+                entity_reasonings[entity_lower] = reasoning
+                # Track verification status
+                entity_verified_status[entity_lower] = matched_with_llm
+            else:
+                # If we already have this entity, prefer LLM reasoning over default reasoning
+                existing_reasoning = entity_reasonings.get(entity_lower, '')
+                # Prefer reasoning that mentions the model (LLM verified) or is more detailed
+                if reasoning:
+                    # Check if current reasoning is from LLM verification
+                    is_llm_reasoning = matched_with_llm or (verify_ner and verification_successful and llm_model in reasoning)
+                    is_existing_llm_reasoning = llm_model in existing_reasoning if existing_reasoning else False
+                    
+                    # Prefer LLM reasoning, or more detailed reasoning
+                    if is_llm_reasoning and not is_existing_llm_reasoning:
+                        # Current is LLM, existing is not - prefer current
+                        entity_reasonings[entity_lower] = reasoning
+                    elif is_llm_reasoning == is_existing_llm_reasoning and len(reasoning) > len(existing_reasoning):
+                        # Both same type (both LLM or both not), prefer more detailed
+                        entity_reasonings[entity_lower] = reasoning
+                
+                # Also update type if LLM verified it (prefer LLM type over spaCy)
+                if matched_with_llm:
+                    # LLM verified type takes precedence
+                    entity_types[entity_lower] = entity_type
+                    # Update verification status
+                    entity_verified_status[entity_lower] = True
+            
+            # Accumulate scores based on occurrences
+            entity_scores[entity_lower] += base_score + length_bonus
+        
+        # 4. Convert to keyword format
+        keywords = []
+        for entity_lower, score in entity_scores.items():
+            kw_data = {
+                'keyword': entity_display_texts[entity_lower],
+                'score': round(score, 4),
+                'type': entity_types[entity_lower]
+            }
+            # Add status based on verification
+            if verify_ner:
+                # If verification was requested, always include status
+                if entity_lower in entity_verified_status and entity_verified_status[entity_lower]:
+                    kw_data['status'] = 'verified'
+                else:
+                    kw_data['status'] = 'Not verified'
+            # Always include reasoning if it was set (which it should be for verify_ner=True)
+            if entity_lower in entity_reasonings:
+                reasoning_value = entity_reasonings[entity_lower]
+                if reasoning_value:  # Only add if non-empty
+                    kw_data['reasoning'] = reasoning_value
+            
+            keywords.append(kw_data)
+        
+        # Sort and limit
+        keywords.sort(key=lambda x: x['score'], reverse=True)
+        keywords = keywords[:num_keywords]
+        
+        # Normalize scores
+        if keywords:
+            max_score = keywords[0]['score']
+            if max_score > 0:
+                for kw in keywords:
+                    kw['score'] = round(min(kw['score'] / max_score, 1.0), 4)
+        
+        return keywords
     
     def extract_entities(self, text: str) -> Dict[str, Any]:
         """

@@ -161,7 +161,8 @@ async def ingest_episodes(episodes_data: list, graphiti: Graphiti, use_ner: bool
 
 
 def extract_keywords_from_parsed_text(text: str, num_keywords: int = 20, 
-                                     method: str = 'combined', debug: bool = False) -> Optional[list]:
+                                     method: str = 'combined', verify_ner: bool = False,
+                                     debug: bool = False) -> Optional[list]:
     """
     Extract keywords from parsed text using the AI Agent daemon.
     
@@ -169,6 +170,7 @@ def extract_keywords_from_parsed_text(text: str, num_keywords: int = 20,
         text: Text to extract keywords from
         num_keywords: Number of keywords to extract
         method: Extraction method (tfidf, textrank, word_freq, combined, ner)
+        verify_ner: If True and method is 'ner', verify results using LLM
         debug: Enable debug output
         
     Returns:
@@ -180,6 +182,8 @@ def extract_keywords_from_parsed_text(text: str, num_keywords: int = 20,
     if debug:
         import sys
         debug_print('Extracting keywords from parsed text...', file=sys.stderr)
+        if verify_ner and method == 'ner':
+            debug_print('LLM verification enabled for NER results', file=sys.stderr)
     
     # Ensure daemon is running
     ensure_daemon_running(debug=debug)
@@ -193,7 +197,8 @@ def extract_keywords_from_parsed_text(text: str, num_keywords: int = 20,
         keywords = daemon.extract_keywords(
             text,
             num_keywords=num_keywords,
-            method=method
+            method=method,
+            verify_ner=verify_ner
         )
         return keywords
     except Exception as e:
@@ -291,17 +296,15 @@ def detect_parser_from_prompt(prompt: str, debug: bool = False) -> Optional[dict
         
         # Use LLM if API key is configured (works with both OpenAI and Ollama)
         if llm_cfg.get('api_key'):
-            # Try to use OpenAI-compatible client
+            # Try to use simple Ollama client
             try:
-                from graphiti_core.llm_client.openai_generic_client import OpenAIGenericClient
-                from graphiti_core.llm_client.config import LLMConfig
+                from utils.llm_client import SimpleOllamaClient
                 
-                llm_config = LLMConfig(
-                    api_key=llm_cfg['api_key'],
+                llm_client = SimpleOllamaClient(
                     model=llm_cfg['model'],
                     base_url=llm_cfg['base_url'],
+                    api_key=llm_cfg['api_key']
                 )
-                llm_client = OpenAIGenericClient(config=llm_config)
                 
                 # Load parser detection prompt
                 prompt_file = Path(__file__).parent / 'prompts' / 'system' / 'parser_detection_prompt.md'
@@ -321,22 +324,25 @@ Return JSON: {"parser": "pdf|txt|csv|spreadsheet", "file_path": "path", "file_ty
                     import sys
                     debug_print(f'Using LLM to detect parser from prompt: {prompt}', file=sys.stderr)
                 
+                # Log the request to logs folder
+                try:
+                    import time
+                    from pathlib import Path
+                    log_dir = Path(__file__).parent / 'logs'
+                    log_dir.mkdir(parents=True, exist_ok=True)
+                    timestamp = int(time.time())
+                    log_file = log_dir / f"llm_request_parser_{timestamp}.txt"
+                    with open(log_file, 'w', encoding='utf-8') as f:
+                        f.write(detection_prompt)
+                except Exception as e:
+                    logger.warning(f"Failed to log LLM request: {e}")
+                
                 # Call LLM
-                response_obj = llm_client.complete(
+                response = llm_client.complete(
                     messages=[{"role": "user", "content": detection_prompt}],
                     temperature=0.1,
                     max_tokens=500
                 )
-                
-                # Extract text from response object
-                if hasattr(response_obj, 'choices') and response_obj.choices:
-                    response = response_obj.choices[0].message.content
-                elif hasattr(response_obj, 'content'):
-                    response = response_obj.content
-                elif isinstance(response_obj, str):
-                    response = response_obj
-                else:
-                    response = str(response_obj)
                 
                 # Extract JSON from response
                 import re
@@ -468,6 +474,19 @@ def _create_fallback_detection(prompt: str, file_path: str, debug: bool = False)
         ]
         if any(re.search(pattern, prompt, re.IGNORECASE) for pattern in ner_patterns):
             options['keywords_method'] = 'ner'
+            
+            # Check if verification is requested
+            verify_patterns = [
+                r'verify',
+                r'and.*?verify',
+                r'verify.*?ner',
+                r'ner.*?verify',
+                r'verify.*?result',
+                r'check.*?result',
+                r'validate',
+            ]
+            if any(re.search(pattern, prompt, re.IGNORECASE) for pattern in verify_patterns):
+                options['verify_ner'] = True
     
     result = {
         'parser': parser,
@@ -487,8 +506,8 @@ def _create_fallback_detection(prompt: str, file_path: str, debug: bool = False)
 
 def parse_file_command(file_path: str, output_file: Optional[str] = None, 
                        extract_keywords: bool = False, keywords_method: str = 'combined',
-                       num_keywords: int = 20, debug: bool = False, 
-                       prompt: Optional[str] = None, **parser_options):
+                       num_keywords: int = 20, verify_ner: bool = False,
+                       debug: bool = False, prompt: Optional[str] = None, **parser_options):
     """Parse a file using the appropriate parser."""
     try:
         from agents.parsers import get_parser
@@ -569,9 +588,13 @@ def parse_file_command(file_path: str, output_file: Optional[str] = None,
                 keywords = daemon.extract_keywords(
                     result.text,
                     num_keywords=num_keywords,
-                    method=keywords_method
+                    method=keywords_method,
+                    verify_ner=verify_ner
                 )
                 output['keywords'] = keywords
+                # Add verified field if NER verification was performed
+                if verify_ner and keywords_method == 'ner':
+                    output['verified'] = True
             except Exception as e:
                 logger.warning(f"Failed to extract keywords: {e}")
                 if debug:
@@ -600,7 +623,7 @@ def parse_txt_command(file_path: str, encoding: str = 'utf-8',
                      output_file: Optional[str] = None, debug: bool = False,
                      prompt: Optional[str] = None,
                      extract_keywords: bool = False, keywords_method: str = 'combined',
-                     num_keywords: int = 20):
+                     num_keywords: int = 20, verify_ner: bool = False):
     """Parse a text file."""
     try:
         from agents.parsers import TXTParser
@@ -634,10 +657,14 @@ def parse_txt_command(file_path: str, encoding: str = 'utf-8',
                 result.text,
                 num_keywords=num_keywords,
                 method=keywords_method,
+                verify_ner=verify_ner,
                 debug=debug
             )
             if keywords:
                 output['keywords'] = keywords
+                # Add verified field if NER verification was performed
+                if verify_ner and keywords_method == 'ner':
+                    output['verified'] = True
         
         if output_file:
             with open(output_file, 'w', encoding='utf-8') as f:
@@ -654,7 +681,7 @@ def parse_csv_command(file_path: str, delimiter: str = ',', include_headers: boo
                      output_file: Optional[str] = None, debug: bool = False,
                      prompt: Optional[str] = None,
                      extract_keywords: bool = False, keywords_method: str = 'combined',
-                     num_keywords: int = 20):
+                     num_keywords: int = 20, verify_ner: bool = False):
     """Parse a CSV file."""
     try:
         from agents.parsers import CSVParser
@@ -704,10 +731,14 @@ def parse_csv_command(file_path: str, delimiter: str = ',', include_headers: boo
                 result.text,
                 num_keywords=num_keywords,
                 method=keywords_method,
+                verify_ner=verify_ner,
                 debug=debug
             )
             if keywords:
                 output['keywords'] = keywords
+                # Add verified field if NER verification was performed
+                if verify_ner and keywords_method == 'ner':
+                    output['verified'] = True
         
         if output_file:
             with open(output_file, 'w', encoding='utf-8') as f:
@@ -724,7 +755,7 @@ def parse_pdf_command(file_path: str, max_pages: Optional[int] = None,
                      extract_tables: bool = True, output_file: Optional[str] = None, 
                      debug: bool = False, prompt: Optional[str] = None,
                      extract_keywords: bool = False, keywords_method: str = 'combined',
-                     num_keywords: int = 20):
+                     num_keywords: int = 20, verify_ner: bool = False):
     """Parse a PDF file."""
     try:
         from agents.parsers import PDFParser
@@ -758,9 +789,11 @@ def parse_pdf_command(file_path: str, max_pages: Optional[int] = None,
                         num_keywords = detected_options['num_keywords']
                     if 'keywords_method' in detected_options:
                         keywords_method = detected_options['keywords_method']
+                    if 'verify_ner' in detected_options and detected_options['verify_ner']:
+                        verify_ner = True
                 if debug:
                     import sys
-                    debug_print(f'Using detected file path: {file_path}, max_pages: {max_pages}, extract_keywords: {extract_keywords}', file=sys.stderr)
+                    debug_print(f'Using detected file path: {file_path}, max_pages: {max_pages}, extract_keywords: {extract_keywords}, verify_ner: {verify_ner}', file=sys.stderr)
             else:
                 # Fallback: try pattern-based keyword detection
                 import re
@@ -790,10 +823,23 @@ def parse_pdf_command(file_path: str, max_pages: Optional[int] = None,
                     ]
                     if any(re.search(pattern, prompt, re.IGNORECASE) for pattern in ner_patterns):
                         keywords_method = 'ner'
+                        
+                        # Check if verification is requested
+                        verify_patterns = [
+                            r'verify',
+                            r'and.*?verify',
+                            r'verify.*?ner',
+                            r'ner.*?verify',
+                            r'verify.*?result',
+                            r'check.*?result',
+                            r'validate',
+                        ]
+                        if any(re.search(pattern, prompt, re.IGNORECASE) for pattern in verify_patterns):
+                            verify_ner = True
                     
                     if debug:
                         import sys
-                        debug_print(f'Detected keyword extraction from prompt: extract_keywords={extract_keywords}, num_keywords={num_keywords}, method={keywords_method}', file=sys.stderr)
+                        debug_print(f'Detected keyword extraction from prompt: extract_keywords={extract_keywords}, num_keywords={num_keywords}, method={keywords_method}, verify_ner={verify_ner}', file=sys.stderr)
         
         # Validate file path
         if not file_path:
@@ -815,10 +861,14 @@ def parse_pdf_command(file_path: str, max_pages: Optional[int] = None,
                 result.text,
                 num_keywords=num_keywords,
                 method=keywords_method,
+                verify_ner=verify_ner,
                 debug=debug
             )
             if keywords:
                 output['keywords'] = keywords
+                # Add verified field if NER verification was performed
+                if verify_ner and keywords_method == 'ner':
+                    output['verified'] = True
         
         if output_file:
             with open(output_file, 'w', encoding='utf-8') as f:
@@ -833,7 +883,9 @@ def parse_pdf_command(file_path: str, max_pages: Optional[int] = None,
 
 def parse_spreadsheet_command(file_path: str, sheet_names: Optional[list] = None,
                              include_headers: bool = True, output_file: Optional[str] = None,
-                             debug: bool = False, prompt: Optional[str] = None):
+                             debug: bool = False, prompt: Optional[str] = None,
+                             extract_keywords: bool = False, keywords_method: str = 'combined',
+                             num_keywords: int = 20, verify_ner: bool = False):
     """Parse a spreadsheet file."""
     try:
         from agents.parsers import SpreadsheetParser
@@ -856,6 +908,21 @@ def parse_spreadsheet_command(file_path: str, sheet_names: Optional[list] = None
         result = parser.parse(file_path, sheet_names=sheet_names, include_headers=include_headers)
         
         output = result.to_dict()
+        
+        # Extract keywords if requested
+        if extract_keywords:
+            keywords = extract_keywords_from_parsed_text(
+                result.text,
+                num_keywords=num_keywords,
+                method=keywords_method,
+                verify_ner=verify_ner,
+                debug=debug
+            )
+            if keywords:
+                output['keywords'] = keywords
+                # Add verified field if NER verification was performed
+                if verify_ner and keywords_method == 'ner':
+                    output['verified'] = True
         
         if output_file:
             with open(output_file, 'w', encoding='utf-8') as f:
@@ -963,14 +1030,15 @@ def extract_keywords_from_text(
     ngram_weight: float = 1.2,
     documents_file: Optional[str] = None,
     output_file: Optional[str] = None,
+    verify_ner: bool = False,
     debug: bool = False
 ):
     """
-    Extract keywords from text using Gensim.
+    Extract keywords from text using Gensim or spaCy NER.
     
     Args:
         text: Input text to extract keywords from
-        method: Extraction method ('tfidf', 'textrank', 'word_freq', 'combined')
+        method: Extraction method ('tfidf', 'textrank', 'word_freq', 'combined', 'ner')
         num_keywords: Number of keywords to extract
         min_word_length: Minimum word length
         max_word_length: Maximum word length
@@ -983,6 +1051,7 @@ def extract_keywords_from_text(
         first_sentence_weight: Weight multiplier for words in first sentence
         documents_file: Optional path to JSON file with documents for IDF
         output_file: Optional path to output JSON file
+        verify_ner: If True and method is 'ner', verify results using LLM
         debug: Enable debug output
     """
     try:
@@ -992,50 +1061,65 @@ def extract_keywords_from_text(
             debug_print('🔑 KEYWORD EXTRACTION', file=sys.stderr)
             debug_print('='*80, file=sys.stderr)
             debug_print(f'Method: {method}', file=sys.stderr)
+            if method == 'ner' and verify_ner:
+                debug_print('LLM verification: enabled', file=sys.stderr)
             debug_print(f'Number of keywords: {num_keywords}', file=sys.stderr)
             debug_print(f'Text length: {len(text)} characters', file=sys.stderr)
         
-        # Load documents if provided
-        documents = None
-        if documents_file:
-            try:
-                with open(documents_file, 'r', encoding='utf-8') as f:
-                    documents_data = json.load(f)
-                    if isinstance(documents_data, list):
-                        documents = documents_data
-                    else:
-                        logger.warning(f"Documents file should contain a list, got {type(documents_data)}")
-            except Exception as e:
-                logger.error(f"Error loading documents file: {e}")
-        
-        # Create keyword extractor
-        extractor = KeywordExtractor(
-            method=method,
-            num_keywords=num_keywords,
-            min_word_length=min_word_length,
-            max_word_length=max_word_length,
-            use_stemming=use_stemming,
-            tfidf_weight=tfidf_weight,
-            textrank_weight=textrank_weight,
-            word_freq_weight=word_freq_weight,
-            position_weight=position_weight,
-            title_weight=title_weight,
-            first_sentence_weight=first_sentence_weight,
-            enable_ngrams=enable_ngrams,
-            min_ngram=min_ngram,
-            max_ngram=max_ngram,
-            ngram_weight=ngram_weight,
-        )
-        
-        # Extract keywords
-        keywords = extractor.extract(text, documents)
+        # If NER method, use AI Agent daemon
+        if method == 'ner':
+            keywords = extract_keywords_from_parsed_text(
+                text,
+                num_keywords=num_keywords,
+                method='ner',
+                verify_ner=verify_ner,
+                debug=debug
+            )
+            if not keywords:
+                keywords = []
+        else:
+            # Load documents if provided
+            documents = None
+            if documents_file:
+                try:
+                    with open(documents_file, 'r', encoding='utf-8') as f:
+                        documents_data = json.load(f)
+                        if isinstance(documents_data, list):
+                            documents = documents_data
+                        else:
+                            logger.warning(f"Documents file should contain a list, got {type(documents_data)}")
+                except Exception as e:
+                    logger.error(f"Error loading documents file: {e}")
+            
+            # Create keyword extractor
+            extractor = KeywordExtractor(
+                method=method,
+                num_keywords=num_keywords,
+                min_word_length=min_word_length,
+                max_word_length=max_word_length,
+                use_stemming=use_stemming,
+                tfidf_weight=tfidf_weight,
+                textrank_weight=textrank_weight,
+                word_freq_weight=word_freq_weight,
+                position_weight=position_weight,
+                title_weight=title_weight,
+                first_sentence_weight=first_sentence_weight,
+                enable_ngrams=enable_ngrams,
+                min_ngram=min_ngram,
+                max_ngram=max_ngram,
+                ngram_weight=ngram_weight,
+            )
+            
+            # Extract keywords
+            keywords = extractor.extract(text, documents)
         
         if debug:
             import sys
             debug_print(f'\nExtracted {len(keywords)} keywords:', file=sys.stderr)
             for i, kw in enumerate(keywords, 1):
                 kw_type = kw.get('type', 'unigram')
-                debug_print(f'  {i}. {kw["keyword"]} (score: {kw["score"]:.4f}, type: {kw_type})', file=sys.stderr)
+                kw_reasoning = f" - reasoning: {kw['reasoning']}" if kw.get('reasoning') else ""
+                debug_print(f'  {i}. {kw["keyword"]} (score: {kw["score"]:.4f}, type: {kw_type}){kw_reasoning}', file=sys.stderr)
         
         # Prepare output
         output = {
@@ -1059,6 +1143,10 @@ def extract_keywords_from_text(
                 'ngram_weight': ngram_weight,
             }
         }
+        
+        # Add verified field if NER verification was performed
+        if method == 'ner' and verify_ner:
+            output['verified'] = True
         
         # Output results
         if output_file:
@@ -1287,6 +1375,8 @@ Examples:
     csv_parser_cmd.add_argument('--keywords-method', type=str, default='combined',
                                choices=['tfidf', 'textrank', 'word_freq', 'combined', 'ner'],
                                help='Keyword extraction method (default: combined). Use "ner" for spaCy NER-based extraction.')
+    csv_parser_cmd.add_argument('--verify-ner', action='store_true', dest='verify_ner',
+                               help='Verify NER results using LLM to remove false positives (only works with --keywords-method ner)')
     csv_parser_cmd.add_argument('--num-keywords', type=int, default=20, dest='num_keywords',
                                help='Number of keywords to extract (default: 20)')
     csv_parser_cmd.add_argument('--debug', action='store_true', help='Enable debug output')
@@ -1308,6 +1398,8 @@ Examples:
     pdf_parser_cmd.add_argument('--keywords-method', type=str, default='combined',
                                choices=['tfidf', 'textrank', 'word_freq', 'combined', 'ner'],
                                help='Keyword extraction method (default: combined). Use "ner" for spaCy NER-based extraction.')
+    pdf_parser_cmd.add_argument('--verify-ner', action='store_true', dest='verify_ner',
+                               help='Verify NER results using LLM to remove false positives (only works with --keywords-method ner)')
     pdf_parser_cmd.add_argument('--num-keywords', type=int, default=20, dest='num_keywords',
                                help='Number of keywords to extract (default: 20)')
     pdf_parser_cmd.add_argument('--debug', action='store_true', help='Enable debug output')
@@ -1330,6 +1422,8 @@ Examples:
     spreadsheet_parser_cmd.add_argument('--keywords-method', type=str, default='combined',
                                        choices=['tfidf', 'textrank', 'word_freq', 'combined', 'ner'],
                                        help='Keyword extraction method (default: combined). Use "ner" for spaCy NER-based extraction.')
+    spreadsheet_parser_cmd.add_argument('--verify-ner', action='store_true', dest='verify_ner',
+                                       help='Verify NER results using LLM to remove false positives (only works with --keywords-method ner)')
     spreadsheet_parser_cmd.add_argument('--num-keywords', type=int, default=20, dest='num_keywords',
                                        help='Number of keywords to extract (default: 20)')
     spreadsheet_parser_cmd.add_argument('--debug', action='store_true', help='Enable debug output')
@@ -1559,6 +1653,7 @@ async def main_cli(args):
             extract_keywords=args.extract_keywords,
             keywords_method=args.keywords_method,
             num_keywords=args.num_keywords,
+            verify_ner=getattr(args, 'verify_ner', False),
             debug=DEBUG
         )
     
@@ -1574,7 +1669,8 @@ async def main_cli(args):
             prompt=args.prompt,
             extract_keywords=getattr(args, 'extract_keywords', False),
             keywords_method=getattr(args, 'keywords_method', 'combined'),
-            num_keywords=getattr(args, 'num_keywords', 20)
+            num_keywords=getattr(args, 'num_keywords', 20),
+            verify_ner=getattr(args, 'verify_ner', False)
         )
     
     elif args.command == 'parse-csv':
@@ -1590,7 +1686,8 @@ async def main_cli(args):
             prompt=args.prompt,
             extract_keywords=getattr(args, 'extract_keywords', False),
             keywords_method=getattr(args, 'keywords_method', 'combined'),
-            num_keywords=getattr(args, 'num_keywords', 20)
+            num_keywords=getattr(args, 'num_keywords', 20),
+            verify_ner=getattr(args, 'verify_ner', False)
         )
     
     elif args.command == 'parse-pdf':
@@ -1606,7 +1703,8 @@ async def main_cli(args):
             prompt=args.prompt,
             extract_keywords=getattr(args, 'extract_keywords', False),
             keywords_method=getattr(args, 'keywords_method', 'combined'),
-            num_keywords=getattr(args, 'num_keywords', 20)
+            num_keywords=getattr(args, 'num_keywords', 20),
+            verify_ner=getattr(args, 'verify_ner', False)
         )
     
     elif args.command == 'parse-spreadsheet':
@@ -1622,7 +1720,8 @@ async def main_cli(args):
             prompt=args.prompt,
             extract_keywords=getattr(args, 'extract_keywords', False),
             keywords_method=getattr(args, 'keywords_method', 'combined'),
-            num_keywords=getattr(args, 'num_keywords', 20)
+            num_keywords=getattr(args, 'num_keywords', 20),
+            verify_ner=getattr(args, 'verify_ner', False)
         )
     
     # Note: Agent command is handled synchronously in __main__ block
