@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import sys
+import time
 from datetime import datetime, timezone
 from logging import INFO
 from pathlib import Path
@@ -34,6 +35,7 @@ from graphiti_core.cross_encoder.openai_reranker_client import OpenAIRerankerCli
 
 # Import Pale Fire core modules
 from modules import EntityEnricher, QuestionTypeDetector, KeywordExtractor
+from agents import AIAgentDaemon
 
 # Import utility functions
 from utils.palefire_utils import (
@@ -156,6 +158,790 @@ async def ingest_episodes(episodes_data: list, graphiti: Graphiti, use_ner: bool
         
     finally:
         await graphiti.close()
+
+
+def extract_keywords_from_parsed_text(text: str, num_keywords: int = 20, 
+                                     method: str = 'combined', debug: bool = False) -> Optional[list]:
+    """
+    Extract keywords from parsed text using the AI Agent daemon.
+    
+    Args:
+        text: Text to extract keywords from
+        num_keywords: Number of keywords to extract
+        method: Extraction method (tfidf, textrank, word_freq, combined, ner)
+        debug: Enable debug output
+        
+    Returns:
+        List of keywords or None if extraction fails
+    """
+    if not text or not text.strip():
+        return None
+    
+    if debug:
+        import sys
+        debug_print('Extracting keywords from parsed text...', file=sys.stderr)
+    
+    # Ensure daemon is running
+    ensure_daemon_running(debug=debug)
+    
+    try:
+        from agents import get_daemon
+        daemon = get_daemon(use_spacy=True)
+        if not daemon.model_manager.is_initialized():
+            daemon.model_manager.initialize(use_spacy=True)
+        
+        keywords = daemon.extract_keywords(
+            text,
+            num_keywords=num_keywords,
+            method=method
+        )
+        return keywords
+    except Exception as e:
+        logger.warning(f"Failed to extract keywords: {e}")
+        if debug:
+            import sys
+            debug_print(f'Keyword extraction failed: {e}', file=sys.stderr)
+        return None
+
+
+def extract_file_path_from_prompt(prompt: str) -> Optional[str]:
+    """
+    Extract file path from prompt using pattern matching (fallback when LLM is not available).
+    
+    Args:
+        prompt: Natural language command
+        
+    Returns:
+        Extracted file path or None
+    """
+    import re
+    import os
+    
+    # Pattern 1: Quoted paths (single or double quotes) - handles paths with spaces
+    # Match everything between quotes that ends with a file extension
+    quoted_pattern = r'["\']([^"\']*[^"\']+\.(?:pdf|txt|csv|xlsx|xls|ods|xlsm))["\']'
+    match = re.search(quoted_pattern, prompt)
+    if match:
+        path = match.group(1).strip()
+        if os.path.exists(path):
+            return path
+        # Try expanding ~
+        expanded_path = os.path.expanduser(path)
+        if os.path.exists(expanded_path):
+            return expanded_path
+    
+    # Pattern 2: Absolute paths (starting with /) - handle paths with spaces by looking for file extension
+    # Match from / to the file extension, allowing spaces in between
+    abs_path_pattern = r'(/[^\s,]*[^\s,]+\.(?:pdf|txt|csv|xlsx|xls|ods|xlsm))'
+    matches = re.findall(abs_path_pattern, prompt)
+    for path in matches:
+        # Clean up any trailing punctuation
+        path = path.rstrip('.,;')
+        if os.path.exists(path):
+            return path
+        # Try expanding ~ and resolving
+        expanded_path = os.path.expanduser(path)
+        if os.path.exists(expanded_path):
+            return expanded_path
+    
+    # Pattern 3: Absolute paths with spaces (more flexible)
+    # Look for /Users/ or /home/ or any absolute path ending with file extension
+    abs_path_flexible = r'(/[^\s,]+(?:/[^\s,]+)*\.(?:pdf|txt|csv|xlsx|xls|ods|xlsm))'
+    matches = re.findall(abs_path_flexible, prompt)
+    for path in matches:
+        path = path.rstrip('.,;')
+        if os.path.exists(path):
+            return path
+    
+    # Pattern 4: Relative paths with extensions
+    rel_path_pattern = r'([^\s,]+\.(?:pdf|txt|csv|xlsx|xls|ods|xlsm))'
+    matches = re.findall(rel_path_pattern, prompt)
+    for match in matches:
+        # Skip if it's a URL or contains protocol
+        if '://' in match or match.startswith('http'):
+            continue
+        match = match.rstrip('.,;')
+        if os.path.exists(match):
+            return match
+        # Try with current directory
+        full_path = os.path.abspath(match)
+        if os.path.exists(full_path):
+            return full_path
+    
+    return None
+
+
+def detect_parser_from_prompt(prompt: str, debug: bool = False) -> Optional[dict]:
+    """
+    Detect parser type and options from natural language prompt using LLM.
+    
+    Args:
+        prompt: Natural language command (e.g., "parse PDF file example.pdf")
+        debug: Enable debug output
+        
+    Returns:
+        Dictionary with parser detection results or None if detection fails
+    """
+    try:
+        # First, try to extract file path using pattern matching (fallback)
+        extracted_path = extract_file_path_from_prompt(prompt)
+        
+        # Try to use LLM for parser detection
+        llm_cfg = config.get_llm_config()
+        
+        # Use LLM if API key is configured (works with both OpenAI and Ollama)
+        if llm_cfg.get('api_key'):
+            # Try to use OpenAI-compatible client
+            try:
+                from graphiti_core.llm_client.openai_generic_client import OpenAIGenericClient
+                from graphiti_core.llm_client.config import LLMConfig
+                
+                llm_config = LLMConfig(
+                    api_key=llm_cfg['api_key'],
+                    model=llm_cfg['model'],
+                    base_url=llm_cfg['base_url'],
+                )
+                llm_client = OpenAIGenericClient(config=llm_config)
+                
+                # Load parser detection prompt
+                prompt_file = Path(__file__).parent / 'prompts' / 'system' / 'parser_detection_prompt.md'
+                if prompt_file.exists():
+                    with open(prompt_file, 'r', encoding='utf-8') as f:
+                        system_prompt = f.read()
+                else:
+                    # Fallback prompt
+                    system_prompt = """You are an intelligent file parser selector. Analyze user commands and determine which file parser to use.
+Available parsers: pdf, txt, csv, spreadsheet (for .xlsx, .xls, .ods).
+Return JSON: {"parser": "pdf|txt|csv|spreadsheet", "file_path": "path", "file_type": "pdf|txt|csv|xlsx|xls|ods", "confidence": 0.0-1.0, "options": {}, "reasoning": "explanation"}"""
+                
+                # Create detection prompt
+                detection_prompt = f"{system_prompt}\n\nUser command: {prompt}\n\nDetect parser and return JSON:"
+                
+                if debug:
+                    import sys
+                    debug_print(f'Using LLM to detect parser from prompt: {prompt}', file=sys.stderr)
+                
+                # Call LLM
+                response_obj = llm_client.complete(
+                    messages=[{"role": "user", "content": detection_prompt}],
+                    temperature=0.1,
+                    max_tokens=500
+                )
+                
+                # Extract text from response object
+                if hasattr(response_obj, 'choices') and response_obj.choices:
+                    response = response_obj.choices[0].message.content
+                elif hasattr(response_obj, 'content'):
+                    response = response_obj.content
+                elif isinstance(response_obj, str):
+                    response = response_obj
+                else:
+                    response = str(response_obj)
+                
+                # Extract JSON from response
+                import re
+                json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', response, re.DOTALL)
+                if json_match:
+                    result = json.loads(json_match.group())
+                    # Ensure file_path is set if LLM didn't extract it
+                    if not result.get('file_path') and extracted_path:
+                        result['file_path'] = extracted_path
+                    if debug:
+                        import sys
+                        debug_print(f'Parser detection result: {result}', file=sys.stderr)
+                    return result
+                else:
+                    if debug:
+                        import sys
+                        debug_print(f'No JSON found in LLM response: {response}', file=sys.stderr)
+                    # Fallback to pattern-based detection
+                    if extracted_path:
+                        return _create_fallback_detection(prompt, extracted_path, debug)
+                    return None
+                    
+            except Exception as e:
+                if debug:
+                    import sys
+                    debug_print(f'LLM detection failed: {e}, using fallback', file=sys.stderr)
+                # Fallback to pattern-based detection
+                if extracted_path:
+                    return _create_fallback_detection(prompt, extracted_path, debug)
+                return None
+        else:
+            # No LLM available, use pattern-based detection
+            if extracted_path:
+                return _create_fallback_detection(prompt, extracted_path, debug)
+            return None
+            
+    except Exception as e:
+        if debug:
+            import sys
+            debug_print(f'Parser detection error: {e}', file=sys.stderr)
+        # Last resort: try pattern-based detection
+        extracted_path = extract_file_path_from_prompt(prompt)
+        if extracted_path:
+            return _create_fallback_detection(prompt, extracted_path, debug)
+        return None
+
+
+def _create_fallback_detection(prompt: str, file_path: str, debug: bool = False) -> dict:
+    """
+    Create parser detection result using pattern matching fallback.
+    
+    Args:
+        prompt: Original prompt
+        file_path: Extracted file path
+        debug: Enable debug output
+        
+    Returns:
+        Detection result dictionary
+    """
+    import re
+    from pathlib import Path
+    
+    file_ext = Path(file_path).suffix.lower()
+    
+    # Determine parser type from extension
+    parser_map = {
+        '.pdf': 'pdf',
+        '.txt': 'txt',
+        '.text': 'txt',
+        '.csv': 'csv',
+        '.xlsx': 'spreadsheet',
+        '.xls': 'spreadsheet',
+        '.xlsm': 'spreadsheet',
+        '.ods': 'spreadsheet',
+    }
+    
+    parser = parser_map.get(file_ext, None)
+    if not parser:
+        return None
+    
+    # Extract options from prompt
+    options = {}
+    
+    # Extract max_pages for PDF
+    if parser == 'pdf':
+        pages_match = re.search(r'(?:first|only|max|limit).*?(\d+).*?page', prompt, re.IGNORECASE)
+        if pages_match:
+            options['max_pages'] = int(pages_match.group(1))
+    
+    # Extract delimiter for CSV
+    if parser == 'csv':
+        delimiter_match = re.search(r'(?:with|using|delimiter).*?([;,\t])', prompt, re.IGNORECASE)
+        if delimiter_match:
+            options['delimiter'] = delimiter_match.group(1)
+    
+    # Extract sheet names for spreadsheet
+    if parser == 'spreadsheet':
+        sheet_match = re.search(r"(?:only|sheet|sheets).*?['\"]([^'\"]+)['\"]", prompt, re.IGNORECASE)
+        if sheet_match:
+            options['sheet_names'] = [sheet_match.group(1)]
+    
+    # Extract keyword extraction options (works for all parsers)
+    keyword_patterns = [
+        r'extract.*?keyword',
+        r'get.*?keyword',
+        r'find.*?keyword',
+        r'keyword.*?extraction',
+        r'extract.*?all.*?keyword',
+    ]
+    extract_keywords = any(re.search(pattern, prompt, re.IGNORECASE) for pattern in keyword_patterns)
+    if extract_keywords:
+        options['extract_keywords'] = True
+        # Try to extract number of keywords
+        num_keywords_match = re.search(r'(?:extract|get|find).*?(\d+).*?keyword', prompt, re.IGNORECASE)
+        if num_keywords_match:
+            options['num_keywords'] = int(num_keywords_match.group(1))
+        elif 'all keywords' in prompt.lower():
+            # "all keywords" means extract many keywords
+            options['num_keywords'] = 50  # Default for "all"
+        
+        # Check if NER method is requested
+        ner_patterns = [
+            r'keyword.*?ner',
+            r'keyword.*?with.*?ner',
+            r'ner.*?keyword',
+            r'named.*?entity.*?keyword',
+            r'extract.*?keyword.*?with.*?ner',
+            r'use.*?ner.*?for.*?keyword',
+        ]
+        if any(re.search(pattern, prompt, re.IGNORECASE) for pattern in ner_patterns):
+            options['keywords_method'] = 'ner'
+    
+    result = {
+        'parser': parser,
+        'file_path': file_path,
+        'file_type': file_ext.lstrip('.'),
+        'confidence': 0.8 if file_ext in parser_map else 0.5,
+        'options': options,
+        'reasoning': f'Pattern-based detection: file extension {file_ext} maps to {parser} parser'
+    }
+    
+    if debug:
+        import sys
+        debug_print(f'Fallback detection result: {result}', file=sys.stderr)
+    
+    return result
+
+
+def parse_file_command(file_path: str, output_file: Optional[str] = None, 
+                       extract_keywords: bool = False, keywords_method: str = 'combined',
+                       num_keywords: int = 20, debug: bool = False, 
+                       prompt: Optional[str] = None, **parser_options):
+    """Parse a file using the appropriate parser."""
+    try:
+        from agents.parsers import get_parser
+        
+        # If prompt is provided, try to detect parser and options from it
+        if prompt:
+            detection_result = detect_parser_from_prompt(prompt, debug=debug)
+            if detection_result and detection_result.get('confidence', 0) > 0.5:
+                # Use detected parser and file path
+                detected_parser = detection_result.get('parser')
+                detected_file_path = detection_result.get('file_path') or file_path
+                detected_options = detection_result.get('options', {})
+                
+                if debug:
+                    import sys
+                    debug_print(f'Detected parser: {detected_parser}, file: {detected_file_path}, options: {detected_options}', file=sys.stderr)
+                
+                # Override file_path if detected
+                if detected_file_path and detected_file_path != file_path:
+                    file_path = detected_file_path
+                
+                # Merge detected options with provided options
+                parser_options.update(detected_options)
+                
+                # Map parser type to actual parser
+                if detected_parser == 'pdf':
+                    from agents.parsers import PDFParser
+                    parser = PDFParser()
+                elif detected_parser == 'csv':
+                    from agents.parsers import CSVParser
+                    parser = CSVParser()
+                elif detected_parser == 'txt':
+                    from agents.parsers import TXTParser
+                    parser = TXTParser()
+                elif detected_parser == 'spreadsheet':
+                    from agents.parsers import SpreadsheetParser
+                    parser = SpreadsheetParser()
+                else:
+                    # Fallback to auto-detection
+                    parser = get_parser(file_path)
+            else:
+                # Fallback to auto-detection
+                if debug:
+                    import sys
+                    debug_print(f'Parser detection failed or low confidence, using auto-detection', file=sys.stderr)
+                parser = get_parser(file_path)
+        else:
+            if debug:
+                import sys
+                debug_print(f'Parsing file: {file_path}', file=sys.stderr)
+            parser = get_parser(file_path)
+        
+        # Parse file with options
+        result = parser.parse(file_path, **parser_options)
+        
+        if not result.success:
+            logger.error(f"Parsing failed: {result.error}")
+            print(json.dumps({'error': result.error}, indent=2))
+            return
+        
+        output = result.to_dict()
+        
+        # Extract keywords if requested
+        if extract_keywords:
+            if debug:
+                import sys
+                debug_print('Extracting keywords from parsed text...', file=sys.stderr)
+            
+            # Ensure daemon is running
+            ensure_daemon_running(debug=debug)
+            
+            try:
+                from agents import get_daemon
+                daemon = get_daemon(use_spacy=True)
+                if not daemon.model_manager.is_initialized():
+                    daemon.model_manager.initialize(use_spacy=True)
+                
+                keywords = daemon.extract_keywords(
+                    result.text,
+                    num_keywords=num_keywords,
+                    method=keywords_method
+                )
+                output['keywords'] = keywords
+            except Exception as e:
+                logger.warning(f"Failed to extract keywords: {e}")
+                if debug:
+                    import sys
+                    debug_print(f'Keyword extraction failed: {e}', file=sys.stderr)
+        
+        # Output results
+        if output_file:
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(output, f, indent=2, ensure_ascii=False)
+            if debug:
+                import sys
+                debug_print(f'✅ Results saved to {output_file}', file=sys.stderr)
+        else:
+            print(json.dumps(output, indent=2, ensure_ascii=False))
+    
+    except ValueError as e:
+        logger.error(f"Parser error: {e}")
+        print(json.dumps({'error': str(e)}, indent=2))
+    except Exception as e:
+        logger.error(f"Error parsing file: {e}", exc_info=True)
+        print(json.dumps({'error': f"Error parsing file: {str(e)}"}, indent=2))
+
+
+def parse_txt_command(file_path: str, encoding: str = 'utf-8', 
+                     output_file: Optional[str] = None, debug: bool = False,
+                     prompt: Optional[str] = None,
+                     extract_keywords: bool = False, keywords_method: str = 'combined',
+                     num_keywords: int = 20):
+    """Parse a text file."""
+    try:
+        from agents.parsers import TXTParser
+        
+        # If prompt is provided, try to extract file path from it
+        if prompt:
+            extracted_path = extract_file_path_from_prompt(prompt)
+            if extracted_path and (not file_path or not os.path.exists(file_path)):
+                file_path = extracted_path
+                if debug:
+                    import sys
+                    debug_print(f'Extracted file path from prompt: {file_path}', file=sys.stderr)
+        
+        # Validate file path
+        if not file_path:
+            print(json.dumps({'error': 'No file path provided. Please specify a file or use --prompt with a file path.', 'success': False}, indent=2))
+            return
+        
+        if not os.path.exists(file_path):
+            print(json.dumps({'error': f'File not found: {file_path}', 'success': False}, indent=2))
+            return
+        
+        parser = TXTParser(encoding=encoding)
+        result = parser.parse(file_path, encoding=encoding)
+        
+        output = result.to_dict()
+        
+        # Extract keywords if requested
+        if extract_keywords:
+            keywords = extract_keywords_from_parsed_text(
+                result.text,
+                num_keywords=num_keywords,
+                method=keywords_method,
+                debug=debug
+            )
+            if keywords:
+                output['keywords'] = keywords
+        
+        if output_file:
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(output, f, indent=2, ensure_ascii=False)
+        else:
+            print(json.dumps(output, indent=2, ensure_ascii=False))
+    
+    except Exception as e:
+        logger.error(f"Error parsing text file: {e}", exc_info=True)
+        print(json.dumps({'error': f"Error parsing file: {str(e)}"}, indent=2))
+
+
+def parse_csv_command(file_path: str, delimiter: str = ',', include_headers: bool = True,
+                     output_file: Optional[str] = None, debug: bool = False,
+                     prompt: Optional[str] = None,
+                     extract_keywords: bool = False, keywords_method: str = 'combined',
+                     num_keywords: int = 20):
+    """Parse a CSV file."""
+    try:
+        from agents.parsers import CSVParser
+        
+        # If prompt is provided, try to detect parser and options from it
+        if prompt:
+            # First, try to extract file path from prompt
+            extracted_path = extract_file_path_from_prompt(prompt)
+            if extracted_path and (not file_path or not os.path.exists(file_path)):
+                file_path = extracted_path
+                if debug:
+                    import sys
+                    debug_print(f'Extracted file path from prompt: {file_path}', file=sys.stderr)
+            
+            # Then try LLM detection for options
+            detection_result = detect_parser_from_prompt(prompt, debug=debug)
+            if detection_result and detection_result.get('confidence', 0) > 0.5:
+                detected_file_path = detection_result.get('file_path')
+                detected_options = detection_result.get('options', {})
+                if detected_file_path and os.path.exists(detected_file_path):
+                    file_path = detected_file_path
+                if 'delimiter' in detected_options:
+                    delimiter = detected_options['delimiter']
+                if 'include_headers' in detected_options:
+                    include_headers = detected_options['include_headers']
+                if debug:
+                    import sys
+                    debug_print(f'Using detected file path: {file_path}, delimiter: {delimiter}', file=sys.stderr)
+        
+        # Validate file path
+        if not file_path:
+            print(json.dumps({'error': 'No file path provided. Please specify a file or use --prompt with a file path.', 'success': False}, indent=2))
+            return
+        
+        if not os.path.exists(file_path):
+            print(json.dumps({'error': f'File not found: {file_path}', 'success': False}, indent=2))
+            return
+        
+        parser = CSVParser(delimiter=delimiter)
+        result = parser.parse(file_path, delimiter=delimiter, include_headers=include_headers)
+        
+        output = result.to_dict()
+        
+        # Extract keywords if requested
+        if extract_keywords:
+            keywords = extract_keywords_from_parsed_text(
+                result.text,
+                num_keywords=num_keywords,
+                method=keywords_method,
+                debug=debug
+            )
+            if keywords:
+                output['keywords'] = keywords
+        
+        if output_file:
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(output, f, indent=2, ensure_ascii=False)
+        else:
+            print(json.dumps(output, indent=2, ensure_ascii=False))
+    
+    except Exception as e:
+        logger.error(f"Error parsing CSV file: {e}", exc_info=True)
+        print(json.dumps({'error': f"Error parsing file: {str(e)}"}, indent=2))
+
+
+def parse_pdf_command(file_path: str, max_pages: Optional[int] = None, 
+                     extract_tables: bool = True, output_file: Optional[str] = None, 
+                     debug: bool = False, prompt: Optional[str] = None,
+                     extract_keywords: bool = False, keywords_method: str = 'combined',
+                     num_keywords: int = 20):
+    """Parse a PDF file."""
+    try:
+        from agents.parsers import PDFParser
+        
+        # If prompt is provided, try to detect parser and options from it
+        if prompt:
+            # First, always try to extract file path from prompt (pattern matching)
+            extracted_path = extract_file_path_from_prompt(prompt)
+            if extracted_path and (not file_path or not os.path.exists(file_path)):
+                file_path = extracted_path
+                if debug:
+                    import sys
+                    debug_print(f'Extracted file path from prompt: {file_path}', file=sys.stderr)
+            
+            # Then try LLM detection for parser type and options
+            detection_result = detect_parser_from_prompt(prompt, debug=debug)
+            if detection_result and detection_result.get('confidence', 0) > 0.5:
+                detected_file_path = detection_result.get('file_path')
+                detected_options = detection_result.get('options', {})
+                # Use detected file path if available and current path is invalid
+                if detected_file_path and os.path.exists(detected_file_path):
+                    file_path = detected_file_path
+                if 'max_pages' in detected_options and detected_options['max_pages']:
+                    max_pages = detected_options['max_pages']
+                if 'extract_tables' in detected_options:
+                    extract_tables = detected_options['extract_tables']
+                # Extract keyword extraction options from detection
+                if 'extract_keywords' in detected_options and detected_options['extract_keywords']:
+                    extract_keywords = True
+                    if 'num_keywords' in detected_options:
+                        num_keywords = detected_options['num_keywords']
+                    if 'keywords_method' in detected_options:
+                        keywords_method = detected_options['keywords_method']
+                if debug:
+                    import sys
+                    debug_print(f'Using detected file path: {file_path}, max_pages: {max_pages}, extract_keywords: {extract_keywords}', file=sys.stderr)
+            else:
+                # Fallback: try pattern-based keyword detection
+                import re
+                keyword_patterns = [
+                    r'extract.*?keyword',
+                    r'get.*?keyword',
+                    r'find.*?keyword',
+                    r'keyword.*?extraction',
+                    r'extract.*?all.*?keyword',
+                ]
+                if any(re.search(pattern, prompt, re.IGNORECASE) for pattern in keyword_patterns):
+                    extract_keywords = True
+                    num_keywords_match = re.search(r'(?:extract|get|find).*?(\d+).*?keyword', prompt, re.IGNORECASE)
+                    if num_keywords_match:
+                        num_keywords = int(num_keywords_match.group(1))
+                    elif 'all keywords' in prompt.lower():
+                        num_keywords = 50  # Default for "all"
+                    
+                    # Check if NER method is requested
+                    ner_patterns = [
+                        r'keyword.*?ner',
+                        r'keyword.*?with.*?ner',
+                        r'ner.*?keyword',
+                        r'named.*?entity.*?keyword',
+                        r'extract.*?keyword.*?with.*?ner',
+                        r'use.*?ner.*?for.*?keyword',
+                    ]
+                    if any(re.search(pattern, prompt, re.IGNORECASE) for pattern in ner_patterns):
+                        keywords_method = 'ner'
+                    
+                    if debug:
+                        import sys
+                        debug_print(f'Detected keyword extraction from prompt: extract_keywords={extract_keywords}, num_keywords={num_keywords}, method={keywords_method}', file=sys.stderr)
+        
+        # Validate file path
+        if not file_path:
+            print(json.dumps({'error': 'No file path provided. Please specify a file or use --prompt with a file path.', 'success': False}, indent=2))
+            return
+        
+        if not os.path.exists(file_path):
+            print(json.dumps({'error': f'File not found: {file_path}', 'success': False}, indent=2))
+            return
+        
+        parser = PDFParser()
+        result = parser.parse(file_path, max_pages=max_pages, extract_tables=extract_tables)
+        
+        output = result.to_dict()
+        
+        # Extract keywords if requested
+        if extract_keywords:
+            keywords = extract_keywords_from_parsed_text(
+                result.text,
+                num_keywords=num_keywords,
+                method=keywords_method,
+                debug=debug
+            )
+            if keywords:
+                output['keywords'] = keywords
+        
+        if output_file:
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(output, f, indent=2, ensure_ascii=False)
+        else:
+            print(json.dumps(output, indent=2, ensure_ascii=False))
+    
+    except Exception as e:
+        logger.error(f"Error parsing PDF file: {e}", exc_info=True)
+        print(json.dumps({'error': f"Error parsing file: {str(e)}"}, indent=2))
+
+
+def parse_spreadsheet_command(file_path: str, sheet_names: Optional[list] = None,
+                             include_headers: bool = True, output_file: Optional[str] = None,
+                             debug: bool = False, prompt: Optional[str] = None):
+    """Parse a spreadsheet file."""
+    try:
+        from agents.parsers import SpreadsheetParser
+        
+        # If prompt is provided, try to detect parser and options from it
+        if prompt:
+            detection_result = detect_parser_from_prompt(prompt, debug=debug)
+            if detection_result and detection_result.get('confidence', 0) > 0.5:
+                detected_file_path = detection_result.get('file_path') or file_path
+                detected_options = detection_result.get('options', {})
+                if detected_file_path:
+                    file_path = detected_file_path
+                if 'sheet_names' in detected_options and detected_options['sheet_names']:
+                    sheet_names = detected_options['sheet_names']
+                if debug:
+                    import sys
+                    debug_print(f'Using detected file path: {file_path}, sheet_names: {sheet_names}', file=sys.stderr)
+        
+        parser = SpreadsheetParser()
+        result = parser.parse(file_path, sheet_names=sheet_names, include_headers=include_headers)
+        
+        output = result.to_dict()
+        
+        if output_file:
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(output, f, indent=2, ensure_ascii=False)
+        else:
+            print(json.dumps(output, indent=2, ensure_ascii=False))
+    
+    except Exception as e:
+        logger.error(f"Error parsing spreadsheet file: {e}", exc_info=True)
+        print(json.dumps({'error': f"Error parsing file: {str(e)}"}, indent=2))
+
+
+def ensure_daemon_running(pidfile: str = '/tmp/palefire_ai_agent.pid', use_spacy: bool = True, debug: bool = False) -> bool:
+    """
+    Check if daemon is running, start it if not.
+    
+    Returns:
+        True if daemon is running (or was started), False otherwise
+    """
+    import signal as sig
+    
+    # Check if daemon is running
+    daemon_running = False
+    try:
+        if os.path.exists(pidfile):
+            with open(pidfile, 'r') as f:
+                pid = int(f.read().strip())
+            # Check if process exists
+            try:
+                os.kill(pid, 0)  # Signal 0 doesn't kill, just checks
+                daemon_running = True
+            except ProcessLookupError:
+                # Stale PID file
+                try:
+                    os.remove(pidfile)
+                except:
+                    pass
+    except (FileNotFoundError, ValueError):
+        pass
+    
+    if daemon_running:
+        if debug:
+            import sys
+            debug_print(f'✅ Daemon is running (PID: {pid})', file=sys.stderr)
+        return True
+    
+    # Daemon not running, start it
+    if debug:
+        import sys
+        debug_print('⚠️  Daemon not running, starting it automatically...', file=sys.stderr)
+    
+    try:
+        daemon = AIAgentDaemon(pidfile=pidfile, use_spacy=use_spacy)
+        
+        # Start in background
+        daemon.start(daemon=True)
+        
+        # Wait a moment for daemon to initialize
+        time.sleep(1.0)
+        
+        # Verify it started
+        if os.path.exists(pidfile):
+            with open(pidfile, 'r') as f:
+                pid = int(f.read().strip())
+            try:
+                os.kill(pid, 0)
+                if debug:
+                    import sys
+                    debug_print(f'✅ Daemon started successfully (PID: {pid})', file=sys.stderr)
+                return True
+            except ProcessLookupError:
+                if debug:
+                    import sys
+                    debug_print('⚠️  Daemon process not found after start', file=sys.stderr)
+                return False
+        else:
+            if debug:
+                import sys
+                debug_print('⚠️  PID file not created', file=sys.stderr)
+            return False
+    except Exception as e:
+        if debug:
+            import sys
+            debug_print(f'❌ Failed to start daemon: {e}', file=sys.stderr)
+        logger.warning(f"Failed to start daemon automatically: {e}")
+        return False
 
 
 def extract_keywords_from_text(
@@ -366,6 +1152,11 @@ Examples:
 
   # Extract keywords with custom weights
   %(prog)s keywords "Your text here" --method combined --tfidf-weight 1.5 --textrank-weight 0.8
+
+  # Parse file using natural language
+  %(prog)s parse --prompt "parse PDF file example.pdf"
+  %(prog)s parse --prompt "parse CSV file data.csv with semicolon delimiter"
+  %(prog)s parse-spreadsheet --prompt "parse Excel file report.xlsx, only Summary sheet"
         '''
     )
     
@@ -405,8 +1196,8 @@ Examples:
     keywords_parser = subparsers.add_parser('keywords', help='Extract keywords from text using Gensim')
     keywords_parser.add_argument('text', type=str, help='Text to extract keywords from')
     keywords_parser.add_argument('--method', type=str, default='tfidf',
-                                choices=['tfidf', 'textrank', 'word_freq', 'combined'],
-                                help='Extraction method (default: tfidf)')
+                                choices=['tfidf', 'textrank', 'word_freq', 'combined', 'ner'],
+                                help='Extraction method (default: tfidf). Use "ner" for spaCy NER-based extraction.')
     keywords_parser.add_argument('--num-keywords', type=int, default=10, dest='num_keywords',
                                 help='Number of keywords to extract (default: 10)')
     keywords_parser.add_argument('--min-word-length', type=int, default=3, dest='min_word_length',
@@ -443,6 +1234,119 @@ Examples:
                                 help='Path to output JSON file (default: print to stdout)')
     keywords_parser.add_argument('--debug', action='store_true',
                                 help='Enable debug output (verbose printing)')
+    
+    # Parse command (file parsing)
+    parse_parser = subparsers.add_parser('parse', help='Parse files and extract text')
+    parse_parser.add_argument('file', type=str, nargs='?', help='Path to file to parse (optional if using --prompt)')
+    parse_parser.add_argument('--prompt', '-p', type=str, dest='prompt',
+                             help='Natural language command (e.g., "parse PDF file example.pdf")')
+    parse_parser.add_argument('--output', '-o', type=str, dest='output_file',
+                             help='Output JSON file (default: print to stdout)')
+    parse_parser.add_argument('--extract-keywords', action='store_true', dest='extract_keywords',
+                             help='Extract keywords from parsed text')
+    parse_parser.add_argument('--keywords-method', type=str, default='combined',
+                             choices=['tfidf', 'textrank', 'word_freq', 'combined', 'ner'],
+                             help='Keyword extraction method (default: combined). Use "ner" for spaCy NER-based extraction.')
+    parse_parser.add_argument('--num-keywords', type=int, default=20, dest='num_keywords',
+                             help='Number of keywords to extract (default: 20)')
+    parse_parser.add_argument('--debug', action='store_true',
+                             help='Enable debug output')
+    
+    # Parser-specific commands
+    txt_parser_cmd = subparsers.add_parser('parse-txt', help='Parse text files (.txt)')
+    txt_parser_cmd.add_argument('file', type=str, nargs='?', help='Path to .txt file (optional if using --prompt)')
+    txt_parser_cmd.add_argument('--prompt', '-p', type=str, dest='prompt',
+                               help='Natural language command (e.g., "parse text file readme.txt")')
+    txt_parser_cmd.add_argument('--encoding', type=str, default='utf-8',
+                               help='Text encoding (default: utf-8)')
+    txt_parser_cmd.add_argument('--output', '-o', type=str, dest='output_file',
+                               help='Output JSON file')
+    txt_parser_cmd.add_argument('--extract-keywords', action='store_true', dest='extract_keywords',
+                               help='Extract keywords from parsed text')
+    txt_parser_cmd.add_argument('--keywords-method', type=str, default='combined',
+                               choices=['tfidf', 'textrank', 'word_freq', 'combined', 'ner'],
+                               help='Keyword extraction method (default: combined). Use "ner" for spaCy NER-based extraction.')
+    txt_parser_cmd.add_argument('--num-keywords', type=int, default=20, dest='num_keywords',
+                               help='Number of keywords to extract (default: 20)')
+    txt_parser_cmd.add_argument('--debug', action='store_true', help='Enable debug output')
+    
+    csv_parser_cmd = subparsers.add_parser('parse-csv', help='Parse CSV files (.csv)')
+    csv_parser_cmd.add_argument('file', type=str, nargs='?', help='Path to .csv file (optional if using --prompt)')
+    csv_parser_cmd.add_argument('--prompt', '-p', type=str, dest='prompt',
+                               help='Natural language command (e.g., "parse CSV file data.csv with semicolon delimiter")')
+    csv_parser_cmd.add_argument('--delimiter', type=str, default=',',
+                               help='CSV delimiter (default: ,)')
+    csv_parser_cmd.add_argument('--include-headers', action='store_true', default=True,
+                               dest='include_headers', help='Include header row')
+    csv_parser_cmd.add_argument('--no-headers', action='store_false', dest='include_headers',
+                               help='Do not include header row')
+    csv_parser_cmd.add_argument('--output', '-o', type=str, dest='output_file',
+                               help='Output JSON file')
+    csv_parser_cmd.add_argument('--extract-keywords', action='store_true', dest='extract_keywords',
+                               help='Extract keywords from parsed text')
+    csv_parser_cmd.add_argument('--keywords-method', type=str, default='combined',
+                               choices=['tfidf', 'textrank', 'word_freq', 'combined', 'ner'],
+                               help='Keyword extraction method (default: combined). Use "ner" for spaCy NER-based extraction.')
+    csv_parser_cmd.add_argument('--num-keywords', type=int, default=20, dest='num_keywords',
+                               help='Number of keywords to extract (default: 20)')
+    csv_parser_cmd.add_argument('--debug', action='store_true', help='Enable debug output')
+    
+    pdf_parser_cmd = subparsers.add_parser('parse-pdf', help='Parse PDF files (.pdf)')
+    pdf_parser_cmd.add_argument('file', type=str, nargs='?', help='Path to .pdf file (optional if using --prompt)')
+    pdf_parser_cmd.add_argument('--prompt', '-p', type=str, dest='prompt',
+                               help='Natural language command (e.g., "parse PDF file report.pdf, first 10 pages")')
+    pdf_parser_cmd.add_argument('--max-pages', type=int, dest='max_pages',
+                               help='Maximum number of pages to parse')
+    pdf_parser_cmd.add_argument('--extract-tables', action='store_true', default=True,
+                               dest='extract_tables', help='Extract tables from PDF')
+    pdf_parser_cmd.add_argument('--no-tables', action='store_false', dest='extract_tables',
+                               help='Do not extract tables')
+    pdf_parser_cmd.add_argument('--output', '-o', type=str, dest='output_file',
+                               help='Output JSON file')
+    pdf_parser_cmd.add_argument('--extract-keywords', action='store_true', dest='extract_keywords',
+                               help='Extract keywords from parsed text')
+    pdf_parser_cmd.add_argument('--keywords-method', type=str, default='combined',
+                               choices=['tfidf', 'textrank', 'word_freq', 'combined', 'ner'],
+                               help='Keyword extraction method (default: combined). Use "ner" for spaCy NER-based extraction.')
+    pdf_parser_cmd.add_argument('--num-keywords', type=int, default=20, dest='num_keywords',
+                               help='Number of keywords to extract (default: 20)')
+    pdf_parser_cmd.add_argument('--debug', action='store_true', help='Enable debug output')
+    
+    spreadsheet_parser_cmd = subparsers.add_parser('parse-spreadsheet', 
+                                                  help='Parse spreadsheet files (.xlsx, .xls, .ods)')
+    spreadsheet_parser_cmd.add_argument('file', type=str, nargs='?', help='Path to spreadsheet file (optional if using --prompt)')
+    spreadsheet_parser_cmd.add_argument('--prompt', '-p', type=str, dest='prompt',
+                                       help='Natural language command (e.g., "parse Excel file report.xlsx, only Summary sheet")')
+    spreadsheet_parser_cmd.add_argument('--sheets', type=str, nargs='+', dest='sheet_names',
+                                       help='Sheet names to parse (default: all)')
+    spreadsheet_parser_cmd.add_argument('--include-headers', action='store_true', default=True,
+                                       dest='include_headers', help='Include header rows')
+    spreadsheet_parser_cmd.add_argument('--no-headers', action='store_false', dest='include_headers',
+                                       help='Do not include header rows')
+    spreadsheet_parser_cmd.add_argument('--output', '-o', type=str, dest='output_file',
+                                       help='Output JSON file')
+    spreadsheet_parser_cmd.add_argument('--extract-keywords', action='store_true', dest='extract_keywords',
+                                       help='Extract keywords from parsed text')
+    spreadsheet_parser_cmd.add_argument('--keywords-method', type=str, default='combined',
+                                       choices=['tfidf', 'textrank', 'word_freq', 'combined', 'ner'],
+                                       help='Keyword extraction method (default: combined). Use "ner" for spaCy NER-based extraction.')
+    spreadsheet_parser_cmd.add_argument('--num-keywords', type=int, default=20, dest='num_keywords',
+                                       help='Number of keywords to extract (default: 20)')
+    spreadsheet_parser_cmd.add_argument('--debug', action='store_true', help='Enable debug output')
+    
+    # Agent command
+    agent_parser = subparsers.add_parser('agent', help='Manage AI Agent daemon')
+    agent_parser.add_argument('action', type=str, choices=['start', 'stop', 'restart', 'status'],
+                            help='Action to perform on the daemon')
+    agent_parser.add_argument('--pidfile', type=str, default='/tmp/palefire_ai_agent.pid',
+                            help='Path to PID file (default: /tmp/palefire_ai_agent.pid)')
+    agent_parser.add_argument('--daemon', '--background', '-d', '-b', action='store_true',
+                            help='Run as background daemon (alias: --background, -d, -b)')
+    agent_parser.add_argument('--no-spacy', action='store_true', dest='no_spacy',
+                            help='Disable spaCy (use pattern-based NER)')
+    agent_parser.add_argument('--log-level', type=str, default='INFO',
+                            choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
+                            help='Log level (default: INFO)')
     
     return parser
 
@@ -519,7 +1423,112 @@ async def main_cli(args):
         await clean_database(graphiti, confirm=args.confirm, nodes_only=args.nodes_only, debug=DEBUG)
     
     elif args.command == 'keywords':
-        # Extract keywords from text
+        # Ensure daemon is running (start if needed)
+        pidfile = '/tmp/palefire_ai_agent.pid'
+        use_spacy = True  # Default to using spaCy
+        
+        if DEBUG:
+            import sys
+            debug_print('Checking if daemon is running...', file=sys.stderr)
+        
+        daemon_available = ensure_daemon_running(pidfile=pidfile, use_spacy=use_spacy, debug=DEBUG)
+        
+        # Try to use daemon if available, otherwise fall back to direct extraction
+        if daemon_available:
+            try:
+                # Use daemon for faster extraction (models already loaded)
+                from agents import get_daemon
+                daemon = get_daemon(use_spacy=use_spacy)
+                
+                # Ensure models are initialized
+                if not daemon.model_manager.is_initialized():
+                    if DEBUG:
+                        import sys
+                        debug_print('Initializing daemon models...', file=sys.stderr)
+                    daemon.model_manager.initialize(use_spacy=use_spacy)
+                
+                # Extract keywords using daemon
+                if DEBUG:
+                    import sys
+                    debug_print('Using daemon for keyword extraction (models already loaded)...', file=sys.stderr)
+                
+                # Create a new extractor with custom parameters if needed
+                # The daemon's extractor might have default parameters, so we create a new one
+                from modules import KeywordExtractor
+                extractor = KeywordExtractor(
+                    method=args.method,
+                    num_keywords=args.num_keywords,
+                    min_word_length=args.min_word_length,
+                    max_word_length=args.max_word_length,
+                    use_stemming=args.use_stemming,
+                    tfidf_weight=args.tfidf_weight,
+                    textrank_weight=args.textrank_weight,
+                    word_freq_weight=args.word_freq_weight,
+                    position_weight=args.position_weight,
+                    title_weight=args.title_weight,
+                    first_sentence_weight=args.first_sentence_weight,
+                    enable_ngrams=args.enable_ngrams,
+                    min_ngram=args.min_ngram,
+                    max_ngram=args.max_ngram,
+                    ngram_weight=args.ngram_weight,
+                )
+                
+                # Load documents if provided
+                documents = None
+                if args.documents_file:
+                    try:
+                        with open(args.documents_file, 'r', encoding='utf-8') as f:
+                            documents_data = json.load(f)
+                            if isinstance(documents_data, list):
+                                documents = documents_data
+                    except Exception as e:
+                        logger.warning(f"Error loading documents file: {e}")
+                
+                # Extract keywords using the extractor
+                keywords = extractor.extract(args.text, documents)
+                
+                # Format output
+                output = {
+                    'method': args.method,
+                    'num_keywords': len(keywords),
+                    'keywords': keywords,
+                    'parameters': {
+                        'num_keywords': args.num_keywords,
+                        'min_word_length': args.min_word_length,
+                        'max_word_length': args.max_word_length,
+                        'use_stemming': args.use_stemming,
+                        'tfidf_weight': args.tfidf_weight,
+                        'textrank_weight': args.textrank_weight,
+                        'word_freq_weight': args.word_freq_weight,
+                        'position_weight': args.position_weight,
+                        'title_weight': args.title_weight,
+                        'first_sentence_weight': args.first_sentence_weight,
+                        'enable_ngrams': args.enable_ngrams,
+                        'min_ngram': args.min_ngram,
+                        'max_ngram': args.max_ngram,
+                        'ngram_weight': args.ngram_weight,
+                    },
+                    'daemon_used': True
+                }
+                
+                # Output results
+                if args.output_file:
+                    with open(args.output_file, 'w', encoding='utf-8') as f:
+                        json.dump(output, f, indent=2, ensure_ascii=False)
+                    if DEBUG:
+                        import sys
+                        debug_print(f'\n✅ Keywords saved to {args.output_file}', file=sys.stderr)
+                else:
+                    print(json.dumps(output, indent=2, ensure_ascii=False))
+                
+                return
+            except Exception as e:
+                if DEBUG:
+                    import sys
+                    debug_print(f'⚠️  Failed to use daemon: {e}, falling back to direct extraction', file=sys.stderr)
+                logger.warning(f"Failed to use daemon, falling back to direct extraction: {e}")
+        
+        # Fall back to direct extraction (original method)
         extract_keywords_from_text(
             text=args.text,
             method=args.method,
@@ -541,7 +1550,84 @@ async def main_cli(args):
             output_file=args.output_file,
             debug=DEBUG
         )
-        
+    
+    elif args.command == 'parse':
+        # Parse file using appropriate parser
+        parse_file_command(
+            file_path=args.file,
+            output_file=args.output_file,
+            extract_keywords=args.extract_keywords,
+            keywords_method=args.keywords_method,
+            num_keywords=args.num_keywords,
+            debug=DEBUG
+        )
+    
+    elif args.command == 'parse-txt':
+        # Parse text file
+        if not args.file and not args.prompt:
+            parser.error("Either 'file' argument or '--prompt' option is required")
+        parse_txt_command(
+            file_path=args.file or '',
+            encoding=args.encoding,
+            output_file=args.output_file,
+            debug=DEBUG,
+            prompt=args.prompt,
+            extract_keywords=getattr(args, 'extract_keywords', False),
+            keywords_method=getattr(args, 'keywords_method', 'combined'),
+            num_keywords=getattr(args, 'num_keywords', 20)
+        )
+    
+    elif args.command == 'parse-csv':
+        # Parse CSV file
+        if not args.file and not args.prompt:
+            parser.error("Either 'file' argument or '--prompt' option is required")
+        parse_csv_command(
+            file_path=args.file or '',
+            delimiter=args.delimiter,
+            include_headers=args.include_headers,
+            output_file=args.output_file,
+            debug=DEBUG,
+            prompt=args.prompt,
+            extract_keywords=getattr(args, 'extract_keywords', False),
+            keywords_method=getattr(args, 'keywords_method', 'combined'),
+            num_keywords=getattr(args, 'num_keywords', 20)
+        )
+    
+    elif args.command == 'parse-pdf':
+        # Parse PDF file
+        if not args.file and not args.prompt:
+            parser.error("Either 'file' argument or '--prompt' option is required")
+        parse_pdf_command(
+            file_path=args.file or '',
+            max_pages=args.max_pages,
+            extract_tables=args.extract_tables,
+            output_file=args.output_file,
+            debug=DEBUG,
+            prompt=args.prompt,
+            extract_keywords=getattr(args, 'extract_keywords', False),
+            keywords_method=getattr(args, 'keywords_method', 'combined'),
+            num_keywords=getattr(args, 'num_keywords', 20)
+        )
+    
+    elif args.command == 'parse-spreadsheet':
+        # Parse spreadsheet file
+        if not args.file and not args.prompt:
+            parser.error("Either 'file' argument or '--prompt' option is required")
+        parse_spreadsheet_command(
+            file_path=args.file or '',
+            sheet_names=args.sheet_names.split(',') if args.sheet_names else None,
+            include_headers=args.include_headers,
+            output_file=args.output_file,
+            debug=DEBUG,
+            prompt=args.prompt,
+            extract_keywords=getattr(args, 'extract_keywords', False),
+            keywords_method=getattr(args, 'keywords_method', 'combined'),
+            num_keywords=getattr(args, 'num_keywords', 20)
+        )
+    
+    # Note: Agent command is handled synchronously in __main__ block
+    # to avoid async event loop issues with process forking
+    
     else:
         if DEBUG:
             debug_print('No command specified. Use --help for usage information.')
@@ -610,6 +1696,152 @@ if __name__ == '__main__':
     parser = create_cli_parser()
     args = parser.parse_args()
     
+    # Handle agent command synchronously (before async context)
+    # Agent daemon operations don't need async and can cause issues with forking
+    if args.command == 'agent':
+        import json
+        import os
+        import signal as sig
+        
+        daemon = AIAgentDaemon(pidfile=args.pidfile, use_spacy=not args.no_spacy)
+        
+        # Setup logging for agent command
+        logging.basicConfig(
+            level=getattr(logging, args.log_level),
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        
+        if args.action == 'start':
+            if args.daemon:
+                # Background mode: show PID and status
+                print("Starting AI Agent daemon in background mode...")
+                print(f"PID file: {args.pidfile}")
+                print(f"Use spaCy: {not args.no_spacy}")
+                print(f"Log level: {args.log_level}")
+                
+                # Start in background
+                daemon.start(daemon=True)
+                
+                # Wait a moment to ensure PID file is written
+                time.sleep(0.5)
+                
+                # Read and display PID
+                try:
+                    if os.path.exists(args.pidfile):
+                        with open(args.pidfile, 'r') as f:
+                            pid = f.read().strip()
+                        print(f"✅ AI Agent daemon started successfully (PID: {pid})")
+                        print(f"   Check status: python palefire-cli.py agent status")
+                        print(f"   Stop daemon: python palefire-cli.py agent stop")
+                        print(f"   View logs: tail -f /tmp/palefire_ai_agent.log")
+                    else:
+                        print("⚠️  Daemon started but PID file not found yet")
+                        print("   Check if daemon is running: python palefire-cli.py agent status")
+                except Exception as e:
+                    logger.warning(f"Could not read PID file: {e}")
+                    print("⚠️  Daemon started but could not read PID")
+                    print("   Check if daemon is running: python palefire-cli.py agent status")
+            else:
+                # Foreground mode: run normally with better output
+                print("Starting AI Agent daemon in foreground mode...")
+                print("Press Ctrl+C to stop")
+                print("-" * 60)
+                daemon.start(daemon=False)
+        elif args.action == 'stop':
+            # Read PID and send SIGTERM
+            try:
+                with open(args.pidfile, 'r') as f:
+                    pid = int(f.read().strip())
+                os.kill(pid, sig.SIGTERM)
+                logger.info(f"Sent SIGTERM to process {pid}")
+                print(f"Stopped daemon (PID: {pid})")
+            except FileNotFoundError:
+                logger.error("PID file not found. Daemon may not be running.")
+                print("Error: Daemon not running (PID file not found)")
+            except ProcessLookupError:
+                logger.error("Process not found. Removing stale PID file.")
+                try:
+                    os.remove(args.pidfile)
+                except:
+                    pass
+                print("Error: Daemon process not found (stale PID file removed)")
+        elif args.action == 'restart':
+            # Stop then start
+            try:
+                with open(args.pidfile, 'r') as f:
+                    pid = int(f.read().strip())
+                os.kill(pid, sig.SIGTERM)
+                logger.info(f"Sent SIGTERM to process {pid}")
+                time.sleep(2)  # Wait for shutdown
+            except:
+                pass
+            if args.daemon:
+                print("Restarting AI Agent daemon in background mode...")
+                daemon.start(daemon=True)
+                time.sleep(0.5)
+                try:
+                    if os.path.exists(args.pidfile):
+                        with open(args.pidfile, 'r') as f:
+                            pid = f.read().strip()
+                        print(f"✅ AI Agent daemon restarted successfully (PID: {pid})")
+                except:
+                    pass
+            else:
+                print("Restarting AI Agent daemon in foreground mode...")
+                daemon.start(daemon=False)
+        elif args.action == 'status':
+            # Check if daemon process is actually running
+            daemon_running = False
+            pid = None
+            process_info = None
+            
+            try:
+                if os.path.exists(args.pidfile):
+                    with open(args.pidfile, 'r') as f:
+                        pid = int(f.read().strip())
+                    
+                    # Check if process exists
+                    try:
+                        os.kill(pid, 0)  # Signal 0 doesn't kill, just checks if process exists
+                        daemon_running = True
+                        # Try to get process info
+                        import psutil
+                        try:
+                            proc = psutil.Process(pid)
+                            process_info = {
+                                'pid': pid,
+                                'status': proc.status(),
+                                'memory_mb': round(proc.memory_info().rss / 1024 / 1024, 2),
+                                'cpu_percent': proc.cpu_percent(interval=0.1),
+                                'create_time': datetime.fromtimestamp(proc.create_time()).isoformat()
+                            }
+                        except:
+                            process_info = {'pid': pid, 'status': 'running'}
+                    except ProcessLookupError:
+                        daemon_running = False
+                        # Stale PID file
+                        try:
+                            os.remove(args.pidfile)
+                        except:
+                            pass
+            except (FileNotFoundError, ValueError) as e:
+                daemon_running = False
+            
+            # Get daemon status (models info)
+            status = daemon.get_status()
+            
+            # Update with actual running status
+            status['daemon_running'] = daemon_running
+            status['pid'] = pid
+            if process_info:
+                status['process'] = process_info
+            
+            print(json.dumps(status, indent=2))
+        
+        # Exit after handling agent command (don't enter async context)
+        sys.exit(0)
+    
+    # Handle other commands in async context
     if args.command:
         asyncio.run(main_cli(args))
     else:

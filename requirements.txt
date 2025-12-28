@@ -16,6 +16,22 @@ pydantic>=2.5.0
 # Additional utilities
 python-multipart>=0.0.6  # For file uploads
 
+# Keyword extraction
+gensim>=4.3.0
+
+# System monitoring (for agent status)
+psutil>=5.9.0
+
+# File parsing dependencies (optional)
+# PDF parsing
+PyPDF2>=3.0.0  # or pdfplumber>=0.9.0 (better table extraction)
+# pdfplumber>=0.9.0  # Alternative: better table extraction
+
+# Spreadsheet parsing
+openpyxl>=3.1.0  # For .xlsx files
+xlrd>=2.0.0  # For .xls files
+odfpy>=1.4.0  # For .ods files (OpenDocument Spreadsheet)
+
 # Testing dependencies
 pytest>=7.4.0
 pytest-asyncio>=0.21.0
