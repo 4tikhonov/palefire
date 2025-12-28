@@ -17,12 +17,21 @@ class SimpleOllamaClient:
         self.timeout = timeout
         self.client = ollama.Client(host=self.host, timeout=timeout)
 
-    def complete(self, messages: List[Dict[str, str]], temperature: float = 0.1, max_tokens: int = 500) -> str:
+    def complete(self, messages, temperature: float = 0.1, max_tokens: int = 500) -> str:
         """
         Synchronous chat completion request using the ollama library.
+        Accepts either a string prompt or a list of message dicts.
         """
         try:
             logger.debug(f"Sending request to Ollama model {self.model} with timeout {self.timeout}s")
+
+            # Handle both string and messages formats
+            if isinstance(messages, str):
+                messages = [{"role": "user", "content": messages}]
+            elif isinstance(messages, list) and len(messages) > 0 and isinstance(messages[0], str):
+                # If it's a list of strings, convert to message format
+                messages = [{"role": "user", "content": messages[0]}]
+
             response = self.client.chat(
                 model=self.model,
                 messages=messages,
@@ -47,22 +56,52 @@ class SimpleOllamaClient:
                 logger.error(f"Ollama library request failed (timeout: {self.timeout}s) for model {self.model}: {e}")
             raise
 
-    async def acomplete(self, messages: List[Dict[str, str]], temperature: float = 0.1, max_tokens: int = 500) -> str:
+
+    async def acomplete(self, messages, temperature: float = 0.1, max_tokens: int = 500) -> str:
         """
-        Asynchronous chat completion request using the ollama library.
+        Asynchronous chat completion request using httpx for direct HTTP calls.
+        This allows truly parallel requests to Ollama's REST API.
         """
         try:
-            # ollama.AsyncClient can be used for async calls
-            async_client = ollama.AsyncClient(host=self.host, timeout=self.timeout)
-            response = await async_client.chat(
-                model=self.model,
-                messages=messages,
-                options={
+            import httpx
+
+            # Handle both string and messages formats
+            if isinstance(messages, str):
+                messages = [{"role": "user", "content": messages}]
+            elif isinstance(messages, list) and len(messages) > 0 and isinstance(messages[0], str):
+                # If it's a list of strings, convert to message format
+                messages = [{"role": "user", "content": messages[0]}]
+
+            # Prepare the request payload
+            payload = {
+                "model": self.model,
+                "messages": messages,
+                "options": {
                     "temperature": temperature,
                     "num_predict": max_tokens
-                }
-            )
-            return response['message']['content']
+                },
+                "stream": False
+            }
+
+            # Use httpx for async HTTP request - this allows truly parallel requests
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(
+                    f"{self.host}/api/chat",
+                    json=payload,
+                    headers={"Content-Type": "application/json"}
+                )
+                response.raise_for_status()
+                result = response.json()
+                content = result.get('message', {}).get('content', '')
+                if not content:
+                    logger.warning(f"Ollama returned empty response for model {self.model}")
+                    return ""
+                return content
+
+        except ImportError:
+            # Fallback to synchronous method if httpx not available
+            logger.warning("httpx not available, falling back to sync method for async call")
+            return self.complete(messages, temperature, max_tokens)
         except Exception as e:
-            logger.error(f"Ollama library async request failed (timeout: {self.timeout}s): {e}")
+            logger.error(f"Async Ollama request failed (timeout: {self.timeout}s): {e}")
             raise
