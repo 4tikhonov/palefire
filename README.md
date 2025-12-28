@@ -51,6 +51,9 @@ Pale Fire is an advanced knowledge graph search system featuring:
 - **📊 5-Factor Ranking** - Combines semantic, connectivity, temporal, query matching, and entity-type intelligence
 - **⚡ CLI Interface** - Easy-to-use command-line interface for ingestion and queries
 - **🔧 Modular Architecture** - Clean separation of concerns for maintainability
+- **🤖 AI Agent Daemon** - Long-running daemon service that keeps Gensim and spaCy models loaded in memory for instant access
+- **🔑 Keyword Extraction** - Extract keywords and n-grams (2-4 words) using Gensim with configurable weights (TF-IDF, TextRank, Word Frequency)
+- **📄 File Parsing** - Extract text from multiple formats: TXT, CSV, PDF, Excel (.xlsx, .xls), OpenDocument (.ods)
 - **📚 Theoretical Foundation** - Based on Pale Fire's interpretive framework (see [docs/PROS-CONS.md](docs/PROS-CONS.md))
 
 ## Quick Start
@@ -84,6 +87,11 @@ See **[docs/DOCKER.md](docs/DOCKER.md)** for complete Docker documentation.
 # 1. Install dependencies
 pip install -r requirements.txt
 python -m spacy download en_core_web_sm
+
+# Install keyword extraction (optional but recommended)
+pip install gensim>=4.3.0
+# Optional: For better stemming support
+pip install nltk
 
 # 2. Configure environment
 cp env.example .env  # Edit with your settings
@@ -213,12 +221,64 @@ python palefire-cli.py clean --confirm
 python palefire-cli.py clean --nodes-only
 ```
 
+### Extract Keywords
+
+```bash
+# Extract keywords from text
+python palefire-cli.py keywords "Your text here" --num-keywords 10
+
+# With n-grams (2-4 word phrases)
+python palefire-cli.py keywords "Your text here" --min-ngram 2 --max-ngram 3
+
+# Using specific method (tfidf, textrank, frequency, combined)
+python palefire-cli.py keywords "Your text" --method combined
+
+# Save to file
+python palefire-cli.py keywords "Your text" -o results.json
+```
+
+### Parse Files
+
+```bash
+# Auto-detect file type and parse
+python palefire-cli.py parse document.pdf
+
+# Parse specific file types
+python palefire-cli.py parse-txt document.txt
+python palefire-cli.py parse-csv data.csv
+python palefire-cli.py parse-pdf document.pdf
+python palefire-cli.py parse-spreadsheet data.xlsx
+
+# Parse with options
+python palefire-cli.py parse-csv data.csv --delimiter ";"
+python palefire-cli.py parse-pdf document.pdf --max-pages 10
+```
+
+### Manage AI Agent Daemon
+
+```bash
+# Start daemon in background
+python palefire-cli.py agent start --daemon
+
+# Check status
+python palefire-cli.py agent status
+
+# Stop daemon
+python palefire-cli.py agent stop
+
+# Restart daemon
+python palefire-cli.py agent restart --daemon
+```
+
 ### Get Help
 
 ```bash
 python palefire-cli.py --help
 python palefire-cli.py ingest --help
 python palefire-cli.py query --help
+python palefire-cli.py keywords --help
+python palefire-cli.py parse --help
+python palefire-cli.py agent --help
 ```
 
 ## Episode File Format
@@ -253,7 +313,19 @@ palefire/
 ├── palefire-cli.py              # Main CLI application
 ├── modules/                     # Core modules
 │   ├── __init__.py
-│   └── PaleFireCore.py         # EntityEnricher + QuestionTypeDetector
+│   ├── PaleFireCore.py         # EntityEnricher + QuestionTypeDetector
+│   ├── KeywordBase.py          # Keyword extraction (Gensim)
+│   └── api_models.py           # Pydantic models for API
+├── agents/                      # AI Agent daemon and parsers
+│   ├── AIAgent.py              # ModelManager, AIAgentDaemon
+│   ├── palefire-agent-service.py  # Service script
+│   ├── parsers/                 # File parsers
+│   │   ├── base_parser.py      # Base parser class
+│   │   ├── txt_parser.py       # Text file parser
+│   │   ├── csv_parser.py       # CSV parser
+│   │   ├── pdf_parser.py       # PDF parser
+│   │   └── spreadsheet_parser.py  # Excel/ODS parser
+│   └── docker-compose.agent.yml  # Docker compose for agent
 ├── example_episodes.json        # Example data
 ├── docs/                        # Documentation folder
 │   ├── CLI_GUIDE.md            # Complete CLI documentation
@@ -262,6 +334,8 @@ palefire/
 │   └── [other documentation]
 └── [other files]
 ```
+
+See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for complete architecture documentation.
 
 ## 5-Factor Ranking System
 
@@ -429,7 +503,14 @@ All documentation is located in the [`docs/`](docs/) folder. See **[docs/README.
 
 ## Testing
 
-Pale Fire includes a comprehensive test suite with **79 tests** (62 passing, 17 skipped).
+Pale Fire includes a comprehensive test suite with **126+ tests** covering all major components:
+
+- **Core modules** (EntityEnricher, QuestionTypeDetector)
+- **AI Agent** (ModelManager, AIAgentDaemon) - 47 tests
+- **File parsers** (TXT, CSV, PDF, Spreadsheet) - 20+ tests
+- **API endpoints** and models
+- **Search functions** and ranking algorithms
+- **Configuration** and utilities
 
 ```bash
 # Run all tests
@@ -437,6 +518,9 @@ pytest
 
 # Run with coverage
 pytest --cov=. --cov-report=html
+
+# Run specific test suite
+pytest tests/test_ai_agent.py -v
 
 # Use test runner script
 ./run_tests.sh coverage
@@ -449,6 +533,23 @@ See:
 
 ## Requirements
 
+### Core Dependencies
+- `graphiti-core>=0.3.0` - Knowledge graph framework
+- `python-dotenv>=1.0.0` - Environment variable management
+- `gensim>=4.3.0` - Keyword extraction (for keywords command)
+- `spacy>=3.7.0` - Named Entity Recognition (optional but recommended)
+- `fastapi>=0.104.0` - API framework
+- `uvicorn[standard]>=0.24.0` - ASGI server
+- `pydantic>=2.5.0` - Data validation
+
+### Optional Dependencies
+- `nltk` - For better stemming support in keyword extraction
+- `psutil>=5.9.0` - System monitoring for AI Agent daemon
+- `PyPDF2>=3.0.0` or `pdfplumber>=0.9.0` - PDF parsing
+- `openpyxl>=3.1.0` - Excel .xlsx files
+- `xlrd>=2.0.0` - Excel .xls files
+- `odfpy>=1.4.0` - OpenDocument Spreadsheet (.ods) files
+
 ### Docker (Recommended)
 - Docker 20.10+
 - Docker Compose 2.0+
@@ -460,10 +561,15 @@ See:
 - graphiti-core
 - python-dotenv
 - Neo4j database
+- gensim>=4.3.0 (for keyword extraction)
 
 **NER (Optional but Recommended):**
 - spacy
 - en_core_web_sm model
+
+**Keyword Extraction (Optional but Recommended):**
+- gensim>=4.3.0
+- nltk (for better stemming support)
 
 **Testing:**
 - pytest
@@ -473,13 +579,30 @@ See:
 
 ## Performance
 
+### Without AI Agent (models load each time)
 | Operation | Time | Notes |
 |-----------|------|-------|
-| Question detection | 1-5ms | Regex-based |
+| Model loading | 5-10s | One-time per process |
+| Keyword extraction | 0.5-1s | Per request |
 | Entity extraction (spaCy) | 50-500ms | Per node |
 | Entity extraction (pattern) | 10-50ms | Per node |
 | Standard search | 100-300ms | RRF only |
 | Question-aware search | 500-2000ms | All factors |
+
+### With AI Agent (models stay loaded)
+| Operation | Time | Notes |
+|-----------|------|-------|
+| Model loading | 5-10s | One-time on daemon startup |
+| Keyword extraction | 0.01-0.1s | **10-100x faster!** |
+| Entity extraction (spaCy) | 50-500ms | Same as above |
+| File parsing | Varies | Depends on file type and size |
+| Standard search | 100-300ms | RRF only |
+| Question-aware search | 500-2000ms | All factors |
+
+### Question Detection
+| Operation | Time | Notes |
+|-----------|------|-------|
+| Question detection | 1-5ms | Regex-based |
 
 ## Troubleshooting
 
@@ -494,6 +617,37 @@ python palefire-cli.py --help
 python -m spacy download en_core_web_sm
 ```
 
+### Gensim not found (for keyword extraction)
+```bash
+pip install gensim>=4.3.0
+# Optional: For better stemming support
+pip install nltk
+```
+
+### File parsing dependencies missing
+```bash
+# Install all parsing dependencies
+pip install PyPDF2>=3.0.0 openpyxl>=3.1.0 xlrd>=2.0.0 odfpy>=1.4.0
+
+# Or install individually as needed
+pip install PyPDF2>=3.0.0  # For PDF files
+pip install openpyxl>=3.1.0  # For .xlsx files
+pip install xlrd>=2.0.0  # For .xls files
+pip install odfpy>=1.4.0  # For .ods files
+```
+
+### AI Agent daemon not starting
+```bash
+# Check if daemon is already running
+python palefire-cli.py agent status
+
+# Check logs
+tail -f logs/palefire-agent.log
+
+# Verify dependencies
+pip install psutil>=5.9.0
+```
+
 ### Neo4j connection error
 ```bash
 # Check Neo4j is running
@@ -502,20 +656,178 @@ python -m spacy download en_core_web_sm
 
 ## Best Practices
 
-1. ✅ Use NER enrichment for production
-2. ✅ Use question-aware search for natural questions
-3. ✅ Batch process large datasets
-4. ✅ Monitor logs for errors
-5. ✅ Backup Neo4j database regularly
+1. ✅ **Use AI Agent Daemon** for production - eliminates model loading delays
+2. ✅ Use NER enrichment for production
+3. ✅ Use question-aware search for natural questions
+4. ✅ Batch process large datasets
+5. ✅ Monitor logs for errors
+6. ✅ Backup Neo4j database regularly
+7. ✅ **Keep daemon running** - models stay loaded, requests are instant
+8. ✅ **Parse files once** - reuse parsed text for multiple operations
+9. ✅ Use appropriate parsers - PDF parsers vary in speed (pdfplumber slower but better)
+
+## AI Agent Daemon
+
+The AI Agent daemon keeps Gensim and spaCy models loaded in memory to avoid start/stop delays. This is especially useful for production deployments with high request volumes.
+
+### Features
+
+- **⚡ Fast Access**: Models stay loaded, eliminating 5-10 second initialization delays
+- **🔄 Thread-Safe**: Safe concurrent access to models via ModelManager
+- **📄 File Parsing**: Integrated parsers for TXT, CSV, PDF, and spreadsheet files
+- **🔑 Keyword Extraction**: Fast keyword and n-gram extraction with configurable methods
+- **🏷️ Entity Extraction**: Instant NER extraction using loaded spaCy models
+- **📊 Status Monitoring**: Real-time status with process information (PID, memory, CPU)
+
+### Quick Start
+
+```bash
+# Start daemon in background
+python palefire-cli.py agent start --daemon
+
+# Check status (shows PID, memory, CPU usage)
+python palefire-cli.py agent status
+
+# Stop daemon
+python palefire-cli.py agent stop
+
+# Restart daemon
+python palefire-cli.py agent restart --daemon
+```
+
+### Using the Daemon Programmatically
+
+```python
+from agents import get_daemon
+
+# Get daemon instance (models loaded once)
+daemon = get_daemon(use_spacy=True)
+daemon.model_manager.initialize(use_spacy=True)
+
+# Extract keywords (fast - models already loaded)
+keywords = daemon.extract_keywords(
+    "Your text here",
+    num_keywords=10,
+    method='combined',
+    enable_ngrams=True,
+    min_ngram=2,
+    max_ngram=3
+)
+
+# Extract entities (fast - models already loaded)
+entities = daemon.extract_entities("Your text here")
+
+# Parse files
+result = daemon.parse_file("document.pdf")
+if result['success']:
+    text = result['text']
+    metadata = result['metadata']
+```
+
+### Automatic Daemon Management
+
+The `keywords` command automatically checks if the daemon is running and starts it if needed:
+
+```bash
+# This will start the daemon automatically if not running
+python palefire-cli.py keywords "Your text here"
+```
+
+### Docker Deployment
+
+**Standalone:**
+```bash
+# Start the AI Agent daemon
+docker-compose -f agents/docker-compose.agent.yml up -d
+
+# View logs
+docker-compose -f agents/docker-compose.agent.yml logs -f
+
+# Stop the agent
+docker-compose -f agents/docker-compose.agent.yml down
+```
+
+**Integrated with main services:**
+```bash
+# Start all services including the agent
+docker-compose -f docker-compose.yml -f agents/docker-compose.agent.yml up -d
+```
+
+See **[agents/DOCKER.md](agents/DOCKER.md)** for complete Docker documentation.
+
+See **[agents/USAGE_GUIDE.md](agents/USAGE_GUIDE.md)** for complete usage guide on starting, stopping, and querying the agent.
+
+### System Service Integration
+
+**Linux (systemd):**
+```bash
+# Copy service file
+sudo cp agents/palefire-agent.service /etc/systemd/system/
+# Edit paths in service file
+sudo nano /etc/systemd/system/palefire-agent.service
+# Enable and start
+sudo systemctl enable palefire-agent
+sudo systemctl start palefire-agent
+```
+
+**macOS (launchd):**
+```bash
+# Copy plist file
+cp agents/palefire-agent.plist ~/Library/LaunchAgents/
+# Edit paths in plist file
+nano ~/Library/LaunchAgents/palefire-agent.plist
+# Load service
+launchctl load ~/Library/LaunchAgents/palefire-agent.plist
+```
+
+### File Parsing Capabilities
+
+The AI Agent includes integrated file parsers for extracting text from various formats:
+
+- **TXT**: Plain text files with encoding detection
+- **CSV**: Comma-separated values with delimiter auto-detection
+- **PDF**: Text and table extraction (PyPDF2 or pdfplumber)
+- **Spreadsheets**: Excel (.xlsx, .xls) and OpenDocument (.ods) with multi-sheet support
+
+```python
+from agents import get_daemon
+
+daemon = get_daemon()
+result = daemon.parse_file("document.pdf", max_pages=10)
+
+# Result structure:
+# {
+#     'text': 'Full extracted text...',
+#     'metadata': {'filename': 'document.pdf', 'page_count': 5, ...},
+#     'pages': ['Page 1 text...', 'Page 2 text...'],
+#     'tables': [{'data': [...], 'headers': [...]}],
+#     'success': True,
+#     'error': None
+# }
+```
+
+### Benefits
+
+- **⚡ No Model Loading Delays**: Models stay in memory, ready for instant use (10-100x faster!)
+- **🔄 Reduced Memory Overhead**: Single instance shared across requests
+- **📈 Better Performance**: Eliminates repeated model initialization
+- **🏭 Production Ready**: Designed for high-throughput scenarios
+- **📄 Unified Interface**: Single daemon handles keywords, entities, and file parsing
 
 ## Future Enhancements
 
 - [x] REST API wrapper (see [docs/API_GUIDE.md](docs/API_GUIDE.md))
+- [x] AI Agent daemon for model persistence
+- [x] File parsers (TXT, CSV, PDF, Spreadsheet)
+- [x] Keyword extraction with n-grams
+- [x] Comprehensive unit tests for AI Agent (47+ tests)
 - [ ] Web UI
 - [ ] Result caching
 - [ ] Multi-language support
 - [ ] Custom entity types
 - [ ] ML-based question detection
+- [ ] Socket/HTTP communication for daemon
+- [ ] Additional file formats (DOCX, RTF, etc.)
 
 ## Contributing
 
