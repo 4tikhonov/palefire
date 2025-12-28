@@ -273,7 +273,7 @@ class AIAgentDaemon:
         
         logger.info("AI Agent Daemon stopped")
     
-    def extract_keywords(self, text: str, method: str = 'combined', num_keywords: int = 20, verify_ner: bool = False, **kwargs) -> List[Dict[str, Any]]:
+    def extract_keywords(self, text: str, method: str = 'combined', num_keywords: int = 20, verify_ner: bool = False, deep: bool = False, blocksize: int = 1, **kwargs) -> List[Dict[str, Any]]:
         """
         Extract keywords using the loaded model.
         
@@ -282,6 +282,8 @@ class AIAgentDaemon:
             method: Extraction method ('tfidf', 'textrank', 'word_freq', 'combined', 'ner')
             num_keywords: Number of keywords to extract
             verify_ner: If True and method is 'ner', verify results using LLM
+            deep: If True and method is 'ner', process text sentence-by-sentence with ordered index
+            blocksize: Number of sentences per block when deep=True (default: 1 = sentence-by-sentence)
             **kwargs: Additional arguments for KeywordExtractor.extract()
         
         Returns:
@@ -289,7 +291,7 @@ class AIAgentDaemon:
         """
         # If NER method is requested, use spaCy NER for keyword extraction
         if method == 'ner':
-            return self.extract_keywords_ner(text, num_keywords=num_keywords, verify_ner=verify_ner)
+            return self.extract_keywords_ner(text, num_keywords=num_keywords, verify_ner=verify_ner, deep=deep, blocksize=blocksize)
         
         # Otherwise, use gensim-based methods
         extractor = self.model_manager.keyword_extractor
@@ -500,7 +502,6 @@ class AIAgentDaemon:
                 entity_data = {
                     'text': entity_text,
                     'type': entity_type,
-                    'desc': ctx_info['description'],  # Type description from CONTEXT_REQUIRED_TYPES
                     'sent': ctx_info['sentence'],  # Sentence containing the entity
                     'verified': False
                 }
@@ -513,6 +514,11 @@ class AIAgentDaemon:
             # Add context header if available
             if context_header:
                 system_prompt += f"\n\n{context_header}\n"
+            
+            # Add the full text context (block text) for better verification
+            # This provides complete context instead of just individual sentences
+            if text and text.strip():
+                system_prompt += f"\n\nFull text context:\n{text.strip()}\n"
             
             # Add instructions with JSON template
             system_prompt += "\n\nYou MUST return results as a JSON array. Format:\n[\n  {\n    \"text\": \"entity text\",\n    \"type\": \"ENTITY_TYPE\",\n    \"verified\": true,\n    \"reasoning\": \"explanation\"\n  }\n]\n\nUse type \"REMOVE\" for false positives. Example:\n[\n  {\n    \"text\": \"First\",\n    \"type\": \"ORDINAL\",\n    \"verified\": true,\n    \"reasoning\": \"Verified as ordinal number\"\n  },\n  {\n    \"text\": \"invalid\",\n    \"type\": \"REMOVE\",\n    \"verified\": false,\n    \"reasoning\": \"Not a valid entity\"\n  }\n]\n\nReturn ONLY valid JSON, no other text."
@@ -686,12 +692,297 @@ class AIAgentDaemon:
                 traceback.print_exc()
             return entities
     
-    def extract_keywords_ner(self, text: str, num_keywords: int = 20, verify_ner: bool = False) -> List[Dict[str, Any]]:
+    def _split_into_sentences(self, text: str) -> List[Dict[str, Any]]:
+        """
+        Split text into sentences using spaCy and build ordered index.
+        
+        Returns:
+            List of sentence dictionaries with 'text', 'index', 'start', 'end'
+        """
+        try:
+            import spacy
+            # Try to use spaCy if available (same as EntityEnricher)
+            if self.model_manager.entity_enricher.use_spacy:
+                # Load spaCy model directly (same as PaleFireCore does)
+                try:
+                    nlp_model = spacy.load("en_core_web_sm")
+                    doc = nlp_model(text)
+                    sentences = []
+                    for i, sent in enumerate(doc.sents):
+                        sentences.append({
+                            'text': sent.text,
+                            'index': i,
+                            'start': sent.start_char,
+                            'end': sent.end_char
+                        })
+                    return sentences
+                except OSError:
+                    logger.warning("spaCy model 'en_core_web_sm' not found for sentence splitting")
+        except Exception as e:
+            logger.warning(f"Failed to use spaCy for sentence splitting: {e}")
+        
+        # Fallback to simple sentence splitting
+        import re
+        sentence_pattern = r'(?<=[.!?])\s+'
+        sentences = []
+        parts = re.split(sentence_pattern, text)
+        current_pos = 0
+        for i, part in enumerate(parts):
+            if part.strip():
+                sentences.append({
+                    'text': part.strip(),
+                    'index': i,
+                    'start': current_pos,
+                    'end': current_pos + len(part)
+                })
+                current_pos += len(part)
+        return sentences
+    
+    def _extract_keywords_ner_deep(self, text: str, num_keywords: int, verify_ner: bool, enricher, blocksize: int = 1) -> List[Dict[str, Any]]:
+        """
+        Deep processing: split text into sentences and process in blocks.
+        
+        Args:
+            text: Full text to process
+            num_keywords: Maximum number of keywords to return
+            verify_ner: If True, verify results using LLM
+            enricher: EntityEnricher instance
+            blocksize: Number of sentences per block (default: 1 = sentence-by-sentence)
+            
+        Returns:
+            List of keywords with sentence index information
+        """
+        # Validate blocksize
+        if blocksize < 1:
+            logger.warning(f"Invalid blocksize {blocksize}, using default of 1")
+            blocksize = 1
+        
+        # 1. Split text into sentences with ordered index
+        sentences = self._split_into_sentences(text)
+        logger.debug(f"Deep mode: split text into {len(sentences)} sentences, blocksize={blocksize}")
+        
+        # Group sentences into blocks
+        blocks = []
+        for i in range(0, len(sentences), blocksize):
+            block_sentences = sentences[i:i+blocksize]
+            block_text = ' '.join(s['text'] for s in block_sentences)
+            block_start = block_sentences[0]['start'] if block_sentences else 0
+            block_end = block_sentences[-1]['end'] if block_sentences else len(text)
+            block_indices = [s['index'] for s in block_sentences]
+            blocks.append({
+                'text': block_text,
+                'sentences': block_sentences,
+                'indices': block_indices,
+                'start': block_start,
+                'end': block_end,
+                'block_index': i // blocksize
+            })
+        
+        logger.debug(f"Deep mode: grouped into {len(blocks)} blocks of up to {blocksize} sentences each")
+        
+        # 2. Process each sentence separately for entity extraction (for accuracy)
+        all_entities = []
+        sentence_entity_map = {}  # Map sentence_index -> list of entities
+        block_entity_map = {}  # Map block_index -> list of all entities in block
+        
+        for sentence_info in sentences:
+            sentence_text = sentence_info['text']
+            sentence_index = sentence_info['index']
+            sentence_start = sentence_info['start']
+            
+            # Extract entities from this sentence
+            sentence_entities = enricher.extract_entities(sentence_text)
+            
+            # Adjust entity positions to account for sentence offset in full text
+            for entity in sentence_entities:
+                # Update start/end positions to be relative to full text
+                entity['start'] = entity.get('start', 0) + sentence_start
+                entity['end'] = entity.get('end', 0) + sentence_start
+                entity['sentence_index'] = sentence_index
+                entity['sentence_text'] = sentence_text
+                all_entities.append(entity)
+            
+            sentence_entity_map[sentence_index] = sentence_entities
+        
+        # Group entities by block for LLM verification
+        for block in blocks:
+            block_entities = []
+            for sentence_index in block['indices']:
+                block_entities.extend(sentence_entity_map.get(sentence_index, []))
+            block_entity_map[block['block_index']] = block_entities
+        
+        if not all_entities:
+            return []
+        
+        # 3. Verify with LLM block-by-block if requested
+        verified_map = {}  # Maps entity_text.lower() -> verified_entity_data
+        verification_successful = False
+        llm_model = 'unknown'  # Default model name
+        
+        if verify_ner:
+            try:
+                llm_cfg = config.get_llm_config()
+                main_model = llm_cfg.get('model', 'unknown')
+                verification_model = llm_cfg.get('verification_model')
+                llm_model = verification_model if (verification_model and verification_model.strip()) else main_model
+                verification_timeout = llm_cfg.get('verification_timeout', 300)
+                
+                logger.debug(f"Deep mode: verifying {len(blocks)} blocks with LLM (model: {llm_model}, blocksize={blocksize})")
+                
+                # Process each block separately for LLM verification
+                for block in blocks:
+                    block_text = block['text']
+                    block_index = block['block_index']
+                    block_entities = block_entity_map.get(block_index, [])
+                    
+                    if not block_entities:
+                        continue
+                    
+                    # Verify entities from this block
+                    verified_block_entities = self.verify_ner_with_llm(
+                        block_text, 
+                        block_entities, 
+                        debug=False
+                    )
+                    
+                    # Map verified entities back to sentences
+                    for verified_entity in verified_block_entities:
+                        v_text = (verified_entity.get('text') or "").strip().lower()
+                        if v_text:
+                            # Find which sentence(s) this entity belongs to
+                            # Store block indices for reference
+                            verified_entity['block_index'] = block_index
+                            verified_entity['sentence_indices'] = block['indices']
+                            verified_map[v_text] = verified_entity
+                    
+                    if verified_block_entities:
+                        verification_successful = True
+                
+                logger.debug(f"Deep mode: verified {len(verified_map)} entities across {len(blocks)} blocks")
+                
+            except Exception as e:
+                logger.error(f"Deep mode LLM verification failed: {e}", exc_info=True)
+        
+        # 4. Combine and process entities (similar to regular flow)
+        # Use the same aggregation logic as extract_keywords_ner
+        entity_scores = {}
+        entity_types = {}
+        entity_reasonings = {}
+        entity_verified_status = {}
+        entity_display_texts = {}
+        entity_sentence_indices = {}  # Track which sentences contain each entity
+        
+        for entity in all_entities:
+            entity_text = entity['text'].strip()
+            entity_lower = entity_text.lower()
+            normalized_lower = re.sub(r'\s+', ' ', entity_lower).strip()
+            sentence_index = entity.get('sentence_index', -1)
+            
+            # Match with verified entities
+            matched_with_llm = False
+            if verify_ner and verification_successful:
+                ve = verified_map.get(entity_lower) or verified_map.get(normalized_lower)
+                if ve:
+                    matched_with_llm = True
+                    llm_type = ve.get('type', 'UNKNOWN')
+                    llm_reasoning = ve.get('reasoning', '').strip()
+                    entity_type = llm_type
+                    reasoning = llm_reasoning if llm_reasoning else f"Verified as {entity_type} by LLM model {llm_model}"
+                else:
+                    entity_type = entity.get('type', 'UNKNOWN')
+                    reasoning = f"Not verified by LLM model {llm_model} - using spaCy classification ({entity_type})"
+            else:
+                # No verification requested, or verification failed - use original entity
+                entity_type = entity.get('type', 'UNKNOWN')
+                reasoning = ''  # No reasoning needed if verification wasn't requested
+            
+            # Score based on entity type importance
+            type_weights = {
+                'PER': 1.0, 'ORG': 0.9, 'LOC': 0.8, 'GPE': 0.8,
+                'PRODUCT': 0.7, 'EVENT': 0.7, 'FAC': 0.6, 'WORK_OF_ART': 0.6,
+                'LAW': 0.5, 'LANGUAGE': 0.5, 'DATE': 0.4, 'TIME': 0.3,
+                'MONEY': 0.3, 'PERCENT': 0.2, 'ORDINAL': 0.2, 'CARDINAL': 0.1, 'QUANTITY': 0.1,
+                'OTHER': 0.1,  # Not a recognized entity type - low priority
+            }
+            
+            base_score = type_weights.get(entity_type, 0.5)
+            length_bonus = min(len(entity_text.split()) * 0.1, 0.3)
+            
+            if entity_lower not in entity_scores:
+                entity_scores[entity_lower] = 0.0
+                entity_types[entity_lower] = entity_type
+                entity_display_texts[entity_lower] = entity_text
+                entity_reasonings[entity_lower] = reasoning
+                entity_verified_status[entity_lower] = matched_with_llm
+                entity_sentence_indices[entity_lower] = [sentence_index]
+            else:
+                # Update reasoning if LLM verified
+                if matched_with_llm:
+                    entity_reasonings[entity_lower] = reasoning
+                    entity_types[entity_lower] = entity_type
+                    entity_verified_status[entity_lower] = True
+                # Track sentence indices
+                if sentence_index not in entity_sentence_indices[entity_lower]:
+                    entity_sentence_indices[entity_lower].append(sentence_index)
+            
+            entity_scores[entity_lower] += base_score + length_bonus
+        
+        # 5. Convert to keyword format
+        keywords = []
+        for entity_lower, score in entity_scores.items():
+            kw_data = {
+                'keyword': entity_display_texts[entity_lower],
+                'score': round(score, 4),
+                'type': entity_types[entity_lower],
+                'sentence_indices': sorted(entity_sentence_indices[entity_lower])  # Add sentence indices
+            }
+            
+            # Add status based on verification
+            if verify_ner:
+                if entity_lower in entity_verified_status and entity_verified_status[entity_lower]:
+                    kw_data['status'] = 'verified'
+                else:
+                    kw_data['status'] = 'Not verified'
+            
+            # Add reasoning
+            if entity_lower in entity_reasonings:
+                reasoning_value = entity_reasonings[entity_lower]
+                if reasoning_value:
+                    kw_data['reasoning'] = reasoning_value
+            
+            keywords.append(kw_data)
+        
+        # Sort and limit
+        keywords.sort(key=lambda x: x['score'], reverse=True)
+        keywords = keywords[:num_keywords]
+        
+        # Normalize scores
+        if keywords:
+            max_score = keywords[0]['score']
+            if max_score > 0:
+                for kw in keywords:
+                    kw['score'] = round(min(kw['score'] / max_score, 1.0), 4)
+        
+        logger.debug(f"Deep mode: returning {len(keywords)} keywords from {len(sentences)} sentences")
+        return keywords
+    
+    def extract_keywords_ner(self, text: str, num_keywords: int = 20, verify_ner: bool = False, deep: bool = False, blocksize: int = 1) -> List[Dict[str, Any]]:
         """
         Extract keywords using spaCy NER (Named Entity Recognition).
         Returns named entities as keywords, sorted by importance.
+        
+        Args:
+            text: Text to extract keywords from
+            num_keywords: Maximum number of keywords to return
+            verify_ner: If True, verify results using LLM
+            deep: If True, process text sentence-by-sentence with ordered index
+            blocksize: Number of sentences per block when deep=True (default: 1 = sentence-by-sentence)
         """
         enricher = self.model_manager.entity_enricher
+        
+        # If deep mode, split into sentences and process separately
+        if deep:
+            return self._extract_keywords_ner_deep(text, num_keywords, verify_ner, enricher, blocksize)
         
         # 1. Extract original entities using spaCy (to get all occurrences/frequencies)
         original_entities = enricher.extract_entities(text)
@@ -849,6 +1140,7 @@ class AIAgentDaemon:
                 'PRODUCT': 0.7, 'EVENT': 0.7, 'FAC': 0.6, 'WORK_OF_ART': 0.6,
                 'LAW': 0.5, 'LANGUAGE': 0.5, 'DATE': 0.4, 'TIME': 0.3,
                 'MONEY': 0.3, 'PERCENT': 0.2, 'ORDINAL': 0.2, 'CARDINAL': 0.1, 'QUANTITY': 0.1,
+                'OTHER': 0.1,  # Not a recognized entity type - low priority
             }
             
             base_score = type_weights.get(entity_type, 0.5)

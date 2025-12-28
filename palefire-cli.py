@@ -162,7 +162,7 @@ async def ingest_episodes(episodes_data: list, graphiti: Graphiti, use_ner: bool
 
 def extract_keywords_from_parsed_text(text: str, num_keywords: int = 20, 
                                      method: str = 'combined', verify_ner: bool = False,
-                                     debug: bool = False) -> Optional[list]:
+                                     deep: bool = False, blocksize: int = 1, debug: bool = False) -> Optional[list]:
     """
     Extract keywords from parsed text using the AI Agent daemon.
     
@@ -171,6 +171,8 @@ def extract_keywords_from_parsed_text(text: str, num_keywords: int = 20,
         num_keywords: Number of keywords to extract
         method: Extraction method (tfidf, textrank, word_freq, combined, ner)
         verify_ner: If True and method is 'ner', verify results using LLM
+        deep: If True and method is 'ner', process text sentence-by-sentence with ordered index
+        blocksize: Number of sentences per block when deep=True (default: 1 = sentence-by-sentence)
         debug: Enable debug output
         
     Returns:
@@ -184,6 +186,8 @@ def extract_keywords_from_parsed_text(text: str, num_keywords: int = 20,
         debug_print('Extracting keywords from parsed text...', file=sys.stderr)
         if verify_ner and method == 'ner':
             debug_print('LLM verification enabled for NER results', file=sys.stderr)
+        if deep and method == 'ner':
+            debug_print(f'Deep mode enabled: processing sentence-by-sentence (blocksize={blocksize})', file=sys.stderr)
     
     # Ensure daemon is running
     ensure_daemon_running(debug=debug)
@@ -198,7 +202,9 @@ def extract_keywords_from_parsed_text(text: str, num_keywords: int = 20,
             text,
             num_keywords=num_keywords,
             method=method,
-            verify_ner=verify_ner
+            verify_ner=verify_ner,
+            deep=deep,
+            blocksize=blocksize
         )
         return keywords
     except Exception as e:
@@ -211,16 +217,30 @@ def extract_keywords_from_parsed_text(text: str, num_keywords: int = 20,
 
 def extract_file_path_from_prompt(prompt: str) -> Optional[str]:
     """
-    Extract file path from prompt using pattern matching (fallback when LLM is not available).
+    Extract file path or URL from prompt using pattern matching (fallback when LLM is not available).
     
     Args:
         prompt: Natural language command
         
     Returns:
-        Extracted file path or None
+        Extracted file path/URL or None
     """
     import re
     import os
+    from urllib.parse import urlparse
+    
+    # Pattern 0: URLs (http:// or https://)
+    url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
+    url_matches = re.findall(url_pattern, prompt)
+    if url_matches:
+        url = url_matches[0]
+        # Validate URL
+        try:
+            result = urlparse(url)
+            if all([result.scheme, result.netloc]):
+                return url
+        except Exception:
+            pass
     
     # Pattern 1: Quoted paths (single or double quotes) - handles paths with spaces
     # Match everything between quotes that ends with a file extension
@@ -314,8 +334,8 @@ def detect_parser_from_prompt(prompt: str, debug: bool = False) -> Optional[dict
                 else:
                     # Fallback prompt
                     system_prompt = """You are an intelligent file parser selector. Analyze user commands and determine which file parser to use.
-Available parsers: pdf, txt, csv, spreadsheet (for .xlsx, .xls, .ods).
-Return JSON: {"parser": "pdf|txt|csv|spreadsheet", "file_path": "path", "file_type": "pdf|txt|csv|xlsx|xls|ods", "confidence": 0.0-1.0, "options": {}, "reasoning": "explanation"}"""
+Available parsers: pdf, txt, csv, spreadsheet (for .xlsx, .xls, .ods), url (for HTML pages from URLs).
+Return JSON: {"parser": "pdf|txt|csv|spreadsheet|url", "file_path": "path_or_url", "file_type": "pdf|txt|csv|xlsx|xls|ods|url", "confidence": 0.0-1.0, "options": {}, "reasoning": "explanation"}"""
                 
                 # Create detection prompt
                 detection_prompt = f"{system_prompt}\n\nUser command: {prompt}\n\nDetect parser and return JSON:"
@@ -396,7 +416,7 @@ def _create_fallback_detection(prompt: str, file_path: str, debug: bool = False)
     
     Args:
         prompt: Original prompt
-        file_path: Extracted file path
+        file_path: Extracted file path or URL
         debug: Enable debug output
         
     Returns:
@@ -404,24 +424,55 @@ def _create_fallback_detection(prompt: str, file_path: str, debug: bool = False)
     """
     import re
     from pathlib import Path
+    from urllib.parse import urlparse
     
-    file_ext = Path(file_path).suffix.lower()
-    
-    # Determine parser type from extension
-    parser_map = {
-        '.pdf': 'pdf',
-        '.txt': 'txt',
-        '.text': 'txt',
-        '.csv': 'csv',
-        '.xlsx': 'spreadsheet',
-        '.xls': 'spreadsheet',
-        '.xlsm': 'spreadsheet',
-        '.ods': 'spreadsheet',
-    }
-    
-    parser = parser_map.get(file_ext, None)
-    if not parser:
-        return None
+    # Check if it's a URL
+    try:
+        result = urlparse(file_path)
+        if all([result.scheme, result.netloc]):
+            # It's a URL
+            parser = 'url'
+            file_type = 'url'
+            confidence = 0.9
+        else:
+            # It's a file path
+            file_ext = Path(file_path).suffix.lower()
+            
+            # Determine parser type from extension
+            parser_map = {
+                '.pdf': 'pdf',
+                '.txt': 'txt',
+                '.text': 'txt',
+                '.csv': 'csv',
+                '.xlsx': 'spreadsheet',
+                '.xls': 'spreadsheet',
+                '.xlsm': 'spreadsheet',
+                '.ods': 'spreadsheet',
+            }
+            
+            parser = parser_map.get(file_ext, None)
+            if not parser:
+                return None
+            file_type = file_ext.lstrip('.')
+            confidence = 0.8
+    except Exception:
+        # Fallback: try as file path
+        file_ext = Path(file_path).suffix.lower()
+        parser_map = {
+            '.pdf': 'pdf',
+            '.txt': 'txt',
+            '.text': 'txt',
+            '.csv': 'csv',
+            '.xlsx': 'spreadsheet',
+            '.xls': 'spreadsheet',
+            '.xlsm': 'spreadsheet',
+            '.ods': 'spreadsheet',
+        }
+        parser = parser_map.get(file_ext, None)
+        if not parser:
+            return None
+        file_type = file_ext.lstrip('.')
+        confidence = 0.8
     
     # Extract options from prompt
     options = {}
@@ -443,6 +494,12 @@ def _create_fallback_detection(prompt: str, file_path: str, debug: bool = False)
         sheet_match = re.search(r"(?:only|sheet|sheets).*?['\"]([^'\"]+)['\"]", prompt, re.IGNORECASE)
         if sheet_match:
             options['sheet_names'] = [sheet_match.group(1)]
+    
+    # Extract timeout for URL
+    if parser == 'url':
+        timeout_match = re.search(r'(?:timeout|wait).*?(\d+)', prompt, re.IGNORECASE)
+        if timeout_match:
+            options['timeout'] = int(timeout_match.group(1))
     
     # Extract keyword extraction options (works for all parsers)
     keyword_patterns = [
@@ -506,8 +563,8 @@ def _create_fallback_detection(prompt: str, file_path: str, debug: bool = False)
 
 def parse_file_command(file_path: str, output_file: Optional[str] = None, 
                        extract_keywords: bool = False, keywords_method: str = 'combined',
-                       num_keywords: int = 20, verify_ner: bool = False,
-                       debug: bool = False, prompt: Optional[str] = None, **parser_options):
+                       num_keywords: int = 20, verify_ner: bool = False, deep: bool = False,
+                       blocksize: int = 1, debug: bool = False, prompt: Optional[str] = None, **parser_options):
     """Parse a file using the appropriate parser."""
     try:
         from agents.parsers import get_parser
@@ -545,6 +602,10 @@ def parse_file_command(file_path: str, output_file: Optional[str] = None,
                 elif detected_parser == 'spreadsheet':
                     from agents.parsers import SpreadsheetParser
                     parser = SpreadsheetParser()
+                elif detected_parser == 'url':
+                    from agents.parsers import URLParser
+                    timeout = detected_options.get('timeout', 30)
+                    parser = URLParser(timeout=timeout)
                 else:
                     # Fallback to auto-detection
                     parser = get_parser(file_path)
@@ -589,7 +650,9 @@ def parse_file_command(file_path: str, output_file: Optional[str] = None,
                     result.text,
                     num_keywords=num_keywords,
                     method=keywords_method,
-                    verify_ner=verify_ner
+                    verify_ner=verify_ner,
+                    deep=deep,
+                    blocksize=blocksize
                 )
                 output['keywords'] = keywords
                 # Add verified field if NER verification was performed
@@ -623,7 +686,7 @@ def parse_txt_command(file_path: str, encoding: str = 'utf-8',
                      output_file: Optional[str] = None, debug: bool = False,
                      prompt: Optional[str] = None,
                      extract_keywords: bool = False, keywords_method: str = 'combined',
-                     num_keywords: int = 20, verify_ner: bool = False):
+                     num_keywords: int = 20, verify_ner: bool = False, deep: bool = False, blocksize: int = 1):
     """Parse a text file."""
     try:
         from agents.parsers import TXTParser
@@ -658,6 +721,8 @@ def parse_txt_command(file_path: str, encoding: str = 'utf-8',
                 num_keywords=num_keywords,
                 method=keywords_method,
                 verify_ner=verify_ner,
+                deep=deep,
+                blocksize=blocksize,
                 debug=debug
             )
             if keywords:
@@ -681,7 +746,7 @@ def parse_csv_command(file_path: str, delimiter: str = ',', include_headers: boo
                      output_file: Optional[str] = None, debug: bool = False,
                      prompt: Optional[str] = None,
                      extract_keywords: bool = False, keywords_method: str = 'combined',
-                     num_keywords: int = 20, verify_ner: bool = False):
+                     num_keywords: int = 20, verify_ner: bool = False, deep: bool = False, blocksize: int = 1):
     """Parse a CSV file."""
     try:
         from agents.parsers import CSVParser
@@ -732,6 +797,8 @@ def parse_csv_command(file_path: str, delimiter: str = ',', include_headers: boo
                 num_keywords=num_keywords,
                 method=keywords_method,
                 verify_ner=verify_ner,
+                deep=deep,
+                blocksize=blocksize,
                 debug=debug
             )
             if keywords:
@@ -755,7 +822,7 @@ def parse_pdf_command(file_path: str, max_pages: Optional[int] = None,
                      extract_tables: bool = True, output_file: Optional[str] = None, 
                      debug: bool = False, prompt: Optional[str] = None,
                      extract_keywords: bool = False, keywords_method: str = 'combined',
-                     num_keywords: int = 20, verify_ner: bool = False):
+                     num_keywords: int = 20, verify_ner: bool = False, deep: bool = False, blocksize: int = 1):
     """Parse a PDF file."""
     try:
         from agents.parsers import PDFParser
@@ -862,6 +929,8 @@ def parse_pdf_command(file_path: str, max_pages: Optional[int] = None,
                 num_keywords=num_keywords,
                 method=keywords_method,
                 verify_ner=verify_ner,
+                deep=deep,
+                blocksize=blocksize,
                 debug=debug
             )
             if keywords:
@@ -885,7 +954,7 @@ def parse_spreadsheet_command(file_path: str, sheet_names: Optional[list] = None
                              include_headers: bool = True, output_file: Optional[str] = None,
                              debug: bool = False, prompt: Optional[str] = None,
                              extract_keywords: bool = False, keywords_method: str = 'combined',
-                             num_keywords: int = 20, verify_ner: bool = False):
+                             num_keywords: int = 20, verify_ner: bool = False, deep: bool = False, blocksize: int = 1):
     """Parse a spreadsheet file."""
     try:
         from agents.parsers import SpreadsheetParser
@@ -916,6 +985,8 @@ def parse_spreadsheet_command(file_path: str, sheet_names: Optional[list] = None
                 num_keywords=num_keywords,
                 method=keywords_method,
                 verify_ner=verify_ner,
+                deep=deep,
+                blocksize=blocksize,
                 debug=debug
             )
             if keywords:
@@ -933,6 +1004,89 @@ def parse_spreadsheet_command(file_path: str, sheet_names: Optional[list] = None
     except Exception as e:
         logger.error(f"Error parsing spreadsheet file: {e}", exc_info=True)
         print(json.dumps({'error': f"Error parsing file: {str(e)}"}, indent=2))
+
+
+def parse_url_command(url: str, timeout: int = 30, remove_scripts: bool = True,
+                     output_file: Optional[str] = None, debug: bool = False,
+                     prompt: Optional[str] = None,
+                     extract_keywords: bool = False, keywords_method: str = 'combined',
+                     num_keywords: int = 20, verify_ner: bool = False, deep: bool = False, blocksize: int = 1):
+    """Parse an HTML page from a URL."""
+    try:
+        from agents.parsers import URLParser
+        
+        # If prompt is provided, try to detect URL from it
+        if prompt:
+            detection_result = detect_parser_from_prompt(prompt, debug=debug)
+            if detection_result and detection_result.get('confidence', 0) > 0.5:
+                detected_url = detection_result.get('file_path') or url
+                detected_options = detection_result.get('options', {})
+                if detected_url:
+                    url = detected_url
+                if 'timeout' in detected_options:
+                    timeout = detected_options['timeout']
+                if debug:
+                    import sys
+                    debug_print(f'Using detected URL: {url}, timeout: {timeout}', file=sys.stderr)
+            else:
+                # Fallback: try to extract URL from prompt using regex
+                import re
+                url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
+                matches = re.findall(url_pattern, prompt)
+                if matches:
+                    url = matches[0]
+                    if debug:
+                        import sys
+                        debug_print(f'Extracted URL from prompt: {url}', file=sys.stderr)
+        
+        # Validate URL
+        if not url:
+            print(json.dumps({'error': 'No URL provided. Please specify a URL or use --prompt with a URL.', 'success': False}, indent=2))
+            return
+        
+        parser = URLParser(timeout=timeout)
+        result = parser.parse(url, remove_scripts=remove_scripts)
+        
+        output = result.to_dict()
+        
+        # Extract keywords if requested
+        if extract_keywords:
+            keywords = extract_keywords_from_parsed_text(
+                result.text,
+                num_keywords=num_keywords,
+                method=keywords_method,
+                verify_ner=verify_ner,
+                deep=deep,
+                blocksize=blocksize,
+                debug=debug
+            )
+            if keywords:
+                output['keywords'] = keywords
+                # Add verified field if NER verification was performed
+                if verify_ner and keywords_method == 'ner':
+                    output['verified'] = True
+        
+        if output_file:
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(output, f, indent=2, ensure_ascii=False)
+            if debug:
+                import sys
+                debug_print(f'\n✅ Parsed content saved to {output_file}', file=sys.stderr)
+        else:
+            print(json.dumps(output, indent=2, ensure_ascii=False))
+        
+    except ImportError as e:
+        error_msg = str(e)
+        if 'requests' in error_msg.lower() or 'beautifulsoup4' in error_msg.lower() or 'bs4' in error_msg.lower():
+            print(json.dumps({
+                'error': 'URL parsing requires requests and beautifulsoup4. Install with: pip install requests beautifulsoup4',
+                'success': False
+            }, indent=2))
+        else:
+            print(json.dumps({'error': f"Import error: {error_msg}"}, indent=2))
+    except Exception as e:
+        logger.error(f"Error parsing URL: {e}", exc_info=True)
+        print(json.dumps({'error': f"Error parsing URL: {str(e)}"}, indent=2))
 
 
 def ensure_daemon_running(pidfile: str = '/tmp/palefire_ai_agent.pid', use_spacy: bool = True, debug: bool = False) -> bool:
@@ -1031,6 +1185,8 @@ def extract_keywords_from_text(
     documents_file: Optional[str] = None,
     output_file: Optional[str] = None,
     verify_ner: bool = False,
+    deep: bool = False,
+    blocksize: int = 1,
     debug: bool = False
 ):
     """
@@ -1052,6 +1208,8 @@ def extract_keywords_from_text(
         documents_file: Optional path to JSON file with documents for IDF
         output_file: Optional path to output JSON file
         verify_ner: If True and method is 'ner', verify results using LLM
+        deep: If True and method is 'ner', process text sentence-by-sentence with ordered index
+        blocksize: Number of sentences per block when deep=True (default: 1 = sentence-by-sentence)
         debug: Enable debug output
     """
     try:
@@ -1063,6 +1221,8 @@ def extract_keywords_from_text(
             debug_print(f'Method: {method}', file=sys.stderr)
             if method == 'ner' and verify_ner:
                 debug_print('LLM verification: enabled', file=sys.stderr)
+            if method == 'ner' and deep:
+                debug_print(f'Deep mode: enabled (blocksize={blocksize} sentences per block)', file=sys.stderr)
             debug_print(f'Number of keywords: {num_keywords}', file=sys.stderr)
             debug_print(f'Text length: {len(text)} characters', file=sys.stderr)
         
@@ -1073,6 +1233,8 @@ def extract_keywords_from_text(
                 num_keywords=num_keywords,
                 method='ner',
                 verify_ner=verify_ner,
+                deep=deep,
+                blocksize=blocksize,
                 debug=debug
             )
             if not keywords:
@@ -1320,6 +1482,12 @@ Examples:
                                 help='Path to JSON file with list of documents for IDF calculation')
     keywords_parser.add_argument('-o', '--output', '-output', type=str, dest='output_file',
                                 help='Path to output JSON file (default: print to stdout)')
+    keywords_parser.add_argument('--verify-ner', action='store_true', dest='verify_ner',
+                                help='Verify NER results using LLM to remove false positives (only works with --method ner)')
+    keywords_parser.add_argument('--deep', action='store_true',
+                                help='Process text sentence-by-sentence with ordered index (only works with --method ner)')
+    keywords_parser.add_argument('--blocksize', type=int, default=1, dest='blocksize',
+                                help='Number of sentences per block when --deep is used (default: 1 = sentence-by-sentence)')
     keywords_parser.add_argument('--debug', action='store_true',
                                 help='Enable debug output (verbose printing)')
     
@@ -1335,6 +1503,12 @@ Examples:
     parse_parser.add_argument('--keywords-method', type=str, default='combined',
                              choices=['tfidf', 'textrank', 'word_freq', 'combined', 'ner'],
                              help='Keyword extraction method (default: combined). Use "ner" for spaCy NER-based extraction.')
+    parse_parser.add_argument('--verify-ner', action='store_true', dest='verify_ner',
+                             help='Verify NER results using LLM to remove false positives (only works with --keywords-method ner)')
+    parse_parser.add_argument('--deep', action='store_true',
+                             help='Process text sentence-by-sentence with ordered index (only works with --keywords-method ner)')
+    parse_parser.add_argument('--blocksize', type=int, default=1, dest='blocksize',
+                             help='Number of sentences per block when --deep is used (default: 1 = sentence-by-sentence)')
     parse_parser.add_argument('--num-keywords', type=int, default=20, dest='num_keywords',
                              help='Number of keywords to extract (default: 20)')
     parse_parser.add_argument('--debug', action='store_true',
@@ -1354,6 +1528,12 @@ Examples:
     txt_parser_cmd.add_argument('--keywords-method', type=str, default='combined',
                                choices=['tfidf', 'textrank', 'word_freq', 'combined', 'ner'],
                                help='Keyword extraction method (default: combined). Use "ner" for spaCy NER-based extraction.')
+    txt_parser_cmd.add_argument('--verify-ner', action='store_true', dest='verify_ner',
+                               help='Verify NER results using LLM to remove false positives (only works with --keywords-method ner)')
+    txt_parser_cmd.add_argument('--deep', action='store_true',
+                               help='Process text sentence-by-sentence with ordered index (only works with --keywords-method ner)')
+    txt_parser_cmd.add_argument('--blocksize', type=int, default=1, dest='blocksize',
+                               help='Number of sentences per block when --deep is used (default: 1 = sentence-by-sentence)')
     txt_parser_cmd.add_argument('--num-keywords', type=int, default=20, dest='num_keywords',
                                help='Number of keywords to extract (default: 20)')
     txt_parser_cmd.add_argument('--debug', action='store_true', help='Enable debug output')
@@ -1377,6 +1557,10 @@ Examples:
                                help='Keyword extraction method (default: combined). Use "ner" for spaCy NER-based extraction.')
     csv_parser_cmd.add_argument('--verify-ner', action='store_true', dest='verify_ner',
                                help='Verify NER results using LLM to remove false positives (only works with --keywords-method ner)')
+    csv_parser_cmd.add_argument('--deep', action='store_true',
+                               help='Process text sentence-by-sentence with ordered index (only works with --keywords-method ner)')
+    csv_parser_cmd.add_argument('--blocksize', type=int, default=1, dest='blocksize',
+                               help='Number of sentences per block when --deep is used (default: 1 = sentence-by-sentence)')
     csv_parser_cmd.add_argument('--num-keywords', type=int, default=20, dest='num_keywords',
                                help='Number of keywords to extract (default: 20)')
     csv_parser_cmd.add_argument('--debug', action='store_true', help='Enable debug output')
@@ -1400,6 +1584,10 @@ Examples:
                                help='Keyword extraction method (default: combined). Use "ner" for spaCy NER-based extraction.')
     pdf_parser_cmd.add_argument('--verify-ner', action='store_true', dest='verify_ner',
                                help='Verify NER results using LLM to remove false positives (only works with --keywords-method ner)')
+    pdf_parser_cmd.add_argument('--deep', action='store_true',
+                               help='Process text sentence-by-sentence with ordered index (only works with --keywords-method ner)')
+    pdf_parser_cmd.add_argument('--blocksize', type=int, default=1, dest='blocksize',
+                               help='Number of sentences per block when --deep is used (default: 1 = sentence-by-sentence)')
     pdf_parser_cmd.add_argument('--num-keywords', type=int, default=20, dest='num_keywords',
                                help='Number of keywords to extract (default: 20)')
     pdf_parser_cmd.add_argument('--debug', action='store_true', help='Enable debug output')
@@ -1424,9 +1612,40 @@ Examples:
                                        help='Keyword extraction method (default: combined). Use "ner" for spaCy NER-based extraction.')
     spreadsheet_parser_cmd.add_argument('--verify-ner', action='store_true', dest='verify_ner',
                                        help='Verify NER results using LLM to remove false positives (only works with --keywords-method ner)')
+    spreadsheet_parser_cmd.add_argument('--deep', action='store_true',
+                                       help='Process text sentence-by-sentence with ordered index (only works with --keywords-method ner)')
+    spreadsheet_parser_cmd.add_argument('--blocksize', type=int, default=1, dest='blocksize',
+                                       help='Number of sentences per block when --deep is used (default: 1 = sentence-by-sentence)')
     spreadsheet_parser_cmd.add_argument('--num-keywords', type=int, default=20, dest='num_keywords',
                                        help='Number of keywords to extract (default: 20)')
     spreadsheet_parser_cmd.add_argument('--debug', action='store_true', help='Enable debug output')
+    
+    url_parser_cmd = subparsers.add_parser('parse-url', help='Parse HTML pages from URLs')
+    url_parser_cmd.add_argument('url', type=str, nargs='?', help='URL to parse (optional if using --prompt)')
+    url_parser_cmd.add_argument('--prompt', '-p', type=str, dest='prompt',
+                               help='Natural language command (e.g., "parse URL https://example.com")')
+    url_parser_cmd.add_argument('--timeout', type=int, default=30,
+                               help='Request timeout in seconds (default: 30)')
+    url_parser_cmd.add_argument('--remove-scripts', action='store_true', default=True,
+                               dest='remove_scripts', help='Remove script and style tags (default: True)')
+    url_parser_cmd.add_argument('--keep-scripts', action='store_false', dest='remove_scripts',
+                               help='Keep script and style tags')
+    url_parser_cmd.add_argument('--output', '-o', type=str, dest='output_file',
+                               help='Output JSON file')
+    url_parser_cmd.add_argument('--extract-keywords', action='store_true', dest='extract_keywords',
+                               help='Extract keywords from parsed text')
+    url_parser_cmd.add_argument('--keywords-method', type=str, default='combined',
+                               choices=['tfidf', 'textrank', 'word_freq', 'combined', 'ner'],
+                               help='Keyword extraction method (default: combined). Use "ner" for spaCy NER-based extraction.')
+    url_parser_cmd.add_argument('--verify-ner', action='store_true', dest='verify_ner',
+                               help='Verify NER results using LLM to remove false positives (only works with --keywords-method ner)')
+    url_parser_cmd.add_argument('--deep', action='store_true',
+                               help='Process text sentence-by-sentence with ordered index (only works with --keywords-method ner)')
+    url_parser_cmd.add_argument('--blocksize', type=int, default=1, dest='blocksize',
+                               help='Number of sentences per block when --deep is used (default: 1 = sentence-by-sentence)')
+    url_parser_cmd.add_argument('--num-keywords', type=int, default=20, dest='num_keywords',
+                               help='Number of keywords to extract (default: 20)')
+    url_parser_cmd.add_argument('--debug', action='store_true', help='Enable debug output')
     
     # Agent command
     agent_parser = subparsers.add_parser('agent', help='Manage AI Agent daemon')
@@ -1578,8 +1797,18 @@ async def main_cli(args):
                     except Exception as e:
                         logger.warning(f"Error loading documents file: {e}")
                 
-                # Extract keywords using the extractor
-                keywords = extractor.extract(args.text, documents)
+                # Extract keywords - use daemon.extract_keywords for NER method, otherwise use extractor
+                if args.method == 'ner':
+                    keywords = daemon.extract_keywords(
+                        args.text,
+                        method='ner',
+                        num_keywords=args.num_keywords,
+                        verify_ner=getattr(args, 'verify_ner', False),
+                        deep=getattr(args, 'deep', False),
+                        blocksize=getattr(args, 'blocksize', 1)
+                    )
+                else:
+                    keywords = extractor.extract(args.text, documents)
                 
                 # Format output
                 output = {
@@ -1604,6 +1833,10 @@ async def main_cli(args):
                     },
                     'daemon_used': True
                 }
+                
+                # Add verified field if NER verification was performed
+                if args.method == 'ner' and getattr(args, 'verify_ner', False):
+                    output['verified'] = True
                 
                 # Output results
                 if args.output_file:
@@ -1642,6 +1875,9 @@ async def main_cli(args):
             ngram_weight=args.ngram_weight,
             documents_file=args.documents_file,
             output_file=args.output_file,
+            verify_ner=getattr(args, 'verify_ner', False),
+            deep=getattr(args, 'deep', False),
+            blocksize=getattr(args, 'blocksize', 1),
             debug=DEBUG
         )
     
@@ -1654,6 +1890,8 @@ async def main_cli(args):
             keywords_method=args.keywords_method,
             num_keywords=args.num_keywords,
             verify_ner=getattr(args, 'verify_ner', False),
+            deep=getattr(args, 'deep', False),
+            blocksize=getattr(args, 'blocksize', 1),
             debug=DEBUG
         )
     
@@ -1670,7 +1908,9 @@ async def main_cli(args):
             extract_keywords=getattr(args, 'extract_keywords', False),
             keywords_method=getattr(args, 'keywords_method', 'combined'),
             num_keywords=getattr(args, 'num_keywords', 20),
-            verify_ner=getattr(args, 'verify_ner', False)
+            verify_ner=getattr(args, 'verify_ner', False),
+            deep=getattr(args, 'deep', False),
+            blocksize=getattr(args, 'blocksize', 1)
         )
     
     elif args.command == 'parse-csv':
@@ -1687,7 +1927,9 @@ async def main_cli(args):
             extract_keywords=getattr(args, 'extract_keywords', False),
             keywords_method=getattr(args, 'keywords_method', 'combined'),
             num_keywords=getattr(args, 'num_keywords', 20),
-            verify_ner=getattr(args, 'verify_ner', False)
+            verify_ner=getattr(args, 'verify_ner', False),
+            deep=getattr(args, 'deep', False),
+            blocksize=getattr(args, 'blocksize', 1)
         )
     
     elif args.command == 'parse-pdf':
@@ -1704,7 +1946,9 @@ async def main_cli(args):
             extract_keywords=getattr(args, 'extract_keywords', False),
             keywords_method=getattr(args, 'keywords_method', 'combined'),
             num_keywords=getattr(args, 'num_keywords', 20),
-            verify_ner=getattr(args, 'verify_ner', False)
+            verify_ner=getattr(args, 'verify_ner', False),
+            deep=getattr(args, 'deep', False),
+            blocksize=getattr(args, 'blocksize', 1)
         )
     
     elif args.command == 'parse-spreadsheet':
@@ -1721,7 +1965,28 @@ async def main_cli(args):
             extract_keywords=getattr(args, 'extract_keywords', False),
             keywords_method=getattr(args, 'keywords_method', 'combined'),
             num_keywords=getattr(args, 'num_keywords', 20),
-            verify_ner=getattr(args, 'verify_ner', False)
+            verify_ner=getattr(args, 'verify_ner', False),
+            deep=getattr(args, 'deep', False),
+            blocksize=getattr(args, 'blocksize', 1)
+        )
+    
+    elif args.command == 'parse-url':
+        # Parse URL
+        if not args.url and not args.prompt:
+            parser.error("Either 'url' argument or '--prompt' option is required")
+        parse_url_command(
+            url=args.url or '',
+            timeout=getattr(args, 'timeout', 30),
+            remove_scripts=getattr(args, 'remove_scripts', True),
+            output_file=args.output_file,
+            debug=DEBUG,
+            prompt=args.prompt,
+            extract_keywords=getattr(args, 'extract_keywords', False),
+            keywords_method=getattr(args, 'keywords_method', 'combined'),
+            num_keywords=getattr(args, 'num_keywords', 20),
+            verify_ner=getattr(args, 'verify_ner', False),
+            deep=getattr(args, 'deep', False),
+            blocksize=getattr(args, 'blocksize', 1)
         )
     
     # Note: Agent command is handled synchronously in __main__ block
