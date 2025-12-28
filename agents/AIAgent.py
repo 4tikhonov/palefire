@@ -349,6 +349,132 @@ class AIAgentDaemon:
 
         return extractor.extract(text)
     
+    def _parse_structured_markdown(self, response: str, original_entities: List[Dict[str, Any]], model_name: str = "LLM") -> List[Dict[str, Any]]:
+        """
+        Parse simplified structured markdown format response (optimized for gemma3:4b).
+
+        Supported formats:
+        **1. Verified Entities:**
+        * Entity Name (TYPE) - Brief reason
+        * **Entity Name** (TYPE) - Brief reason
+
+        **2. New Entities Found:**
+        * New Entity (TYPE) - Brief reason
+        * **New Entity** (TYPE) - Brief reason
+
+        **3. Entities to Remove:**
+        * Entity Name (TYPE) - Reason to remove
+        * **Entity Name** (TYPE) - Reason to remove
+
+        Args:
+            response: Markdown-formatted response with simplified structure
+            original_entities: Original entities from spaCy for matching
+            model_name: Name of the LLM model used (for logging)
+
+        Returns:
+            List of parsed entities in standard format
+        """
+        result = []
+
+        # Split response into lines
+        lines = response.split('\n')
+        current_section = None
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            # Check for section headers
+            if line.startswith('**1. Verified Entities:**'):
+                current_section = 'verified'
+                continue
+            elif line.startswith('**2. New Entities Found:**'):
+                current_section = 'new'
+                continue
+            elif line.startswith('**3. Entities to Remove:**'):
+                current_section = 'remove'
+                continue
+
+            # Skip other header lines
+            if line.startswith('**') and ('Entities' in line or 'Found' in line or 'Remove' in line):
+                continue
+
+            # Process bullet points based on current section
+            if current_section and re.match(r'^[\*\-\•]\s+', line):
+                if current_section == 'remove':
+                    # Pattern for removal: * Entity Name (TYPE) - Reason OR * **Entity Name** (TYPE) - Reason
+                    remove_match = re.match(r'^[\*\-\•]\s+(?:\*\*)?([^*]+?)(?:\*\*)?\s*(?:\(([A-Z_]+)\))?\s*(?:\-\s*(.*))?$', line)
+                    if remove_match:
+                        entity_text = remove_match.group(1).strip()
+                        entity_type = remove_match.group(2).strip() if remove_match.group(2) else ""
+                        reason = remove_match.group(3).strip() if remove_match.group(3) else "Marked for removal"
+
+                        # Look for matching original entity to preserve position info
+                        entity_lower = entity_text.lower()
+                        matched_original = None
+                        for orig in original_entities:
+                            if orig.get('text', '').lower() == entity_lower:
+                                matched_original = orig
+                                break
+
+                        # Create a "remove" entity (always, since LLM says to remove it)
+                        entity = {
+                            'text': entity_text,
+                            'type': 'REMOVE',
+                            'confidence': 0.8,
+                            'reasoning': f"Marked for removal by {model_name}: {reason}",
+                            'source': 'verified'
+                        }
+
+                        # Preserve position info if we found a match
+                        if matched_original:
+                            entity.update({
+                                'start': matched_original.get('start', 0),
+                                'end': matched_original.get('end', 0)
+                            })
+
+                        result.append(entity)
+
+                else:  # verified or new entities
+                    # Pattern: * Entity Name (TYPE) - Brief reason OR * **Entity Name** (TYPE) - Brief reason
+                    entity_match = re.match(r'^[\*\-\•]\s+(?:\*\*)?([^*]+?)(?:\*\*)?\s*\(([A-Z_]+)\)\s*(?:\-\s*(.*))?$', line)
+                    if entity_match:
+                        entity_text = entity_match.group(1).strip()
+                        entity_type = entity_match.group(2).strip()
+                        description = entity_match.group(3).strip() if entity_match.group(3) else ""
+
+                        if entity_text and entity_type:
+                            # Try to match with original entity (case-insensitive)
+                            entity_lower = entity_text.lower()
+                            matched_original = None
+                            for orig in original_entities:
+                                if orig.get('text', '').lower() == entity_lower:
+                                    matched_original = orig
+                                    break
+
+                            # Create entity in standard format
+                            source = 'verified' if matched_original else 'discovered'
+
+                            entity = {
+                                'text': entity_text,
+                                'type': entity_type,
+                                'confidence': 0.9,  # High confidence from LLM
+                                'reasoning': f"Identified by {model_name} as {entity_type}" + (f" - {description}" if description else ""),
+                                'source': source
+                            }
+
+                            # Preserve position info from original if available
+                            if matched_original:
+                                entity.update({
+                                    'start': matched_original.get('start', 0),
+                                    'end': matched_original.get('end', 0)
+                                })
+
+                            result.append(entity)
+
+        return result
+
     def _parse_gemma3_markdown(self, response: str, original_entities: List[Dict[str, Any]], model_name: str = "LLM") -> List[Dict[str, Any]]:
         """
         Parse Gemma3 markdown format response and convert to entity format.
@@ -576,8 +702,8 @@ class AIAgentDaemon:
         if text and text.strip():
             system_prompt += f"\n\nFull text context:\n{text.strip()}\n"
 
-        # Add instructions with JSON template
-        system_prompt += "\n\nYou MUST return results as a JSON array. Format:\n[\n  {\n    \"text\": \"entity text\",\n    \"type\": \"ENTITY_TYPE\",\n    \"verified\": true,\n    \"reasoning\": \"explanation\",\n    \"new_entity\": false\n  }\n]\n\nUse type \"REMOVE\" for false positives.\n\nIMPORTANT: You can also suggest NEW entities that spaCy may have missed. For new entities, set \"new_entity\": true.\n\nExamples:\n[\n  {\n    \"text\": \"First\",\n    \"type\": \"ORDINAL\",\n    \"verified\": true,\n    \"reasoning\": \"Verified as ordinal number\",\n    \"new_entity\": false\n  },\n  {\n    \"text\": \"invalid\",\n    \"type\": \"REMOVE\",\n    \"verified\": false,\n    \"reasoning\": \"Not a valid entity\",\n    \"new_entity\": false\n  },\n  {\n    \"text\": \"OpenAI\",\n    \"type\": \"ORG\",\n    \"verified\": true,\n    \"reasoning\": \"Company mentioned in context\",\n    \"new_entity\": true\n  }\n]\n\nReturn ONLY valid JSON, no other text."
+        # Add instructions for structured markdown format (optimized for gemma3:4b)
+        system_prompt += "\n\nReturn verified entities in this simple format:\n\n**1. Verified Entities:**\n* **Entity Name** (TYPE) - Brief reason\n* **Another Entity** (TYPE) - Brief reason\n\n**2. New Entities Found:**\n* **New Entity** (TYPE) - Brief reason\n\n**3. Entities to Remove:**\n* **False Entity** - Reason to remove\n\nUse these entity types: PERSON, ORG, GPE, LOC, DATE, MONEY, PERCENT, etc.\n\nBe concise and accurate. Only include entities that actually exist in the text."
 
         # Minimize JSON - use compact format (no indentation) to reduce tokens
         entities_json = json.dumps(entities_for_verification, separators=(',', ':'))
@@ -924,8 +1050,8 @@ class AIAgentDaemon:
             if text and text.strip():
                 system_prompt += f"\n\nFull text context:\n{text.strip()}\n"
 
-            # Add instructions with JSON template
-            system_prompt += "\n\nYou MUST return results as a JSON array. Format:\n[\n  {\n    \"text\": \"entity text\",\n    \"type\": \"ENTITY_TYPE\",\n    \"verified\": true,\n    \"reasoning\": \"explanation\",\n    \"new_entity\": false\n  }\n]\n\nUse type \"REMOVE\" for false positives.\n\nIMPORTANT: You can also suggest NEW entities that spaCy may have missed. For new entities, set \"new_entity\": true.\n\nExamples:\n[\n  {\n    \"text\": \"First\",\n    \"type\": \"ORDINAL\",\n    \"verified\": true,\n    \"reasoning\": \"Verified as ordinal number\",\n    \"new_entity\": false\n  },\n  {\n    \"text\": \"invalid\",\n    \"type\": \"REMOVE\",\n    \"verified\": false,\n    \"reasoning\": \"Not a valid entity\",\n    \"new_entity\": false\n  },\n  {\n    \"text\": \"OpenAI\",\n    \"type\": \"ORG\",\n    \"verified\": true,\n    \"reasoning\": \"Company mentioned in context\",\n    \"new_entity\": true\n  }\n]\n\nReturn ONLY valid JSON, no other text."
+            # Add instructions for structured markdown format (optimized for gemma3:4b)
+            system_prompt += "\n\nReturn verified entities in this simple format:\n\n**1. Verified Entities:**\n* **Entity Name** (TYPE) - Brief reason\n* **Another Entity** (TYPE) - Brief reason\n\n**2. New Entities Found:**\n* **New Entity** (TYPE) - Brief reason\n\n**3. Entities to Remove:**\n* **False Entity** - Reason to remove\n\nUse these entity types: PERSON, ORG, GPE, LOC, DATE, MONEY, PERCENT, etc.\n\nBe concise and accurate. Only include entities that actually exist in the text."
 
             # Minimize JSON - use compact format (no indentation) to reduce tokens
             entities_json = json.dumps(entities_for_verification, separators=(',', ':'))
@@ -1022,29 +1148,61 @@ class AIAgentDaemon:
                         if debug:
                             logger.debug("No markdown JSON code block found, trying Gemma3 markdown format...")
 
-                # If JSON parsing was not attempted, try Gemma3 markdown format
+                # If JSON parsing was not attempted, try structured markdown formats
                 if not json_parsing_attempted:
-                    logger.debug(f"No JSON found in response, trying Gemma3 markdown parser...")
+                    logger.debug(f"No JSON found in response, trying structured markdown parsers...")
+
+                    # First try the numbered section format (e.g., **1. Entities...**)
                     try:
-                        verified_entities = self._parse_gemma3_markdown(response, llm_model, debug)
+                        verified_entities = self._parse_structured_markdown(response, llm_model, debug)
 
                         if verified_entities:
-                            logger.debug(f"Parsed {len(verified_entities)} entities using Gemma3 markdown parser")
+                            logger.debug(f"Parsed {len(verified_entities)} entities using structured markdown parser")
 
                             # Log parsed JSON if available
                             try:
-                                json_log_file = log_file.replace('.txt', '_gemma3_parsed.json')
+                                json_log_file = log_file.replace('.txt', '_structured_parsed.json')
                                 with open(json_log_file, 'w', encoding='utf-8') as f:
                                     json.dump(verified_entities, f, indent=2, ensure_ascii=False)
-                                logger.debug(f"Saved parsed Gemma3 entities as JSON to {json_log_file}")
+                                logger.debug(f"Saved parsed structured markdown to {json_log_file}")
                             except Exception as json_log_error:
-                                logger.warning(f"Failed to log parsed Gemma3 JSON: {json_log_error}")
+                                logger.warning(f"Failed to log parsed structured markdown: {json_log_error}")
                         else:
-                            logger.warning(f"No entities found in Gemma3 markdown response (model: {llm_model}), using original entities")
+                            # Try Gemma3 markdown format as fallback
+                            logger.debug(f"No entities found with structured parser, trying Gemma3 markdown parser...")
+                            try:
+                                verified_entities = self._parse_gemma3_markdown(response, llm_model, debug)
+
+                                if verified_entities:
+                                    logger.debug(f"Parsed {len(verified_entities)} entities using Gemma3 markdown parser")
+
+                                    # Log parsed JSON if available
+                                    try:
+                                        json_log_file = log_file.replace('.txt', '_gemma3_parsed.json')
+                                        with open(json_log_file, 'w', encoding='utf-8') as f:
+                                            json.dump(verified_entities, f, indent=2, ensure_ascii=False)
+                                        logger.debug(f"Saved parsed Gemma3 entities as JSON to {json_log_file}")
+                                    except Exception as json_log_error:
+                                        logger.warning(f"Failed to log parsed Gemma3 JSON: {json_log_error}")
+                                else:
+                                    logger.warning(f"No entities found in Gemma3 markdown response (model: {llm_model}), using original entities")
+                                    return entities
+                            except Exception as gemma_error:
+                                logger.warning(f"Failed to parse as Gemma3 markdown (model: {llm_model}): {gemma_error}. Response was: {response[:200]}...")
+                                return entities
+                    except Exception as structured_error:
+                        logger.warning(f"Failed to parse as structured markdown (model: {llm_model}): {structured_error}. Response was: {response[:200]}...")
+                        # Try Gemma3 as final fallback
+                        try:
+                            verified_entities = self._parse_gemma3_markdown(response, llm_model, debug)
+                            if verified_entities:
+                                logger.debug(f"Parsed {len(verified_entities)} entities using Gemma3 markdown parser")
+                            else:
+                                logger.warning(f"No entities found in any markdown format (model: {llm_model}), using original entities")
+                                return entities
+                        except Exception as gemma_error:
+                            logger.warning(f"All markdown parsing failed (model: {llm_model}): {gemma_error}. Response was: {response[:200]}...")
                             return entities
-                    except Exception as gemma_error:
-                        logger.warning(f"Failed to parse as Gemma3 markdown (model: {llm_model}): {gemma_error}. Response was: {response[:200]}...")
-                        return entities
 
                 if verified_entities and len(verified_entities) > 0:
 
@@ -1321,9 +1479,9 @@ class AIAgentDaemon:
             # This provides complete context instead of just individual sentences
             if text and text.strip():
                 system_prompt += f"\n\nFull text context:\n{text.strip()}\n"
-            
-            # Add instructions with JSON template
-            system_prompt += "\n\nYou MUST return results as a JSON array. Format:\n[\n  {\n    \"text\": \"entity text\",\n    \"type\": \"ENTITY_TYPE\",\n    \"verified\": true,\n    \"reasoning\": \"explanation\",\n    \"new_entity\": false\n  }\n]\n\nUse type \"REMOVE\" for false positives.\n\nIMPORTANT: You can also suggest NEW entities that spaCy may have missed. For new entities, set \"new_entity\": true.\n\nExamples:\n[\n  {\n    \"text\": \"First\",\n    \"type\": \"ORDINAL\",\n    \"verified\": true,\n    \"reasoning\": \"Verified as ordinal number\",\n    \"new_entity\": false\n  },\n  {\n    \"text\": \"invalid\",\n    \"type\": \"REMOVE\",\n    \"verified\": false,\n    \"reasoning\": \"Not a valid entity\",\n    \"new_entity\": false\n  },\n  {\n    \"text\": \"OpenAI\",\n    \"type\": \"ORG\",\n    \"verified\": true,\n    \"reasoning\": \"Company mentioned in context\",\n    \"new_entity\": true\n  }\n]\n\nReturn ONLY valid JSON, no other text."
+
+            # Add instructions for structured markdown format (optimized for gemma3:4b)
+            system_prompt += "\n\nReturn verified entities in this simple format:\n\n**1. Verified Entities:**\n* **Entity Name** (TYPE) - Brief reason\n* **Another Entity** (TYPE) - Brief reason\n\n**2. New Entities Found:**\n* **New Entity** (TYPE) - Brief reason\n\n**3. Entities to Remove:**\n* **False Entity** - Reason to remove\n\nUse these entity types: PERSON, ORG, GPE, LOC, DATE, MONEY, PERCENT, etc.\n\nBe concise and accurate. Only include entities that actually exist in the text."
             
             # Minimize JSON - use compact format (no indentation) to reduce tokens
             entities_json = json.dumps(entities_for_verification, separators=(',', ':'))
@@ -1467,7 +1625,7 @@ class AIAgentDaemon:
                                 'start': original.get('start', 0),
                                 'end': original.get('end', 0),
                                 'confidence': verified.get('confidence', 1.0),
-                                'reasoning': (v_reasoning or f"Verified as {v_type or 'entity'} by LLM model {llm_model}").strip(),
+                                'reasoning': (v_reasoning or f"Not verified by LLM model {llm_model} - listed in verified entities but no reasoning provided").strip(),
                                 'source': 'verified'  # Indicates this was verified from original spaCy entities
                             })
                         elif v_new_entity:
@@ -1488,7 +1646,7 @@ class AIAgentDaemon:
                                 'start': start_pos,
                                 'end': end_pos,
                                 'confidence': verified.get('confidence', 0.8),  # Slightly lower confidence for new entities
-                                'reasoning': (v_reasoning or f"Discovered as {v_type or 'entity'} by LLM model {llm_model}").strip(),
+                                'reasoning': (v_reasoning or f"Discovered by LLM model {llm_model} but no reasoning provided").strip(),
                                 'source': 'discovered'  # Indicates this was discovered by LLM
                             })
                         else:
@@ -1510,7 +1668,7 @@ class AIAgentDaemon:
                                 'start': start_pos,
                                 'end': end_pos,
                                 'confidence': verified.get('confidence', 0.9),  # High confidence since LLM verified it
-                                'reasoning': (v_reasoning or f"Verified as {v_type or 'entity'} by LLM model {llm_model}").strip(),
+                                'reasoning': (v_reasoning or f"Not verified by LLM model {llm_model} - listed as existing but no reasoning provided").strip(),
                                 'source': 'verified'  # Treat as verified since LLM says it came from original list
                             })
                 
@@ -2031,11 +2189,14 @@ class AIAgentDaemon:
                     # Always use LLM's type (it verified it)
                     entity_type = llm_type
                     
-                    # Use LLM's reasoning if available, otherwise create default
+                    # Only consider verified if LLM provided specific reasoning
                     if llm_reasoning:
                         reasoning = llm_reasoning
                     else:
-                        reasoning = f"Verified as {entity_type} by LLM model {llm_model}"
+                        # LLM listed this entity but didn't provide verification reasoning
+                        # Treat as not verified - use spaCy classification
+                        entity_type = entity.get('type', 'UNKNOWN')
+                        reasoning = f"Not verified by LLM model {llm_model} - using spaCy classification ({entity_type})"
                     
                     # Log if type changed from spaCy to LLM
                     if original_type != entity_type:

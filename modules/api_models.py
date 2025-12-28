@@ -162,8 +162,9 @@ class KeywordInfo(BaseModel):
     """Single keyword information."""
     keyword: str
     score: float
-    type: Optional[str] = Field(None, description="Type of keyword: 'unigram', '2-gram', '3-gram', or '4-gram'")
+    type: Optional[str] = Field(None, description="Entity type for NER, or 'unigram', '2-gram', '3-gram', '4-gram' for text-based extraction")
     reasoning: Optional[str] = Field(None, description="LLM reasoning for NER-based extraction")
+    source: Optional[str] = Field(None, description="Source of entity: 'verified' (from spaCy), 'discovered' (new from LLM), 'corrected' (text variation from LLM)")
 
 
 class KeywordExtractionResponse(BaseModel):

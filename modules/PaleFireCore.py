@@ -63,6 +63,9 @@ class EntityEnricher:
         'ORDINAL': 'ORDINAL',
         'CARDINAL': 'CARDINAL',
         'QUANTITY': 'QUANTITY',
+        'BOOK': 'BOOK',
+        'MODEL': 'MODEL',
+        'SOFTWARE': 'SOFTWARE',
         'OTHER': 'OTHER'  # Not a recognized entity type
     }
     
@@ -76,7 +79,7 @@ class EntityEnricher:
         'PRODUCT': 'Products indicate objects, vehicles, foods, etc. (not services)',
         'EVENT': 'Events indicate named hurricanes, battles, wars, sports events, etc.',
         'FAC': 'Facilities indicate buildings, airports, highways, bridges, etc.',
-        'WORK_OF_ART': 'Works of art indicate titles of books, songs, etc.',
+        'WORK_OF_ART': 'Works of art indicate titles of paintings, songs, etc.',
         'LAW': 'Laws indicate named documents made into laws.',
         'NORP': 'NORP indicates nationalities or religious or political groups.',
         'DATE': 'Dates indicate absolute or relative dates or periods.',
@@ -87,6 +90,9 @@ class EntityEnricher:
         'ORDINAL': 'Ordinal indicates ordinal numbers (first, second, etc.).',
         'CARDINAL': 'Cardinal indicates cardinal numbers that do not fall under another type.',
         'QUANTITY': 'Quantity indicates measurements, such as weight or distance.',
+        'BOOK': 'Books indicate titles of published written works.',
+        'MODEL': 'Models indicate AI models, machine learning models, or other named models.',
+        'SOFTWARE': 'Software indicates named software applications, programs, or tools.',
         'OTHER': 'Not a recognized entity type',
     }
     
