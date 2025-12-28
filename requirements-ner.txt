@@ -1,6 +1,6 @@
 # NER (Named Entity Recognition) Dependencies
 # Install with: pip install -r requirements-ner.txt
-
+ollama
 # spaCy - Industrial-strength NLP library
 spacy>=3.7.0,<4.0.0
 
