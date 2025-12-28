@@ -7,13 +7,15 @@ REST API for Pale Fire knowledge graph search system.
 import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
-from enum import Enum
+from typing import Optional
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from fastapi.responses import JSONResponse
 import uvicorn
+import os
+import tempfile
+from pathlib import Path
 
 # Import Pale Fire components
 import config
@@ -22,7 +24,29 @@ from graphiti_core.llm_client.config import LLMConfig
 from graphiti_core.llm_client.openai_generic_client import OpenAIGenericClient
 from graphiti_core.embedder.openai import OpenAIEmbedder, OpenAIEmbedderConfig
 from graphiti_core.cross_encoder.openai_reranker_client import OpenAIRerankerClient
-from modules import EntityEnricher, QuestionTypeDetector
+from modules import EntityEnricher, QuestionTypeDetector, KeywordExtractor
+from modules.api_models import (
+    SearchMethod,
+    EpisodeType,
+    Episode,
+    IngestRequest,
+    SearchRequest,
+    EntityInfo,
+    ConnectionInfo,
+    ScoringInfo,
+    SearchResult,
+    SearchResponse,
+    StatusResponse,
+    ConfigResponse,
+    KeywordExtractionMethod,
+    KeywordExtractionRequest,
+    KeywordInfo,
+    KeywordExtractionResponse,
+    FileParseResponse,
+    AgentStatusResponse,
+    EntityExtractionRequest,
+    EntityExtractionResponse,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -50,115 +74,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global Graphiti instance (initialized on startup)
+# Global instances (initialized on startup)
 graphiti_instance: Optional[Graphiti] = None
 enricher_instance: Optional[EntityEnricher] = None
 detector_instance: Optional[QuestionTypeDetector] = None
+keyword_extractor_instance: Optional[KeywordExtractor] = None
 
-
-# ============================================================================
-# Pydantic Models
-# ============================================================================
-
-class SearchMethod(str, Enum):
-    """Available search methods."""
-    standard = "standard"
-    connection = "connection"
-    question_aware = "question-aware"
-
-
-class EpisodeType(str, Enum):
-    """Episode content types."""
-    text = "text"
-    json = "json"
-
-
-class Episode(BaseModel):
-    """Episode for ingestion."""
-    content: Any = Field(..., description="Episode content (string or object)")
-    type: EpisodeType = Field(..., description="Content type")
-    description: Optional[str] = Field(None, description="Episode description")
-
-
-class IngestRequest(BaseModel):
-    """Request to ingest episodes."""
-    episodes: List[Episode] = Field(..., description="List of episodes to ingest")
-    enable_ner: bool = Field(True, description="Enable NER enrichment")
-
-
-class SearchRequest(BaseModel):
-    """Request to search the knowledge graph."""
-    query: str = Field(..., description="Search query", min_length=1)
-    method: SearchMethod = Field(
-        SearchMethod.question_aware,
-        description="Search method to use"
-    )
-    limit: Optional[int] = Field(None, description="Maximum number of results", ge=1, le=100)
-
-
-class EntityInfo(BaseModel):
-    """Entity information."""
-    name: str
-    type: Optional[str] = None
-    labels: List[str] = []
-    uuid: Optional[str] = None
-
-
-class ConnectionInfo(BaseModel):
-    """Connection information."""
-    count: int
-    entities: List[EntityInfo]
-    relationship_types: List[str]
-
-
-class ScoringInfo(BaseModel):
-    """Scoring breakdown."""
-    final_score: float
-    original_score: float
-    connection_score: Optional[float] = None
-    temporal_score: Optional[float] = None
-    query_match_score: Optional[float] = None
-    entity_type_score: Optional[float] = None
-
-
-class SearchResult(BaseModel):
-    """Single search result."""
-    rank: int
-    uuid: str
-    name: str
-    summary: str
-    labels: List[str]
-    attributes: Dict[str, Any]
-    scoring: Optional[ScoringInfo] = None
-    connections: Optional[ConnectionInfo] = None
-    recognized_entities: Optional[Dict[str, List[str]]] = None
-
-
-class SearchResponse(BaseModel):
-    """Search response."""
-    query: str
-    method: str
-    total_results: int
-    results: List[SearchResult]
-    timestamp: str
-
-
-class StatusResponse(BaseModel):
-    """Status response."""
-    status: str
-    message: str
-    database_stats: Optional[Dict[str, int]] = None
-
-
-class ConfigResponse(BaseModel):
-    """Configuration response."""
-    neo4j_uri: str
-    llm_provider: str
-    llm_model: str
-    embedder_model: str
-    search_method: str
-    search_limit: int
-    ner_enabled: bool
+# AI Agent daemon (optional)
+try:
+    from agents import get_daemon, AIAgentDaemon
+    AGENT_AVAILABLE = True
+except ImportError:
+    AGENT_AVAILABLE = False
+    logger.warning("AI Agent not available")
 
 
 # ============================================================================
@@ -168,7 +96,7 @@ class ConfigResponse(BaseModel):
 @app.on_event("startup")
 async def startup_event():
     """Initialize Graphiti on startup."""
-    global graphiti_instance, enricher_instance, detector_instance
+    global graphiti_instance, enricher_instance, detector_instance, keyword_extractor_instance
     
     try:
         logger.info("Initializing Pale Fire API...")
@@ -210,6 +138,14 @@ async def startup_event():
         # Initialize enricher and detector
         enricher_instance = EntityEnricher(use_spacy=config.NER_USE_SPACY)
         detector_instance = QuestionTypeDetector()
+        
+        # Initialize keyword extractor
+        try:
+            keyword_extractor_instance = KeywordExtractor()
+            logger.info("✅ Keyword extractor initialized")
+        except ImportError as e:
+            logger.warning(f"Keyword extractor not available (gensim may not be installed): {e}")
+            keyword_extractor_instance = None
         
         logger.info("✅ Pale Fire API initialized successfully")
         
@@ -443,6 +379,92 @@ async def search(request: SearchRequest):
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 
+@app.post("/keywords", response_model=KeywordExtractionResponse)
+async def extract_keywords(request: KeywordExtractionRequest):
+    """
+    Extract keywords from text using Gensim.
+    
+    Supports multiple extraction methods (TF-IDF, TextRank, word frequency, combined)
+    with configurable weights and parameters.
+    """
+    if keyword_extractor_instance is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Keyword extraction not available. Install gensim: pip install gensim>=4.3.0"
+        )
+    
+    try:
+        logger.info(f"Extracting keywords (method: {request.method.value}, num: {request.num_keywords})")
+        
+        # Create extractor with requested parameters
+        extractor = KeywordExtractor(
+            method=request.method.value,
+            num_keywords=request.num_keywords,
+            min_word_length=request.min_word_length,
+            max_word_length=request.max_word_length,
+            use_stemming=request.use_stemming,
+            tfidf_weight=request.tfidf_weight,
+            textrank_weight=request.textrank_weight,
+            word_freq_weight=request.word_freq_weight,
+            position_weight=request.position_weight,
+            title_weight=request.title_weight,
+            first_sentence_weight=request.first_sentence_weight,
+            enable_ngrams=request.enable_ngrams,
+            min_ngram=request.min_ngram,
+            max_ngram=request.max_ngram,
+            ngram_weight=request.ngram_weight,
+        )
+        
+        # Extract keywords
+        keywords = extractor.extract(request.text, request.documents)
+        
+        # Convert to response format
+        keyword_list = [
+            KeywordInfo(
+                keyword=kw['keyword'],
+                score=kw['score'],
+                type=kw.get('type', 'unigram')
+            )
+            for kw in keywords
+        ]
+        
+        # Build parameters dict
+        parameters = {
+            'num_keywords': request.num_keywords,
+            'min_word_length': request.min_word_length,
+            'max_word_length': request.max_word_length,
+            'use_stemming': request.use_stemming,
+            'tfidf_weight': request.tfidf_weight,
+            'textrank_weight': request.textrank_weight,
+            'word_freq_weight': request.word_freq_weight,
+            'position_weight': request.position_weight,
+            'title_weight': request.title_weight,
+            'first_sentence_weight': request.first_sentence_weight,
+            'enable_ngrams': request.enable_ngrams,
+            'min_ngram': request.min_ngram,
+            'max_ngram': request.max_ngram,
+            'ngram_weight': request.ngram_weight,
+        }
+        
+        return KeywordExtractionResponse(
+            method=request.method.value,
+            num_keywords=len(keyword_list),
+            keywords=keyword_list,
+            parameters=parameters,
+            timestamp=datetime.now(timezone.utc).isoformat()
+        )
+        
+    except ImportError as e:
+        logger.error(f"Gensim not available: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Keyword extraction requires gensim: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Error extracting keywords: {e}")
+        raise HTTPException(status_code=500, detail=f"Keyword extraction failed: {str(e)}")
+
+
 @app.delete("/clean", response_model=StatusResponse)
 async def clean_database():
     """
@@ -484,6 +506,211 @@ async def clean_database():
     except Exception as e:
         logger.error(f"Error cleaning database: {e}")
         raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
+
+
+# ============================================================================
+# File Parsing Endpoints
+# ============================================================================
+
+@app.post("/parse", response_model=FileParseResponse)
+async def parse_file(
+    file: UploadFile = File(...),
+    file_type: Optional[str] = Form(None, description="Override file type detection (txt, csv, pdf, xlsx, xls, ods)"),
+    delimiter: Optional[str] = Form(None, description="CSV delimiter (for CSV files)"),
+    include_headers: bool = Form(True, description="Include headers in CSV output"),
+    max_pages: Optional[int] = Form(None, description="Maximum pages to parse (for PDF files)", ge=1),
+    extract_tables: bool = Form(True, description="Extract tables (for PDF/spreadsheet files)"),
+    sheet_names: Optional[str] = Form(None, description="Comma-separated sheet names (for spreadsheet files)"),
+):
+    """
+    Parse a file and extract text content.
+    
+    Supports multiple file types:
+    - TXT: Plain text files
+    - CSV: Comma-separated values
+    - PDF: PDF documents
+    - Spreadsheets: Excel (.xlsx, .xls) and OpenDocument (.ods)
+    """
+    if not AGENT_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="File parsing requires AI Agent. Install parsing dependencies: pip install PyPDF2 openpyxl xlrd odfpy"
+        )
+    
+    try:
+        # Save uploaded file to temporary location
+        file_extension = Path(file.filename).suffix.lower() if file.filename else ''
+        
+        # Determine file type
+        detected_type = file_type or file_extension.lstrip('.')
+        
+        # Create temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as tmp_file:
+            content = await file.read()
+            tmp_file.write(content)
+            tmp_path = tmp_file.name
+        
+        try:
+            # Get daemon instance
+            daemon = get_daemon(use_spacy=False)
+            
+            # Prepare parser options
+            parser_options = {}
+            if delimiter:
+                parser_options['delimiter'] = delimiter
+            if not include_headers:
+                parser_options['include_headers'] = False
+            if max_pages:
+                parser_options['max_pages'] = max_pages
+            if not extract_tables:
+                parser_options['extract_tables'] = False
+            if sheet_names:
+                parser_options['sheet_names'] = [s.strip() for s in sheet_names.split(',')]
+            
+            # Parse file
+            result = daemon.parse_file(tmp_path, file_type=detected_type, **parser_options)
+            
+            return FileParseResponse(
+                success=result.get('success', False),
+                text=result.get('text', ''),
+                metadata=result.get('metadata', {}),
+                pages=result.get('pages', []),
+                tables=result.get('tables', []),
+                error=result.get('error'),
+                file_type=detected_type,
+                timestamp=datetime.now(timezone.utc).isoformat()
+            )
+            
+        finally:
+            # Clean up temporary file
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        
+    except Exception as e:
+        logger.error(f"Error parsing file: {e}")
+        raise HTTPException(status_code=500, detail=f"File parsing failed: {str(e)}")
+
+
+# ============================================================================
+# AI Agent Endpoints
+# ============================================================================
+
+@app.get("/agent/status", response_model=AgentStatusResponse)
+async def get_agent_status():
+    """
+    Get AI Agent daemon status.
+    
+    Returns information about the daemon's running state, model initialization,
+    and system resources.
+    """
+    if not AGENT_AVAILABLE:
+        return AgentStatusResponse(
+            running=False,
+            models_initialized=False,
+            use_spacy=False,
+            spacy_available=False,
+            parsers_available=False,
+            timestamp=datetime.now(timezone.utc).isoformat()
+        )
+    
+    try:
+        daemon = get_daemon(use_spacy=False)
+        status = daemon.get_status()
+        
+        # Try to get process information if daemon is running
+        pid = None
+        memory_mb = None
+        cpu_percent = None
+        
+        try:
+            import psutil
+            pidfile = '/tmp/palefire_ai_agent.pid'
+            if os.path.exists(pidfile):
+                with open(pidfile, 'r') as f:
+                    pid = int(f.read().strip())
+                
+                try:
+                    process = psutil.Process(pid)
+                    memory_mb = process.memory_info().rss / 1024 / 1024
+                    cpu_percent = process.cpu_percent(interval=0.1)
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pid = None
+        except ImportError:
+            pass  # psutil not available
+        
+        return AgentStatusResponse(
+            running=status.get('running', False),
+            models_initialized=status.get('models_initialized', False),
+            use_spacy=status.get('use_spacy', False),
+            spacy_available=status.get('spacy_available', False),
+            parsers_available=status.get('parsers_available', False),
+            pid=pid,
+            memory_mb=memory_mb,
+            cpu_percent=cpu_percent,
+            timestamp=datetime.now(timezone.utc).isoformat()
+        )
+        
+    except Exception as e:
+        logger.error(f"Error getting agent status: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get agent status: {str(e)}")
+
+
+@app.post("/entities", response_model=EntityExtractionResponse)
+async def extract_entities(request: EntityExtractionRequest):
+    """
+    Extract named entities from text using spaCy or pattern-based extraction.
+    
+    Uses the AI Agent daemon if available for faster extraction (models stay loaded).
+    Falls back to direct EntityEnricher if daemon is not available.
+    """
+    try:
+        # Try to use daemon if available
+        if AGENT_AVAILABLE:
+            try:
+                daemon = get_daemon(use_spacy=config.NER_USE_SPACY)
+                
+                # Initialize models if not already initialized
+                if not daemon.model_manager.is_initialized():
+                    daemon.model_manager.initialize(use_spacy=config.NER_USE_SPACY)
+                
+                # Extract entities using daemon
+                entities_dict = daemon.extract_entities(request.text)
+                
+                return EntityExtractionResponse(
+                    entities=entities_dict.get('entities', []),
+                    entities_by_type=entities_dict.get('entities_by_type', {}),
+                    all_entities=entities_dict.get('all_entities', []),
+                    timestamp=datetime.now(timezone.utc).isoformat()
+                )
+            except Exception as e:
+                logger.warning(f"Failed to use daemon for entity extraction: {e}, falling back to direct extraction")
+        
+        # Fall back to direct extraction
+        if enricher_instance is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Entity extraction not available. EntityEnricher not initialized."
+            )
+        
+        # Extract entities directly
+        episode = {
+            'content': request.text,
+            'type': 'text',
+            'description': 'Entity extraction'
+        }
+        
+        enriched = enricher_instance.enrich_episode(episode)
+        
+        return EntityExtractionResponse(
+            entities=enriched.get('entities', []),
+            entities_by_type=enriched.get('entities_by_type', {}),
+            all_entities=enriched.get('all_entities', []),
+            timestamp=datetime.now(timezone.utc).isoformat()
+        )
+        
+    except Exception as e:
+        logger.error(f"Error extracting entities: {e}")
+        raise HTTPException(status_code=500, detail=f"Entity extraction failed: {str(e)}")
 
 
 # ============================================================================
