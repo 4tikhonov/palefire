@@ -169,3 +169,49 @@ class KeywordExtractionResponse(BaseModel):
     parameters: Dict[str, Any]
     timestamp: str
 
+
+# ============================================================================
+# File Parsing Models
+# ============================================================================
+
+class FileParseResponse(BaseModel):
+    """File parsing response."""
+    success: bool
+    text: str = Field("", description="Extracted text content")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="File metadata")
+    pages: List[str] = Field(default_factory=list, description="Page-by-page text (for multi-page documents)")
+    tables: List[Dict[str, Any]] = Field(default_factory=list, description="Extracted tables")
+    error: Optional[str] = Field(None, description="Error message if parsing failed")
+    file_type: Optional[str] = Field(None, description="Detected file type")
+    timestamp: str
+
+
+# ============================================================================
+# AI Agent Models
+# ============================================================================
+
+class AgentStatusResponse(BaseModel):
+    """AI Agent daemon status response."""
+    running: bool
+    models_initialized: bool
+    use_spacy: bool
+    spacy_available: bool
+    parsers_available: bool
+    pid: Optional[int] = Field(None, description="Process ID if running")
+    memory_mb: Optional[float] = Field(None, description="Memory usage in MB")
+    cpu_percent: Optional[float] = Field(None, description="CPU usage percentage")
+    timestamp: str
+
+
+class EntityExtractionRequest(BaseModel):
+    """Request to extract entities from text."""
+    text: str = Field(..., description="Text to extract entities from", min_length=1)
+
+
+class EntityExtractionResponse(BaseModel):
+    """Entity extraction response."""
+    entities: List[Dict[str, Any]] = Field(default_factory=list, description="List of extracted entities")
+    entities_by_type: Dict[str, List[str]] = Field(default_factory=dict, description="Entities grouped by type")
+    all_entities: List[str] = Field(default_factory=list, description="All entity texts")
+    timestamp: str
+
