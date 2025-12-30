@@ -33,7 +33,7 @@ LLM_PROVIDER = os.environ.get('LLM_PROVIDER', 'ollama')
 OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://10.147.18.253:11434/v1')
 OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'deepseek-r1:7b')
 OLLAMA_SMALL_MODEL = os.environ.get('OLLAMA_SMALL_MODEL', 'deepseek-r1:7b')
-OLLAMA_VERIFICATION_MODEL = os.environ.get('OLLAMA_VERIFICATION_MODEL', None)  # Optional: separate model for NER verification (defaults to OLLAMA_MODEL)
+OLLAMA_VERIFICATION_MODEL = os.environ.get('OLLAMA_VERIFICATION_MODEL', None)  # Optional: comma-separated list of models for NER verification (defaults to OLLAMA_MODEL)
 OLLAMA_VERIFICATION_TIMEOUT = int(os.environ.get('OLLAMA_VERIFICATION_TIMEOUT', '300'))  # Timeout in seconds for verification requests (default: 300 = 5 minutes)
 OLLAMA_PARALLEL_REQUESTS = os.environ.get('OLLAMA_PARALLEL_REQUESTS', 'true').lower() in ('true', '1', 'yes')  # Enable parallel Ollama requests for better performance (default: True)
 OLLAMA_API_KEY = os.environ.get('OLLAMA_API_KEY', 'ollama')  # Placeholder
@@ -142,13 +142,30 @@ def validate_config():
 def get_llm_config():
     """Get LLM configuration based on provider."""
     if LLM_PROVIDER == 'ollama':
-        # Use verification model if specified and not empty, otherwise fallback to main model
-        verification_model = OLLAMA_VERIFICATION_MODEL if (OLLAMA_VERIFICATION_MODEL and OLLAMA_VERIFICATION_MODEL.strip()) else OLLAMA_MODEL
+        # Parse verification models: support comma-separated list or single model
+        verification_models = []
+        if OLLAMA_VERIFICATION_MODEL and OLLAMA_VERIFICATION_MODEL.strip():
+            # Split by comma and strip whitespace, filter out empty strings
+            verification_models = [m.strip() for m in OLLAMA_VERIFICATION_MODEL.split(',') if m.strip()]
+            # If we have valid models, use them; otherwise fallback to main model
+            if not verification_models:
+                verification_models = [OLLAMA_MODEL]
+        else:
+            verification_models = [OLLAMA_MODEL]
+        
+        # Ensure we always have at least one model
+        if not verification_models:
+            verification_models = [OLLAMA_MODEL]
+        
+        # Keep single model for backward compatibility
+        verification_model = verification_models[0] if verification_models else OLLAMA_MODEL
+        
         return {
             'api_key': OLLAMA_API_KEY,
             'model': OLLAMA_MODEL,
             'small_model': OLLAMA_SMALL_MODEL,
-            'verification_model': verification_model,
+            'verification_model': verification_model,  # Single model for backward compatibility
+            'verification_models': verification_models,  # List of all verification models
             'verification_timeout': OLLAMA_VERIFICATION_TIMEOUT,
             'parallel_requests': OLLAMA_PARALLEL_REQUESTS,
             'base_url': OLLAMA_BASE_URL,
@@ -191,7 +208,11 @@ def print_config():
     
     llm_cfg = get_llm_config()
     print(f"LLM Model: {llm_cfg['model']}")
-    print(f"LLM Verification Model: {llm_cfg.get('verification_model', llm_cfg['model'])}")
+    verification_models = llm_cfg.get('verification_models', [llm_cfg.get('verification_model', llm_cfg['model'])])
+    if len(verification_models) > 1:
+        print(f"LLM Verification Models: {', '.join(verification_models)}")
+    else:
+        print(f"LLM Verification Model: {verification_models[0] if verification_models else llm_cfg.get('verification_model', llm_cfg['model'])}")
     print(f"LLM Parallel Requests: {llm_cfg.get('parallel_requests', True)}")
     print(f"LLM Base URL: {llm_cfg['base_url']}")
     

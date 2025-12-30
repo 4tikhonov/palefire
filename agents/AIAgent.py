@@ -815,7 +815,7 @@ class AIAgentDaemon:
         if not json_parsing_attempted:
             logger.debug(f"No JSON found in response, trying Gemma3 markdown parser...")
             try:
-                verified_entities = self._parse_gemma3_markdown(response, llm_model, debug)
+                verified_entities = self._parse_gemma3_markdown(response, entities, llm_model)
 
                 if verified_entities:
                     logger.debug(f"Parsed {len(verified_entities)} entities using Gemma3 markdown parser")
@@ -1154,7 +1154,7 @@ class AIAgentDaemon:
 
                     # First try the numbered section format (e.g., **1. Entities...**)
                     try:
-                        verified_entities = self._parse_structured_markdown(response, llm_model, debug)
+                        verified_entities = self._parse_structured_markdown(response, entities, llm_model)
 
                         if verified_entities:
                             logger.debug(f"Parsed {len(verified_entities)} entities using structured markdown parser")
@@ -1171,7 +1171,7 @@ class AIAgentDaemon:
                             # Try Gemma3 markdown format as fallback
                             logger.debug(f"No entities found with structured parser, trying Gemma3 markdown parser...")
                             try:
-                                verified_entities = self._parse_gemma3_markdown(response, llm_model, debug)
+                                verified_entities = self._parse_gemma3_markdown(response, entities, llm_model)
 
                                 if verified_entities:
                                     logger.debug(f"Parsed {len(verified_entities)} entities using Gemma3 markdown parser")
@@ -1194,7 +1194,7 @@ class AIAgentDaemon:
                         logger.warning(f"Failed to parse as structured markdown (model: {llm_model}): {structured_error}. Response was: {response[:200]}...")
                         # Try Gemma3 as final fallback
                         try:
-                            verified_entities = self._parse_gemma3_markdown(response, llm_model, debug)
+                            verified_entities = self._parse_gemma3_markdown(response, entities, llm_model)
                             if verified_entities:
                                 logger.debug(f"Parsed {len(verified_entities)} entities using Gemma3 markdown parser")
                             else:
@@ -1308,9 +1308,111 @@ class AIAgentDaemon:
             logger.warning(f"LLM verification setup failed (model: {llm_model}): {e}, using original entities")
             return entities
 
+    def _aggregate_verification_results(self, all_results: List[List[Dict[str, Any]]], models: List[str], debug: bool = False) -> List[Dict[str, Any]]:
+        """
+        Aggregate verification results from multiple models using consensus voting.
+        
+        Args:
+            all_results: List of entity lists, one from each model
+            models: List of model names corresponding to results
+            debug: Enable debug output
+            
+        Returns:
+            Aggregated list of verified entities
+        """
+        if not all_results:
+            return []
+        
+        # Count votes for each entity (by normalized text)
+        entity_votes = {}  # normalized_text -> {entity_data, vote_count, models}
+        entity_removals = {}  # normalized_text -> {vote_count, models}
+        
+        for model_idx, model_results in enumerate(all_results):
+            if not model_results:
+                continue
+                
+            model_name = models[model_idx] if model_idx < len(models) else f"model_{model_idx}"
+            
+            for entity in model_results:
+                if not isinstance(entity, dict):
+                    continue
+                
+                v_text = (entity.get('text') or entity.get('entity') or "").strip()
+                if not v_text:
+                    continue
+                
+                v_type = entity.get('type')
+                v_verified = entity.get('verified', True)
+                normalized_text = v_text.lower().strip()
+                
+                # Check if this entity should be removed
+                if v_type == 'REMOVE' or v_verified is False:
+                    if normalized_text not in entity_removals:
+                        entity_removals[normalized_text] = {'count': 0, 'models': []}
+                    entity_removals[normalized_text]['count'] += 1
+                    entity_removals[normalized_text]['models'].append(model_name)
+                    continue
+                
+                # Track entity votes
+                if normalized_text not in entity_votes:
+                    entity_votes[normalized_text] = {
+                        'entity': entity,
+                        'votes': 0,
+                        'models': [],
+                        'types': {}  # Track type variations
+                    }
+                
+                entity_votes[normalized_text]['votes'] += 1
+                entity_votes[normalized_text]['models'].append(model_name)
+                
+                # Track type consensus
+                if v_type:
+                    if v_type not in entity_votes[normalized_text]['types']:
+                        entity_votes[normalized_text]['types'][v_type] = 0
+                    entity_votes[normalized_text]['types'][v_type] += 1
+        
+        # Build final result: include entities that have more votes than removals
+        result = []
+        total_models = len([r for r in all_results if r])
+        
+        for normalized_text, vote_data in entity_votes.items():
+            removal_votes = entity_removals.get(normalized_text, {}).get('count', 0)
+            entity_votes_count = vote_data['votes']
+            
+            # Entity is included if it has more votes than removal votes
+            # Require at least one vote (at least one model verified it)
+            if entity_votes_count > removal_votes and entity_votes_count > 0:
+                entity = vote_data['entity'].copy()
+                
+                # Use most common type if there's type disagreement
+                if len(vote_data['types']) > 1:
+                    most_common_type = max(vote_data['types'].items(), key=lambda x: x[1])[0]
+                    entity['type'] = most_common_type
+                    if debug:
+                        logger.debug(f"Type consensus for '{entity.get('text')}': {vote_data['types']} -> {most_common_type}")
+                
+                # Update reasoning to mention multiple models if applicable
+                if entity_votes_count > 1:
+                    models_str = ', '.join(set(vote_data['models']))
+                    original_reasoning = entity.get('reasoning', '')
+                    entity['reasoning'] = f"Verified by {entity_votes_count} models ({models_str}). {original_reasoning}".strip()
+                    # Increase confidence for multi-model consensus
+                    entity['confidence'] = min(entity.get('confidence', 0.8) + (entity_votes_count - 1) * 0.1, 1.0)
+                else:
+                    # Single model verification
+                    entity['reasoning'] = entity.get('reasoning', f"Verified by {vote_data['models'][0]}")
+                
+                result.append(entity)
+        
+        if debug:
+            logger.debug(f"Aggregated {len(result)} entities from {total_models} models (removed {len(entity_removals)} entities by consensus)")
+        
+        return result
+
     def verify_ner_with_llm(self, text: str, entities: List[Dict[str, Any]], debug: bool = False) -> List[Dict[str, Any]]:
         """
         Verify and correct spaCy NER results using LLM.
+        Supports multiple verification models - sends requests to all configured models and aggregates results.
 
         Args:
             text: Original text
@@ -1330,30 +1432,171 @@ class AIAgentDaemon:
                 logger.warning("LLM API key not configured, skipping verification")
                 return entities
 
-            # Use verification model if specified, otherwise fallback to main model
+            # Get all verification models (supports comma-separated list)
             main_model = llm_cfg.get('model', 'unknown')
-            verification_model = llm_cfg.get('verification_model')
-            # Handle None, empty string, or whitespace-only strings
-            llm_model = verification_model if (verification_model and verification_model.strip()) else main_model
-
-            # Log which model is being used
-            if verification_model and verification_model != main_model:
-                logger.info(f"Using verification model: {llm_model} (main model: {main_model})")
+            verification_models = llm_cfg.get('verification_models', [])
+            
+            # Fallback to single verification_model for backward compatibility
+            if not verification_models:
+                verification_model = llm_cfg.get('verification_model')
+                if verification_model and verification_model.strip():
+                    verification_models = [verification_model.strip()]
+                else:
+                    verification_models = [main_model]
+            
+            # Debug: Log what we got from config
+            if debug:
+                logger.debug(f"Config returned verification_models: {verification_models} (type: {type(verification_models)})")
+            
+            # Log which models are being used
+            if len(verification_models) > 1:
+                logger.info(f"Using {len(verification_models)} verification models: {', '.join(verification_models)}")
+            elif verification_models and verification_models[0] != main_model:
+                logger.info(f"Using verification model: {verification_models[0]} (main model: {main_model})")
             else:
-                logger.warning(f"OLLAMA_VERIFICATION_MODEL not set - using main model for verification: {llm_model}. Set OLLAMA_VERIFICATION_MODEL in .env to use a separate verification model.")
+                logger.warning(f"OLLAMA_VERIFICATION_MODEL not set - using main model for verification: {verification_models[0] if verification_models else main_model}. Set OLLAMA_VERIFICATION_MODEL in .env to use a separate verification model.")
 
             # Get timeout for verification requests
             verification_timeout = llm_cfg.get('verification_timeout', 300)  # Default 5 minutes
+            parallel_requests = llm_cfg.get('parallel_requests', True)
 
             if debug:
-                logger.debug(f"Using verification timeout: {verification_timeout}s")
+                logger.debug(f"Using verification timeout: {verification_timeout}s, parallel: {parallel_requests}, models count: {len(verification_models)}")
 
-            llm_client = self._create_ollama_client(llm_model, verification_timeout)
-            if not llm_client:
-                logger.warning("Failed to create LLM client, skipping verification")
+            # If only one model, use the original single-model path for efficiency
+            if len(verification_models) == 1:
+                llm_model = verification_models[0]
+                llm_client = self._create_ollama_client(llm_model, verification_timeout)
+                if not llm_client:
+                    logger.warning("Failed to create LLM client, skipping verification")
+                    return entities
+                return self._verify_ner_with_llm_client(text, entities, llm_client, llm_model, debug)
+            
+            # Multiple models: send requests to all and aggregate
+            all_results = []
+            successful_models = []
+            failed_models = []
+            async_attempted = False
+            async_succeeded = False
+            
+            if parallel_requests and len(verification_models) > 1:
+                # Use async parallel requests
+                import asyncio
+                try:
+                    import nest_asyncio
+                    nest_asyncio.apply()
+                except ImportError:
+                    logger.warning("nest_asyncio not available - may encounter event loop issues")
+                
+                async def verify_all_models_async():
+                    """Async function to verify all models in parallel."""
+                    tasks = []
+                    model_list = []
+                    async_results = []
+                    async_successful = []
+                    async_failed = []
+                    
+                    logger.info(f"Starting parallel verification for {len(verification_models)} models: {', '.join(verification_models)}")
+                    
+                    for model in verification_models:
+                        logger.debug(f"Creating client for model: {model}")
+                        client = self._create_ollama_client(model, verification_timeout)
+                        if not client:
+                            async_failed.append(model)
+                            logger.warning(f"Failed to create client for model {model}")
+                            continue
+                        logger.debug(f"Created client for {model}, creating async task...")
+                        task = self._verify_ner_with_llm_client_async(text, entities, client, model, debug)
+                        tasks.append(task)
+                        model_list.append(model)
+                    
+                    if not tasks:
+                        logger.warning("No valid clients created for any verification models")
+                        return async_results, async_successful, async_failed
+                    
+                    logger.info(f"Executing {len(tasks)} verification tasks in parallel...")
+                    # Execute all tasks concurrently
+                    results = await asyncio.gather(*tasks, return_exceptions=True)
+                    
+                    logger.info(f"Received {len(results)} results from parallel execution")
+                    
+                    # Process results
+                    for model, result in zip(model_list, results):
+                        if isinstance(result, Exception):
+                            logger.warning(f"Verification failed for model {model}: {result}")
+                            async_failed.append(model)
+                        else:
+                            async_results.append(result)
+                            async_successful.append(model)
+                            entity_count = len(result) if result else 0
+                            logger.info(f"Successfully verified with model {model}: {entity_count} entities")
+                            if debug:
+                                logger.debug(f"Model {model} result details: {result[:2] if result else 'empty'}")
+                    
+                    logger.info(f"Parallel verification summary: {len(async_successful)} successful, {len(async_failed)} failed")
+                    return async_results, async_successful, async_failed
+                
+                async_attempted = True
+                try:
+                    all_results, successful_models, failed_models = asyncio.run(verify_all_models_async())
+                    async_succeeded = len(all_results) > 0
+                    if debug:
+                        logger.debug(f"Parallel verification completed: {len(successful_models)} successful, {len(failed_models)} failed")
+                except Exception as e:
+                    logger.warning(f"Parallel async verification failed: {e}, falling back to sequential processing")
+                    async_succeeded = False
+                    # Reset lists for sequential fallback
+                    all_results = []
+                    successful_models = []
+                    failed_models = []
+            
+            # Sequential fallback: use if async wasn't attempted, didn't succeed, or parallel is disabled
+            if not async_attempted or not async_succeeded:
+                if debug:
+                    logger.debug(f"Using sequential verification (async_succeeded={async_succeeded}, parallel_requests={parallel_requests})")
+                all_results = []
+                successful_models = []
+                failed_models = []
+                
+                for model in verification_models:
+                    try:
+                        if debug:
+                            logger.debug(f"Processing model {model} sequentially...")
+                        llm_client = self._create_ollama_client(model, verification_timeout)
+                        if not llm_client:
+                            logger.warning(f"Failed to create LLM client for model {model}, skipping")
+                            failed_models.append(model)
+                            continue
+                        
+                        result = self._verify_ner_with_llm_client(text, entities, llm_client, model, debug)
+                        all_results.append(result)
+                        successful_models.append(model)
+                        if debug:
+                            logger.debug(f"Successfully verified with model {model}: {len(result) if result else 0} entities")
+                    except Exception as e:
+                        logger.warning(f"Verification failed for model {model}: {e}")
+                        failed_models.append(model)
+            
+            # Log summary
+            if successful_models:
+                logger.info(f"Verification completed with {len(successful_models)} model(s): {', '.join(successful_models)}")
+            if failed_models:
+                logger.warning(f"Verification failed for {len(failed_models)} model(s): {', '.join(failed_models)}")
+            
+            # If no models succeeded, return original entities
+            if not all_results:
+                logger.warning("All verification models failed, using original entities")
                 return entities
-
-            return self._verify_ner_with_llm_client(text, entities, llm_client, llm_model, debug)
+            
+            # Aggregate results from all successful models
+            aggregated = self._aggregate_verification_results(all_results, successful_models, debug)
+            
+            # If aggregation produced no results, fall back to original entities
+            if not aggregated:
+                logger.warning("Aggregation produced no entities, using original entities")
+                return entities
+            
+            return aggregated
 
         except Exception as e:
             logger.warning(f"LLM verification failed in verify_ner_with_llm: {e}, using original entities")
@@ -1817,12 +2060,21 @@ class AIAgentDaemon:
             try:
                 llm_cfg = config.get_llm_config()
                 main_model = llm_cfg.get('model', 'unknown')
-                verification_model = llm_cfg.get('verification_model')
-                llm_model = verification_model if (verification_model and verification_model.strip()) else main_model
+                verification_models = llm_cfg.get('verification_models', [])
+                if not verification_models:
+                    verification_model = llm_cfg.get('verification_model')
+                    if verification_model and verification_model.strip():
+                        verification_models = [verification_model.strip()]
+                    else:
+                        verification_models = [main_model]
+                llm_model = verification_models[0] if verification_models else main_model
                 verification_timeout = llm_cfg.get('verification_timeout', 300)
                 parallel_requests = llm_cfg.get('parallel_requests', True)
 
-                logger.debug(f"Deep mode: verifying {len(blocks)} blocks with LLM (model: {llm_model}, blocksize={blocksize}, parallel={parallel_requests})")
+                if len(verification_models) > 1:
+                    logger.debug(f"Deep mode: verifying {len(blocks)} blocks with LLM (models: {', '.join(verification_models)}, blocksize={blocksize}, parallel={parallel_requests})")
+                else:
+                    logger.debug(f"Deep mode: verifying {len(blocks)} blocks with LLM (model: {llm_model}, blocksize={blocksize}, parallel={parallel_requests})")
 
                 # Prepare blocks for verification (filter out empty blocks)
                 blocks_to_verify = [
@@ -2072,11 +2324,20 @@ class AIAgentDaemon:
         if verify_ner:
             try:
                 llm_cfg = config.get_llm_config()
-                # Use verification model if specified, otherwise fallback to main model
+                # Get all verification models (supports multiple models)
                 main_model = llm_cfg.get('model', 'unknown')
-                verification_model = llm_cfg.get('verification_model')
-                llm_model = verification_model if (verification_model and verification_model.strip()) else main_model
-                logger.debug(f"Starting LLM verification (model: {llm_model}) for {len(original_entities)} entities")
+                verification_models = llm_cfg.get('verification_models', [])
+                if not verification_models:
+                    verification_model = llm_cfg.get('verification_model')
+                    if verification_model and verification_model.strip():
+                        verification_models = [verification_model.strip()]
+                    else:
+                        verification_models = [main_model]
+                llm_model = verification_models[0] if verification_models else main_model
+                if len(verification_models) > 1:
+                    logger.debug(f"Starting LLM verification (models: {', '.join(verification_models)}) for {len(original_entities)} entities")
+                else:
+                    logger.debug(f"Starting LLM verification (model: {llm_model}) for {len(original_entities)} entities")
                 # We send unique entities to LLM to save tokens, but keep frequencies
                 # Actually, verify_ner_with_llm expects the full list to handle context
                 verified_entities = self.verify_ner_with_llm(text, original_entities, debug=True)
