@@ -33,7 +33,7 @@ LLM_PROVIDER = os.environ.get('LLM_PROVIDER', 'ollama')
 OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://10.147.18.253:11434/v1')
 OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'deepseek-r1:7b')
 OLLAMA_SMALL_MODEL = os.environ.get('OLLAMA_SMALL_MODEL', 'deepseek-r1:7b')
-OLLAMA_VERIFICATION_MODEL = os.environ.get('OLLAMA_VERIFICATION_MODEL', None)  # Optional: separate model for NER verification (defaults to OLLAMA_MODEL)
+OLLAMA_VERIFICATION_MODEL = os.environ.get('OLLAMA_VERIFICATION_MODEL', None)  # Optional: separate model(s) for NER verification (comma-separated, defaults to OLLAMA_MODEL)
 OLLAMA_VERIFICATION_TIMEOUT = int(os.environ.get('OLLAMA_VERIFICATION_TIMEOUT', '300'))  # Timeout in seconds for verification requests (default: 300 = 5 minutes)
 OLLAMA_PARALLEL_REQUESTS = os.environ.get('OLLAMA_PARALLEL_REQUESTS', 'true').lower() in ('true', '1', 'yes')  # Enable parallel Ollama requests for better performance (default: True)
 OLLAMA_API_KEY = os.environ.get('OLLAMA_API_KEY', 'ollama')  # Placeholder

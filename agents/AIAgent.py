@@ -5,6 +5,8 @@ Manages long-running AI agents that keep Gensim and spaCy models loaded in memor
 to avoid start/stop delays. Provides a daemon service for keyword extraction and NER.
 """
 
+from modules.PaleFireCore import EntityEnricher
+from modules.KeywordBase import KeywordExtractor
 import logging
 import signal
 import sys
@@ -21,6 +23,8 @@ import re
 logger = logging.getLogger(__name__)
 
 # LLM Response Logging Helper
+
+
 def log_llm_response(response: str, model: str, request_type: str = "unknown", request_id: Optional[str] = None) -> None:
     """
     Log LLM response to logs folder for auditing and debugging.
@@ -64,9 +68,8 @@ def log_llm_response(response: str, model: str, request_type: str = "unknown", r
         logger.warning(f"Failed to log LLM response: {e}")
         # Don't raise exception to avoid breaking the main flow
 
+
 # Import models
-from modules.KeywordBase import KeywordExtractor
-from modules.PaleFireCore import EntityEnricher
 
 # Try to import config for LLM access
 try:
@@ -97,23 +100,23 @@ class ModelManager:
     Manages loaded models to keep them in memory.
     Provides thread-safe access to models.
     """
-    
+
     def __init__(self):
         self._lock = threading.RLock()
         self._keyword_extractor: Optional[KeywordExtractor] = None
         self._entity_enricher: Optional[EntityEnricher] = None
         self._spacy_model = None
         self._initialized = False
-    
+
     def initialize(self, use_spacy: bool = True):
         """Initialize and load all models."""
         with self._lock:
             if self._initialized:
                 logger.info("Models already initialized")
                 return
-            
+
             logger.info("Initializing AI models...")
-            
+
             # Initialize Keyword Extractor (Gensim)
             try:
                 self._keyword_extractor = KeywordExtractor()
@@ -121,7 +124,7 @@ class ModelManager:
             except Exception as e:
                 logger.error(f"Failed to initialize KeywordExtractor: {e}")
                 raise
-            
+
             # Initialize Entity Enricher (spaCy)
             if use_spacy and SPACY_AVAILABLE:
                 try:
@@ -133,10 +136,10 @@ class ModelManager:
             else:
                 self._entity_enricher = EntityEnricher(use_spacy=False)
                 logger.info("✅ EntityEnricher (pattern-based) initialized")
-            
+
             self._initialized = True
             logger.info("✅ All models initialized successfully")
-    
+
     @property
     def keyword_extractor(self) -> KeywordExtractor:
         """Get keyword extractor instance."""
@@ -144,7 +147,7 @@ class ModelManager:
             if not self._initialized:
                 raise RuntimeError("Models not initialized. Call initialize() first.")
             return self._keyword_extractor
-    
+
     @property
     def entity_enricher(self) -> EntityEnricher:
         """Get entity enricher instance."""
@@ -152,12 +155,12 @@ class ModelManager:
             if not self._initialized:
                 raise RuntimeError("Models not initialized. Call initialize() first.")
             return self._entity_enricher
-    
+
     def is_initialized(self) -> bool:
         """Check if models are initialized."""
         with self._lock:
             return self._initialized
-    
+
     def reload(self):
         """Reload all models."""
         with self._lock:
@@ -174,11 +177,11 @@ class AIAgentDaemon:
     Daemon service that keeps AI models loaded and ready.
     Provides API endpoints for keyword extraction and NER.
     """
-    
+
     def __init__(self, pidfile: Optional[str] = None, use_spacy: bool = True):
         """
         Initialize the daemon.
-        
+
         Args:
             pidfile: Path to PID file for daemon management
             use_spacy: Whether to use spaCy for NER
@@ -188,27 +191,27 @@ class AIAgentDaemon:
         self.model_manager = ModelManager()
         self.running = False
         self._shutdown_event = threading.Event()
-        
+
         # Setup signal handlers
         signal.signal(signal.SIGTERM, self._signal_handler)
         signal.signal(signal.SIGINT, self._signal_handler)
-    
+
     def _signal_handler(self, signum, frame):
         """Handle shutdown signals."""
         logger.info(f"Received signal {signum}, shutting down...")
         self.stop()
-    
+
     def start(self, daemon: bool = False):
         """
         Start the daemon service.
-        
+
         Args:
             daemon: If True, run as background daemon
         """
         if self.running:
             logger.warning("Daemon is already running")
             return
-        
+
         # Write PID file before daemonizing (so parent can read it)
         if daemon:
             # Write PID file with parent PID first (will be updated after fork)
@@ -223,10 +226,10 @@ class AIAgentDaemon:
             # Write PID file for foreground mode
             with open(self.pidfile, 'w') as f:
                 f.write(str(os.getpid()))
-        
+
         logger.info("Starting AI Agent Daemon...")
         self.running = True
-        
+
         # Initialize models
         try:
             self.model_manager.initialize(use_spacy=self.use_spacy)
@@ -234,10 +237,10 @@ class AIAgentDaemon:
             logger.error(f"Failed to initialize models: {e}")
             self.stop()
             sys.exit(1)
-        
+
         # Run main loop
         self._run()
-    
+
     def _daemonize(self):
         """Fork process to run as daemon."""
         try:
@@ -247,12 +250,12 @@ class AIAgentDaemon:
         except OSError as e:
             logger.error(f"Fork failed: {e}")
             sys.exit(1)
-        
+
         # Decouple from parent environment
         os.chdir("/")
         os.setsid()
         os.umask(0)
-        
+
         # Second fork
         try:
             pid = os.fork()
@@ -261,7 +264,7 @@ class AIAgentDaemon:
         except OSError as e:
             logger.error(f"Second fork failed: {e}")
             sys.exit(1)
-        
+
         # Redirect standard file descriptors
         sys.stdout.flush()
         sys.stderr.flush()
@@ -271,15 +274,15 @@ class AIAgentDaemon:
         os.dup2(si.fileno(), sys.stdin.fileno())
         os.dup2(so.fileno(), sys.stdout.fileno())
         os.dup2(se.fileno(), sys.stderr.fileno())
-    
+
     def _run(self):
         """Main daemon loop."""
         logger.info("AI Agent Daemon is running...")
-        
+
         # Health check thread
         health_thread = threading.Thread(target=self._health_check_loop, daemon=True)
         health_thread.start()
-        
+
         try:
             # Keep running until shutdown
             while self.running and not self._shutdown_event.is_set():
@@ -288,7 +291,7 @@ class AIAgentDaemon:
             logger.info("Received keyboard interrupt")
         finally:
             self.stop()
-    
+
     def _health_check_loop(self):
         """Periodic health check to ensure models are loaded."""
         while self.running and not self._shutdown_event.is_set():
@@ -299,29 +302,29 @@ class AIAgentDaemon:
                     self.model_manager.initialize(use_spacy=self.use_spacy)
                 except Exception as e:
                     logger.error(f"Failed to reload models: {e}")
-    
+
     def stop(self):
         """Stop the daemon."""
         if not self.running:
             return
-        
+
         logger.info("Stopping AI Agent Daemon...")
         self.running = False
         self._shutdown_event.set()
-        
+
         # Remove PID file
         try:
             if os.path.exists(self.pidfile):
                 os.remove(self.pidfile)
         except Exception as e:
             logger.warning(f"Failed to remove PID file: {e}")
-        
+
         logger.info("AI Agent Daemon stopped")
-    
+
     def extract_keywords(self, text: str, method: str = 'combined', num_keywords: int = 20, verify_ner: bool = False, deep: bool = False, blocksize: int = 1, **kwargs) -> List[Dict[str, Any]]:
         """
         Extract keywords using the loaded model.
-        
+
         Args:
             text: Text to extract keywords from
             method: Extraction method ('tfidf', 'textrank', 'word_freq', 'combined', 'ner')
@@ -330,14 +333,14 @@ class AIAgentDaemon:
             deep: If True and method is 'ner', process text sentence-by-sentence with ordered index
             blocksize: Number of sentences per block when deep=True (default: 1 = sentence-by-sentence)
             **kwargs: Additional arguments for KeywordExtractor.extract()
-        
+
         Returns:
             List of keyword dictionaries
         """
         # If NER method is requested, use spaCy NER for keyword extraction
         if method == 'ner':
             return self.extract_keywords_ner(text, num_keywords=num_keywords, verify_ner=verify_ner, deep=deep, blocksize=blocksize)
-        
+
         # Otherwise, use gensim-based methods
         # Create a new extractor with the desired parameters
         extractor_kwargs = {
@@ -348,7 +351,7 @@ class AIAgentDaemon:
         extractor = KeywordExtractor(**extractor_kwargs)
 
         return extractor.extract(text)
-    
+
     def _parse_structured_markdown(self, response: str, original_entities: List[Dict[str, Any]], model_name: str = "LLM") -> List[Dict[str, Any]]:
         """
         Parse simplified structured markdown format response (optimized for gemma3:4b).
@@ -404,7 +407,8 @@ class AIAgentDaemon:
             if current_section and re.match(r'^[\*\-\•]\s+', line):
                 if current_section == 'remove':
                     # Pattern for removal: * Entity Name (TYPE) - Reason OR * **Entity Name** (TYPE) - Reason
-                    remove_match = re.match(r'^[\*\-\•]\s+(?:\*\*)?([^*]+?)(?:\*\*)?\s*(?:\(([A-Z_]+)\))?\s*(?:\-\s*(.*))?$', line)
+                    remove_match = re.match(
+                        r'^[\*\-\•]\s+(?:\*\*)?([^*]+?)(?:\*\*)?\s*(?:\(([A-Z_]+)\))?\s*(?:\-\s*(.*))?$', line)
                     if remove_match:
                         entity_text = remove_match.group(1).strip()
                         entity_type = remove_match.group(2).strip() if remove_match.group(2) else ""
@@ -438,7 +442,8 @@ class AIAgentDaemon:
 
                 else:  # verified or new entities
                     # Pattern: * Entity Name (TYPE) - Brief reason OR * **Entity Name** (TYPE) - Brief reason
-                    entity_match = re.match(r'^[\*\-\•]\s+(?:\*\*)?([^*]+?)(?:\*\*)?\s*\(([A-Z_]+)\)\s*(?:\-\s*(.*))?$', line)
+                    entity_match = re.match(
+                        r'^[\*\-\•]\s+(?:\*\*)?([^*]+?)(?:\*\*)?\s*\(([A-Z_]+)\)\s*(?:\-\s*(.*))?$', line)
                     if entity_match:
                         entity_text = entity_match.group(1).strip()
                         entity_type = entity_match.group(2).strip()
@@ -478,61 +483,61 @@ class AIAgentDaemon:
     def _parse_gemma3_markdown(self, response: str, original_entities: List[Dict[str, Any]], model_name: str = "LLM") -> List[Dict[str, Any]]:
         """
         Parse Gemma3 markdown format response and convert to entity format.
-        
+
         Gemma3 format example:
         **Organizations (ORG)**
         *   Ask.now.museum
         *   Elastic Search
-        
+
         **People/Entities (PER)**
         *   John Doe
-        
+
         Args:
             response: Markdown-formatted response from Gemma3
             original_entities: Original entities from spaCy for matching
             model_name: Name of the LLM model used (for logging)
-            
+
         Returns:
             List of parsed entities in standard format
         """
         result = []
-        
+
         # Pattern to match headers like "**Organizations (ORG)**" or "**People/Entities (PER)**"
         header_pattern = r'\*\*([^*]+?)\s*\((\w+)\)\*\*'
-        
+
         # Split response into lines
         lines = response.split('\n')
         current_type = None
-        
+
         for line in lines:
             line = line.strip()
             if not line:
                 continue
-            
+
             # Check if this is a header with entity type
             header_match = re.match(header_pattern, line)
             if header_match:
                 current_type = header_match.group(2)  # Extract entity type (ORG, PER, etc.)
                 continue
-            
+
             # Check if this is a bullet point (starts with *, -, or •)
             if re.match(r'^[\*\-\•]\s+', line):
                 # Extract entity name (remove bullet, trim, remove parenthetical descriptions)
                 entity_text = re.sub(r'^[\*\-\•]\s+', '', line)
                 # Remove parenthetical descriptions like "(appears frequently)" or "(as an open-source LLM provider)"
                 entity_text = re.sub(r'\s*\([^)]+\)\s*$', '', entity_text).strip()
-                
+
                 if entity_text and current_type:
                     # Try to match with original entity (case-insensitive)
                     entity_lower = entity_text.lower()
                     original = next(
-                        (e for e in original_entities 
-                         if e['text'].strip().lower() == entity_lower or 
+                        (e for e in original_entities
+                         if e['text'].strip().lower() == entity_lower or
                             entity_lower in e['text'].strip().lower() or
                             e['text'].strip().lower() in entity_lower),
                         None
                     )
-                    
+
                     if original:
                         result.append({
                             'text': original['text'],  # Use original text for exact match
@@ -554,9 +559,29 @@ class AIAgentDaemon:
                             'confidence': 0.8,  # Lower confidence for new entities
                             'reasoning': f"Identified as {current_type} by LLM model {model_name} (not in original spaCy results)"
                         })
-        
+
         return result
-    
+
+    def _parse_verification_models(self, verification_model_str: Optional[str], main_model: str) -> List[str]:
+        """
+        Parse verification model string into a list of model names.
+
+        Args:
+            verification_model_str: Comma-separated string of model names or None
+            main_model: Fallback main model name
+
+        Returns:
+            List of model names to use for verification
+        """
+        if verification_model_str and verification_model_str.strip():
+            # Split by comma and strip whitespace
+            models = [model.strip() for model in verification_model_str.split(',') if model.strip()]
+            # Remove empty strings and return valid models
+            return [model for model in models if model]
+        else:
+            # No verification models specified, use main model
+            return [main_model]
+
     def _create_ollama_client(self, model_name: str, timeout: int = 300):
         """Create an Ollama client for the given model."""
         if not CONFIG_AVAILABLE:
@@ -605,7 +630,8 @@ class AIAgentDaemon:
             elif entity_type == 'FAC':
                 entity_type_descriptions[entity_type] = 'Facility indicates buildings, airports, highways, bridges'
             elif entity_type == 'PRODUCT':
-                entity_type_descriptions[entity_type] = 'Product indicates objects, vehicles, foods, etc. (not services)'
+                entity_type_descriptions[
+                    entity_type] = 'Product indicates objects, vehicles, foods, etc. (not services)'
             elif entity_type == 'EVENT':
                 entity_type_descriptions[entity_type] = 'Event indicates named hurricanes, battles, wars, sports events'
             elif entity_type == 'WORK_OF_ART':
@@ -770,7 +796,8 @@ class AIAgentDaemon:
             verified_entities = json.loads(response.strip())
             json_parsing_attempted = True
             if debug:
-                logger.debug(f"Parsed {len(verified_entities) if verified_entities else 0} entities from direct JSON response")
+                logger.debug(f"Parsed {len(verified_entities)
+                             if verified_entities else 0} entities from direct JSON response")
 
             # Log parsed JSON if available
             try:
@@ -793,7 +820,8 @@ class AIAgentDaemon:
                     verified_entities = json.loads(json_content)
                     json_parsing_attempted = True
                     if debug:
-                        logger.debug(f"Parsed {len(verified_entities) if verified_entities else 0} entities from markdown JSON code block")
+                        logger.debug(f"Parsed {len(verified_entities)
+                                     if verified_entities else 0} entities from markdown JSON code block")
 
                     # Log parsed JSON if available
                     try:
@@ -811,16 +839,16 @@ class AIAgentDaemon:
                 if debug:
                     logger.debug("No markdown JSON code block found, trying Gemma3 markdown format...")
 
-        # If JSON parsing was not attempted, try Gemma3 markdown format
-        if not json_parsing_attempted:
-            logger.debug(f"No JSON found in response, trying Gemma3 markdown parser...")
+            # If we get here, all JSON parsing attempts failed, so try Gemma3 markdown format
+            if debug:
+                logger.debug("All JSON parsing failed, trying Gemma3 markdown parser...")
             try:
-                verified_entities = self._parse_gemma3_markdown(response, llm_model, debug)
+                verified_entities = self._parse_gemma3_markdown(response, entities, llm_model)
 
                 if verified_entities:
                     logger.debug(f"Parsed {len(verified_entities)} entities using Gemma3 markdown parser")
 
-                    # Log parsed JSON if available
+                    # Log parsed entities if available
                     try:
                         json_log_file = log_file.replace('.txt', '_gemma3_parsed.json')
                         with open(json_log_file, 'w', encoding='utf-8') as f:
@@ -829,10 +857,12 @@ class AIAgentDaemon:
                     except Exception as json_log_error:
                         logger.warning(f"Failed to log parsed Gemma3 JSON: {json_log_error}")
                 else:
-                    logger.warning(f"No entities found in Gemma3 markdown response (model: {llm_model}), using original entities")
+                    logger.warning(f"No entities found in Gemma3 markdown response (model: {
+                                   llm_model}), using original entities")
                     return entities
             except Exception as gemma_error:
-                logger.warning(f"Failed to parse as Gemma3 markdown (model: {llm_model}): {gemma_error}. Response was: {response[:200]}...")
+                logger.warning(f"Failed to parse as Gemma3 markdown (model: {llm_model}): {
+                               gemma_error}. Response was: {response[:200]}...")
                 return entities
 
         if verified_entities and len(verified_entities) > 0:
@@ -921,11 +951,13 @@ class AIAgentDaemon:
                         verified_count += 1
 
             if debug:
-                logger.debug(f"LLM verification (model: {llm_model}): Verified {verified_count}, Discovered {discovered_count}, Corrected {corrected_count} entities. Removed {removed_count} false positives.")
+                logger.debug(f"LLM verification (model: {llm_model}): Verified {verified_count}, Discovered {
+                             discovered_count}, Corrected {corrected_count} entities. Removed {removed_count} false positives.")
 
             return result
         else:
-            logger.warning(f"No valid entities found in LLM verification response (model: {llm_model}), using original entities")
+            logger.warning(f"No valid entities found in LLM verification response (model: {
+                           llm_model}), using original entities")
             return entities
 
     async def _verify_ner_with_llm_client_async(self, text: str, entities: List[Dict[str, Any]], llm_client, llm_model: str, debug: bool = False) -> List[Dict[str, Any]]:
@@ -934,7 +966,12 @@ class AIAgentDaemon:
         """
         if not CONFIG_AVAILABLE:
             logger.warning("Config not available, skipping LLM verification")
-            return entities
+            return []
+
+        # Check if models are initialized
+        if not self.model_manager.is_initialized():
+            logger.warning(f"Models not initialized, cannot perform LLM verification for {llm_model}")
+            return []
 
         try:
             # Collect all entities and their context first
@@ -953,7 +990,8 @@ class AIAgentDaemon:
                 elif entity_type == 'FAC':
                     entity_type_descriptions[entity_type] = 'Facility indicates buildings, airports, highways, bridges'
                 elif entity_type == 'PRODUCT':
-                    entity_type_descriptions[entity_type] = 'Product indicates objects, vehicles, foods, etc. (not services)'
+                    entity_type_descriptions[
+                        entity_type] = 'Product indicates objects, vehicles, foods, etc. (not services)'
                 elif entity_type == 'EVENT':
                     entity_type_descriptions[entity_type] = 'Event indicates named hurricanes, battles, wars, sports events'
                 elif entity_type == 'WORK_OF_ART':
@@ -1060,7 +1098,8 @@ class AIAgentDaemon:
             full_prompt = f"{system_prompt}\n\nEntities to verify:\n{entities_json}"
 
             if debug:
-                logger.debug(f"Sending verification request to {llm_model} with {len(entities_for_verification)} entities")
+                logger.debug(f"Sending verification request to {llm_model} with {
+                             len(entities_for_verification)} entities")
                 logger.debug(f"Prompt length: {len(full_prompt)} characters")
 
             # Generate request ID for correlation
@@ -1085,229 +1124,96 @@ class AIAgentDaemon:
             except Exception as log_error:
                 logger.warning(f"Failed to log LLM request: {log_error}")
 
+            # Make the async LLM call
+            response = await llm_client.acomplete(full_prompt)
+
+            if debug:
+                logger.debug(f"LLM response length: {len(response) if response else 0}")
+
+            # Log the response using the standardized helper
+            log_llm_response(response, llm_model, "ner_verification", request_id)
+
+            if not response or not response.strip():
+                logger.warning(f"Empty response from LLM (model: {llm_model})")
+                return []
+
+            # Parse the response using the same logic as the sync method
+            verified_entities = None
+            json_parsing_attempted = False
+
+            # Try to parse as direct JSON first
             try:
-                # Make the async LLM call
-                response = await llm_client.acomplete(full_prompt)
-
+                verified_entities = json.loads(response.strip())
+                json_parsing_attempted = True
                 if debug:
-                    logger.debug(f"LLM response length: {len(response) if response else 0}")
+                    logger.debug(f"Parsed {len(verified_entities) if verified_entities else 0} entities from direct JSON response")
+            except json.JSONDecodeError:
+                if debug:
+                    logger.debug("Direct JSON parsing failed, trying to extract JSON from markdown code blocks...")
 
-                # Log the response using the standardized helper
-                log_llm_response(response, llm_model, "ner_verification", request_id)
-
-                if not response or not response.strip():
-                    logger.warning(f"Empty response from LLM (model: {llm_model})")
-                    return entities
-
-                verified_entities = None
-                json_parsing_attempted = False
-
-                # Try to parse as direct JSON first
-                try:
-                    verified_entities = json.loads(response.strip())
-                    json_parsing_attempted = True
-                    if debug:
-                        logger.debug(f"Parsed {len(verified_entities) if verified_entities else 0} entities from direct JSON response")
-
-                    # Log parsed JSON if available
+                # Try to extract JSON from markdown code blocks (```json ... ```)
+                json_match = re.search(r'```(?:json)?\s*\n(.*?)\n```', response, re.DOTALL)
+                if json_match:
+                    json_content = json_match.group(1).strip()
                     try:
-                        json_log_file = log_file.replace('.txt', '_parsed.json')
-                        with open(json_log_file, 'w', encoding='utf-8') as f:
-                            json.dump(verified_entities, f, indent=2, ensure_ascii=False)
-                        logger.debug(f"Saved parsed JSON to {json_log_file}")
-                    except Exception as json_log_error:
-                        logger.warning(f"Failed to log parsed JSON: {json_log_error}")
-
-                except json.JSONDecodeError:
-                    if debug:
-                        logger.debug("Direct JSON parsing failed, trying to extract JSON from markdown code blocks...")
-
-                    # Try to extract JSON from markdown code blocks (```json ... ```)
-                    json_match = re.search(r'```(?:json)?\s*\n(.*?)\n```', response, re.DOTALL)
-                    if json_match:
-                        json_content = json_match.group(1).strip()
-                        try:
-                            verified_entities = json.loads(json_content)
-                            json_parsing_attempted = True
-                            if debug:
-                                logger.debug(f"Parsed {len(verified_entities) if verified_entities else 0} entities from markdown JSON code block")
-
-                            # Log parsed JSON if available
-                            try:
-                                json_log_file = log_file.replace('.txt', '_markdown_parsed.json')
-                                with open(json_log_file, 'w', encoding='utf-8') as f:
-                                    json.dump(verified_entities, f, indent=2, ensure_ascii=False)
-                                logger.debug(f"Saved parsed markdown JSON to {json_log_file}")
-                            except Exception as json_log_error:
-                                logger.warning(f"Failed to log parsed markdown JSON: {json_log_error}")
-
-                        except json.JSONDecodeError as e:
-                            if debug:
-                                logger.debug(f"Failed to parse JSON from markdown code block: {e}")
-                    else:
+                        verified_entities = json.loads(json_content)
+                        json_parsing_attempted = True
                         if debug:
-                            logger.debug("No markdown JSON code block found, trying Gemma3 markdown format...")
+                            logger.debug(f"Parsed {len(verified_entities) if verified_entities else 0} entities from markdown JSON code block")
+                    except json.JSONDecodeError as e:
+                        if debug:
+                            logger.debug(f"Failed to parse JSON from markdown code block: {e}")
 
-                # If JSON parsing was not attempted, try structured markdown formats
-                if not json_parsing_attempted:
-                    logger.debug(f"No JSON found in response, trying structured markdown parsers...")
+            # If JSON parsing was attempted and failed, try structured markdown formats
+            if not json_parsing_attempted or not verified_entities:
+                logger.debug(f"No JSON found in response, trying structured markdown parsers...")
 
-                    # First try the numbered section format (e.g., **1. Entities...**)
-                    try:
-                        verified_entities = self._parse_structured_markdown(response, llm_model, debug)
+                # Try Gemma3 markdown format
+                try:
+                    verified_entities = self._parse_gemma3_markdown(response, entities, llm_model)
+                    if verified_entities:
+                        logger.debug(f"Parsed {len(verified_entities)} entities using Gemma3 markdown parser")
+                    else:
+                        logger.warning(f"No entities found in Gemma3 markdown response (model: {llm_model}), using original entities")
+                        return []
+                except Exception as gemma_error:
+                    logger.warning(f"Failed to parse as Gemma3 markdown (model: {llm_model}): {gemma_error}. Response was: {response[:200]}...")
+                    return []
 
-                        if verified_entities:
-                            logger.debug(f"Parsed {len(verified_entities)} entities using structured markdown parser")
+            # Process verified entities
+            if verified_entities and len(verified_entities) > 0:
+                result = []
+                for verified in verified_entities:
+                    if not isinstance(verified, dict):
+                        continue
 
-                            # Log parsed JSON if available
-                            try:
-                                json_log_file = log_file.replace('.txt', '_structured_parsed.json')
-                                with open(json_log_file, 'w', encoding='utf-8') as f:
-                                    json.dump(verified_entities, f, indent=2, ensure_ascii=False)
-                                logger.debug(f"Saved parsed structured markdown to {json_log_file}")
-                            except Exception as json_log_error:
-                                logger.warning(f"Failed to log parsed structured markdown: {json_log_error}")
-                        else:
-                            # Try Gemma3 markdown format as fallback
-                            logger.debug(f"No entities found with structured parser, trying Gemma3 markdown parser...")
-                            try:
-                                verified_entities = self._parse_gemma3_markdown(response, llm_model, debug)
+                    v_type = verified.get('type')
+                    v_text = (verified.get('text') or verified.get('entity') or "").strip()
 
-                                if verified_entities:
-                                    logger.debug(f"Parsed {len(verified_entities)} entities using Gemma3 markdown parser")
+                    if v_type == 'REMOVE':
+                        continue
 
-                                    # Log parsed JSON if available
-                                    try:
-                                        json_log_file = log_file.replace('.txt', '_gemma3_parsed.json')
-                                        with open(json_log_file, 'w', encoding='utf-8') as f:
-                                            json.dump(verified_entities, f, indent=2, ensure_ascii=False)
-                                        logger.debug(f"Saved parsed Gemma3 entities as JSON to {json_log_file}")
-                                    except Exception as json_log_error:
-                                        logger.warning(f"Failed to log parsed Gemma3 JSON: {json_log_error}")
-                                else:
-                                    logger.warning(f"No entities found in Gemma3 markdown response (model: {llm_model}), using original entities")
-                                    return entities
-                            except Exception as gemma_error:
-                                logger.warning(f"Failed to parse as Gemma3 markdown (model: {llm_model}): {gemma_error}. Response was: {response[:200]}...")
-                                return entities
-                    except Exception as structured_error:
-                        logger.warning(f"Failed to parse as structured markdown (model: {llm_model}): {structured_error}. Response was: {response[:200]}...")
-                        # Try Gemma3 as final fallback
-                        try:
-                            verified_entities = self._parse_gemma3_markdown(response, llm_model, debug)
-                            if verified_entities:
-                                logger.debug(f"Parsed {len(verified_entities)} entities using Gemma3 markdown parser")
-                            else:
-                                logger.warning(f"No entities found in any markdown format (model: {llm_model}), using original entities")
-                                return entities
-                        except Exception as gemma_error:
-                            logger.warning(f"All markdown parsing failed (model: {llm_model}): {gemma_error}. Response was: {response[:200]}...")
-                            return entities
+                    if v_text:
+                        # Create entity in standard format
+                        entity = {
+                            'text': v_text,
+                            'type': v_type or 'UNKNOWN',
+                            'confidence': verified.get('confidence', 0.9),
+                            'reasoning': (verified.get('reasoning') or f"Verified by LLM model {llm_model}").strip(),
+                            'source': 'verified'
+                        }
+                        result.append(entity)
 
-                if verified_entities and len(verified_entities) > 0:
-
-                    # Filter out REMOVE entities and entities marked as verified=False
-                    result = []
-                    verified_count = discovered_count = corrected_count = removed_count = 0
-
-                    # Build a mapping from normalized entity text to original entities for position info
-                    original_entities_map = {e['text'].strip().lower(): e for e in entities}
-
-                    for verified in verified_entities:
-                        if not isinstance(verified, dict):
-                            continue
-
-                        v_type = verified.get('type')
-                        v_text = (verified.get('text') or verified.get('entity') or "").strip()
-                        v_reasoning = (verified.get('reasoning') or "").strip()
-                        v_verified = verified.get('verified', True)
-                        v_new_entity = verified.get('new_entity', False)
-
-                        if v_type == 'REMOVE' or v_verified is False:
-                            removed_count += 1
-                            continue
-
-                        if v_text:
-                            verified_text_lower = v_text.lower()
-                            original = original_entities_map.get(verified_text_lower)
-
-                            if original:
-                                # Existing entity that was verified/corrected
-                                result.append({
-                                    'text': v_text,
-                                    'type': v_type or original.get('type', 'UNKNOWN'),
-                                    'start': original.get('start', 0),
-                                    'end': original.get('end', 0),
-                                    'confidence': verified.get('confidence', 1.0),
-                                    'reasoning': (v_reasoning or f"Verified as {v_type or 'entity'} by LLM model {llm_model}").strip(),
-                                    'source': 'verified'  # Indicates this was verified from original spaCy entities
-                                })
-                                verified_count += 1
-                            elif v_new_entity:
-                                # Explicitly marked as new entity by LLM
-                                # Try to find position in the full text if possible
-                                start_pos = 0
-                                end_pos = 0
-
-                                # If we have the full text, try to find the entity position
-                                if text and v_text in text:
-                                    start_pos = text.find(v_text)
-                                    if start_pos >= 0:
-                                        end_pos = start_pos + len(v_text)
-
-                                result.append({
-                                    'text': v_text,
-                                    'type': v_type or 'UNKNOWN',
-                                    'start': start_pos,
-                                    'end': end_pos,
-                                    'confidence': verified.get('confidence', 0.8),  # Slightly lower confidence for new entities
-                                    'reasoning': (v_reasoning or f"Discovered as {v_type or 'entity'} by LLM model {llm_model}").strip(),
-                                    'source': 'discovered'  # Indicates this was discovered by LLM
-                                })
-                                discovered_count += 1
-                            else:
-                                # LLM says this is not new (came from original list) but we can't find the original
-                                # This could happen if spaCy missed it or there's a text variation
-                                # Treat as verified but with estimated position
-                                start_pos = 0
-                                end_pos = 0
-
-                                # If we have the full text, try to find the entity position
-                                if text and v_text in text:
-                                    start_pos = text.find(v_text)
-                                    if start_pos >= 0:
-                                        end_pos = start_pos + len(v_text)
-
-                                result.append({
-                                    'text': v_text,
-                                    'type': v_type or 'UNKNOWN',
-                                    'start': start_pos,
-                                    'end': end_pos,
-                                    'confidence': verified.get('confidence', 0.9),  # High confidence since LLM verified it
-                                    'reasoning': (v_reasoning or f"Verified as {v_type or 'entity'} by LLM model {llm_model}").strip(),
-                                    'source': 'verified'  # Treat as verified since LLM says it came from original list
-                                })
-                                verified_count += 1
-
-                    if debug:
-                        logger.debug(f"LLM verification (model: {llm_model}): Verified {verified_count}, Discovered {discovered_count}, Corrected {corrected_count} entities. Removed {removed_count} false positives.")
-
-                    return result
-                else:
-                    logger.warning(f"No valid entities found in LLM verification response (model: {llm_model}), using original entities")
-                    return entities
-
-            except Exception as e:
-                logger.warning(f"LLM verification failed (model: {llm_model}): {e}, using original entities")
                 if debug:
-                    import traceback
-                    traceback.print_exc()
-                return entities
+                    logger.debug(f"LLM verification (model: {llm_model}): returning {len(result)} entities")
 
+                return result
+            else:
+                logger.warning(f"No valid entities found in LLM verification response (model: {llm_model})")
+                return []
         except Exception as e:
-            logger.warning(f"LLM verification setup failed (model: {llm_model}): {e}, using original entities")
+            logger.error(f"Async verification failed for {llm_model}: {e}")
             return entities
-
     def verify_ner_with_llm(self, text: str, entities: List[Dict[str, Any]], debug: bool = False) -> List[Dict[str, Any]]:
         """
         Verify and correct spaCy NER results using LLM.
@@ -1330,17 +1236,16 @@ class AIAgentDaemon:
                 logger.warning("LLM API key not configured, skipping verification")
                 return entities
 
-            # Use verification model if specified, otherwise fallback to main model
+            # Parse verification models (comma-separated)
             main_model = llm_cfg.get('model', 'unknown')
-            verification_model = llm_cfg.get('verification_model')
-            # Handle None, empty string, or whitespace-only strings
-            llm_model = verification_model if (verification_model and verification_model.strip()) else main_model
+            verification_model_str = llm_cfg.get('verification_model')
+            verification_models = self._parse_verification_models(verification_model_str, main_model)
 
-            # Log which model is being used
-            if verification_model and verification_model != main_model:
-                logger.info(f"Using verification model: {llm_model} (main model: {main_model})")
+            # Log which models are being used
+            if verification_model_str and verification_model_str.strip():
+                logger.info(f"Using verification models: {verification_model_str} ({len(verification_models)} models)")
             else:
-                logger.warning(f"OLLAMA_VERIFICATION_MODEL not set - using main model for verification: {llm_model}. Set OLLAMA_VERIFICATION_MODEL in .env to use a separate verification model.")
+                logger.warning(f"OLLAMA_VERIFICATION_MODEL not set - using main model for verification: {main_model}")
 
             # Get timeout for verification requests
             verification_timeout = llm_cfg.get('verification_timeout', 300)  # Default 5 minutes
@@ -1348,10 +1253,23 @@ class AIAgentDaemon:
             if debug:
                 logger.debug(f"Using verification timeout: {verification_timeout}s")
 
-            llm_client = self._create_ollama_client(llm_model, verification_timeout)
-            if not llm_client:
-                logger.warning("Failed to create LLM client, skipping verification")
-                return entities
+            # Use parallel verification for multiple models
+            import asyncio
+            try:
+                merged_entities = asyncio.run(self._verify_with_multiple_models_parallel(
+                    text, entities, verification_models, verification_timeout, debug
+                ))
+            except RuntimeError as e:
+                # If we're already in an event loop, use asyncio.create_task
+                if "already running" in str(e):
+                    import nest_asyncio
+                    nest_asyncio.apply()
+                    merged_entities = asyncio.run(self._verify_with_multiple_models_parallel(
+                        text, entities, verification_models, verification_timeout, debug
+                    ))
+                else:
+                    raise
+            return merged_entities
 
             return self._verify_ner_with_llm_client(text, entities, llm_client, llm_model, debug)
 
@@ -1362,329 +1280,175 @@ class AIAgentDaemon:
                 traceback.print_exc()
             return entities
 
-    def _split_into_sentences(self, text: str) -> List[Dict[str, Any]]:
-            entity_type_descriptions = EntityEnricher.CONTEXT_REQUIRED_TYPES.copy()
+    def _merge_multi_model_results(self, all_verified_entities: List[Dict[str, Any]],
+                                  original_entities: List[Dict[str, Any]],
+                                  successful_models: List[str]) -> List[Dict[str, Any]]:
+        """
+        Merge verification results from multiple LLM models using consensus-based approach.
 
-            # Add descriptions for any entity types not in CONTEXT_REQUIRED_TYPES
-            all_entity_types = set(EntityEnricher.ENTITY_TYPES.values())
-            for entity_type in all_entity_types:
-                if entity_type not in entity_type_descriptions:
-                    # Add a generic description for entity types not in CONTEXT_REQUIRED_TYPES
-                    if entity_type == 'PER':
-                        entity_type_descriptions[entity_type] = 'Person names indicate human beings being mentioned'
-                    elif entity_type == 'ORG':
-                        entity_type_descriptions[entity_type] = 'Organization names indicate companies, agencies, institutions, etc.'
-                    elif entity_type == 'LOC':
-                        entity_type_descriptions[entity_type] = 'Location names indicate physical places like mountains, lakes, etc.'
-                    elif entity_type == 'DATE':
-                        entity_type_descriptions[entity_type] = 'Dates indicate absolute or relative dates or periods'
-                    elif entity_type == 'TIME':
-                        entity_type_descriptions[entity_type] = 'Times indicate times smaller than a day'
-                    elif entity_type == 'MONEY':
-                        entity_type_descriptions[entity_type] = 'Money indicates monetary values, including unit'
-                    elif entity_type == 'PERCENT':
-                        entity_type_descriptions[entity_type] = 'Percent indicates percentage values'
-                    elif entity_type == 'ORDINAL':
-                        entity_type_descriptions[entity_type] = 'Ordinal indicates ordinal numbers (first, second, etc.)'
-                    elif entity_type == 'CARDINAL':
-                        entity_type_descriptions[entity_type] = 'Cardinal indicates cardinal numbers that do not fall under another type'
-                    elif entity_type == 'QUANTITY':
-                        entity_type_descriptions[entity_type] = 'Quantity indicates measurements, such as weight or distance'
-                    elif entity_type == 'BOOK':
-                        entity_type_descriptions[entity_type] = 'Books indicate titles of published written works'
-                    elif entity_type == 'MODEL':
-                        entity_type_descriptions[entity_type] = 'Models indicate AI models, machine learning models, or other named models'
-                    elif entity_type == 'SOFTWARE':
-                        entity_type_descriptions[entity_type] = 'Software indicates named software applications, programs, or tools'
-                    elif entity_type == 'OTHER':
-                        entity_type_descriptions[entity_type] = 'Not a recognized entity type'
-                    else:
-                        entity_type_descriptions[entity_type] = f'{entity_type} entity'
-            
-            # Step 1: Collect all unique context information
-            entity_contexts = {}  # Map entity text -> context info
-            
-            for e in entities:
-                entity_type = e.get('type', 'UNKNOWN')
-                entity_text = e.get('text', '').strip()
-                
-                if not entity_text:
-                    continue
-                
-                # Collect context information
-                if 'context' in e:
-                    ctx = e['context']
-                    sentence = ctx.get('sentence', '').strip()
-                    
-                    # Store context for this entity
-                    entity_contexts[entity_text] = {
-                        'sentence': sentence,
-                        'description': entity_type_descriptions.get(entity_type, f'{entity_type} entity')
-                    }
-                else:
-                    # No context available, use type description only
-                    entity_contexts[entity_text] = {
-                        'sentence': '',
-                        'description': entity_type_descriptions.get(entity_type, f'{entity_type} entity')
-                    }
-            
-            # Step 2: Build context header
-            context_header_parts = []
+        Args:
+            all_verified_entities: List of all verified entities from all models
+            original_entities: Original spaCy entities
+            successful_models: List of models that returned results
 
-            # Add entity type descriptions for ALL entity types (not just ones found in this text)
-            all_entity_types = set(EntityEnricher.ENTITY_TYPES.values())
-            all_entity_types.discard('UNKNOWN')  # Remove UNKNOWN type
+        Returns:
+            Merged entity list with consensus types and reasoning
+        """
+        from collections import defaultdict, Counter
 
-            if all_entity_types:
-                context_header_parts.append("Entity type definitions:")
-                for entity_type in sorted(all_entity_types):
-                    description = entity_type_descriptions.get(entity_type, f'{entity_type} entity')
-                    context_header_parts.append(f"- {entity_type}: {description}")
-            
-            context_header = '\n'.join(context_header_parts) if context_header_parts else ''
-            
-            # Step 3: Prepare entities for verification
-            entities_for_verification = []
-            for e in entities:
-                entity_type = e.get('type', 'UNKNOWN')
-                entity_text = e.get('text', '').strip()
-                
-                if not entity_text:
-                    continue
-                
-                # Get context for this entity
-                ctx_info = entity_contexts.get(entity_text, {
-                    'sentence': '',
-                    'description': entity_type_descriptions.get(entity_type, f'{entity_type} entity')
-                })
-                
-                # Minimal entity data - flat structure (no nested context) to save tokens
-                entity_data = {
-                    'text': entity_text,
-                    'type': entity_type,
-                    'sent': ctx_info['sentence'],  # Sentence containing the entity
-                    'verified': False
-                }
-                
-                entities_for_verification.append(entity_data)
-            
-            # Step 4: Build the prompt with context in header
-            system_prompt = """Verify spaCy NER entities."""
-            
-            # Add context header if available
-            if context_header:
-                system_prompt += f"\n\n{context_header}\n"
-            
-            # Add the full text context (block text) for better verification
-            # This provides complete context instead of just individual sentences
-            if text and text.strip():
-                system_prompt += f"\n\nFull text context:\n{text.strip()}\n"
+        logger.info(f"Merging results from {len(successful_models)} models: {successful_models}")
 
-            # Add instructions for structured markdown format (optimized for gemma3:4b)
-            system_prompt += "\n\nReturn verified entities in this simple format:\n\n**1. Verified Entities:**\n* **Entity Name** (TYPE) - Brief reason\n* **Another Entity** (TYPE) - Brief reason\n\n**2. New Entities Found:**\n* **New Entity** (TYPE) - Brief reason\n\n**3. Entities to Remove:**\n* **False Entity** - Reason to remove\n\nUse these entity types: PERSON, ORG, GPE, LOC, DATE, MONEY, PERCENT, etc.\n\nBe concise and accurate. Only include entities that actually exist in the text."
-            
-            # Minimize JSON - use compact format (no indentation) to reduce tokens
-            entities_json = json.dumps(entities_for_verification, separators=(',', ':'))
-            
-            # Final prompt with context in header
-            verification_prompt = f"""{system_prompt}
-{entities_json}"""
-            
-            if debug:
-                logger.debug(f"Verifying {len(entities)} entities with LLM (model: {llm_model})")
-            
-            # Generate request ID for correlation
-            request_id = str(uuid.uuid4())[:8]
+        # Group entities by normalized text
+        entity_groups = defaultdict(list)
+        original_entity_map = {e['text'].strip().lower(): e for e in original_entities}
 
-            # Log the request to logs folder
-            try:
-                logs_dir = os.path.join(os.path.dirname(__file__), '..', 'logs')
-                os.makedirs(logs_dir, exist_ok=True)
-                timestamp = time.strftime('%Y%m%d_%H%M%S')
-                log_file = os.path.join(logs_dir, f"llm_request_{timestamp}_{request_id}.txt")
+        for entity in all_verified_entities:
+            text = entity.get('text', '').strip()
+            if text:
+                normalized_text = text.lower()
+                entity_groups[normalized_text].append(entity)
 
-                with open(log_file, 'w', encoding='utf-8') as f:
-                    f.write(f"Model: {llm_model}\n")
-                    f.write(f"Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
-                    f.write(f"Request type: NER verification\n")
-                    f.write(f"Request ID: {request_id}\n\n")
-                    f.write(f"PROMPT:\n{verification_prompt}\n\n")
-            except Exception as e:
-                logger.warning(f"Failed to log LLM request: {e}")
+        merged_entities = []
 
-            # Call LLM
-            response = llm_client.complete(
-                messages=[{"role": "user", "content": verification_prompt}],
-                temperature=0.1,
-                max_tokens=2000
-            )
+        for normalized_text, entity_list in entity_groups.items():
+            # Count votes for each type
+            type_votes = Counter(e.get('type') for e in entity_list if e.get('type'))
+            reasoning_list = [e.get('reasoning', '') for e in entity_list if e.get('reasoning')]
 
-            # Log the response using the standardized helper
-            log_llm_response(response, llm_model, "ner_verification", request_id)
-            
-            # Extract JSON from response
-            json_match = re.search(r'\[\s*\{.*\}\s*\]', response, re.DOTALL)
-            if not json_match:
-                # Try finding any array-like structure
-                json_match = re.search(r'\[.*\]', response, re.DOTALL)
-            
-            verified_entities = None
-            
-            if json_match:
-                try:
-                    # Clean up common LLM artifacts before parsing
-                    json_str = json_match.group()
-                    # Remove potential comments or trailing commas
-                    json_str = re.sub(r',(\s*[\]\}])', r'\1', json_str)
-                    verified_entities = json.loads(json_str)
-                    # Log parsed JSON to file
-                    try:
-                        log_dir = Path(__file__).parent.parent / 'logs'
-                        log_dir.mkdir(parents=True, exist_ok=True)
-                        json_log_file = log_dir / f"llm_response_ner_{timestamp}.json"
-                        with open(json_log_file, 'w', encoding='utf-8') as f:
-                            json.dump(verified_entities, f, indent=2, ensure_ascii=False)
-                        logger.debug(f"Saved parsed JSON to {json_log_file}")
-                    except Exception as json_log_error:
-                        logger.warning(f"Failed to log parsed JSON: {json_log_error}")
-                except json.JSONDecodeError as e:
-                    logger.debug(f"Failed to parse JSON from LLM (model: {llm_model}): {e}. Trying Gemma3 markdown parser...")
-                    # Try Gemma3 markdown format as fallback
-                    try:
-                        verified_entities = self._parse_gemma3_markdown(response, entities, llm_model)
-                        if verified_entities:
-                            logger.info(f"Successfully parsed Gemma3 markdown format: {len(verified_entities)} entities")
-                            # Log parsed Gemma3 entities as JSON
-                            try:
-                                log_dir = Path(__file__).parent.parent / 'logs'
-                                log_dir.mkdir(parents=True, exist_ok=True)
-                                json_log_file = log_dir / f"llm_response_ner_{timestamp}.json"
-                                with open(json_log_file, 'w', encoding='utf-8') as f:
-                                    json.dump(verified_entities, f, indent=2, ensure_ascii=False)
-                                logger.debug(f"Saved parsed Gemma3 entities as JSON to {json_log_file}")
-                            except Exception as json_log_error:
-                                logger.warning(f"Failed to log parsed Gemma3 JSON: {json_log_error}")
-                    except Exception as gemma_error:
-                        logger.warning(f"Failed to parse as Gemma3 markdown (model: {llm_model}): {gemma_error}. Response was: {response[:200]}...")
-                        return entities
-            
-            # If no JSON found, try Gemma3 markdown format
-            if not verified_entities:
-                logger.debug(f"No JSON found in response, trying Gemma3 markdown parser...")
-                try:
-                    verified_entities = self._parse_gemma3_markdown(response, entities, llm_model)
-                    if verified_entities and len(verified_entities) > 0:
-                        logger.info(f"Successfully parsed Gemma3 markdown format: {len(verified_entities)} entities")
-                        # Log parsed Gemma3 entities as JSON
-                        try:
-                            log_dir = Path(__file__).parent.parent / 'logs'
-                            log_dir.mkdir(parents=True, exist_ok=True)
-                            json_log_file = log_dir / f"llm_response_ner_{timestamp}.json"
-                            with open(json_log_file, 'w', encoding='utf-8') as f:
-                                json.dump(verified_entities, f, indent=2, ensure_ascii=False)
-                            logger.debug(f"Saved parsed Gemma3 entities as JSON to {json_log_file}")
-                        except Exception as json_log_error:
-                            logger.warning(f"Failed to log parsed Gemma3 JSON: {json_log_error}")
-                    else:
-                        logger.warning(f"No entities found in Gemma3 markdown response (model: {llm_model}), using original entities")
-                        return entities
-                except Exception as gemma_error:
-                    logger.warning(f"Failed to parse as Gemma3 markdown (model: {llm_model}): {gemma_error}. Response was: {response[:200]}...")
-                    return entities
-            
-            if verified_entities and len(verified_entities) > 0:
-                
-                # Filter out REMOVE entities and entities marked as verified=False
-                result = []
-                for verified in verified_entities:
-                    if not isinstance(verified, dict):
-                        continue
-                        
-                    # Handle both 'text' and 'entity' keys for robustness
-                    v_type = verified.get('type')
-                    v_text = (verified.get('text') or verified.get('entity') or "").strip()
-                    v_reasoning = (verified.get('reasoning') or "").strip()
-                    v_verified = verified.get('verified', True)  # Default to True if not specified
-                    v_new_entity = verified.get('new_entity', False)  # Default to False for backward compatibility
-
-                    # Skip if type is REMOVE or verified is False
-                    if v_type == 'REMOVE' or v_verified is False:
-                        continue
-
-                    if v_text:
-                        # Find original entity to preserve position info
-                        # Use case-insensitive matching and strip whitespace
-                        verified_text_lower = v_text.lower()
-                        original = next((e for e in entities if e['text'].strip().lower() == verified_text_lower), None)
-
-                        if original:
-                            # Existing entity that was verified/corrected
-                            result.append({
-                                'text': v_text,
-                                'type': v_type or original.get('type', 'UNKNOWN'),
-                                'start': original.get('start', 0),
-                                'end': original.get('end', 0),
-                                'confidence': verified.get('confidence', 1.0),
-                                'reasoning': (v_reasoning or f"Not verified by LLM model {llm_model} - listed in verified entities but no reasoning provided").strip(),
-                                'source': 'verified'  # Indicates this was verified from original spaCy entities
-                            })
-                        elif v_new_entity:
-                            # Explicitly marked as new entity by LLM
-                            # Try to find position in the full text if possible
-                            start_pos = 0
-                            end_pos = 0
-
-                            # If we have the full text, try to find the entity position
-                            if text and v_text in text:
-                                start_pos = text.find(v_text)
-                                if start_pos >= 0:
-                                    end_pos = start_pos + len(v_text)
-
-                            result.append({
-                                'text': v_text,
-                                'type': v_type or 'UNKNOWN',
-                                'start': start_pos,
-                                'end': end_pos,
-                                'confidence': verified.get('confidence', 0.8),  # Slightly lower confidence for new entities
-                                'reasoning': (v_reasoning or f"Discovered by LLM model {llm_model} but no reasoning provided").strip(),
-                                'source': 'discovered'  # Indicates this was discovered by LLM
-                            })
-                        else:
-                            # LLM says this is not new (came from original list) but we can't find the original
-                            # This could happen if spaCy missed it or there's a text variation
-                            # Treat as verified but with estimated position
-                            start_pos = 0
-                            end_pos = 0
-
-                            # If we have the full text, try to find the entity position
-                            if text and v_text in text:
-                                start_pos = text.find(v_text)
-                                if start_pos >= 0:
-                                    end_pos = start_pos + len(v_text)
-
-                            result.append({
-                                'text': v_text,
-                                'type': v_type or 'UNKNOWN',
-                                'start': start_pos,
-                                'end': end_pos,
-                                'confidence': verified.get('confidence', 0.9),  # High confidence since LLM verified it
-                                'reasoning': (v_reasoning or f"Not verified by LLM model {llm_model} - listed as existing but no reasoning provided").strip(),
-                                'source': 'verified'  # Treat as verified since LLM says it came from original list
-                            })
-                
-                if debug:
-                    original_count = len(entities)
-                    verified_count = len([r for r in result if r.get('source') == 'verified'])
-                    discovered_count = len([r for r in result if r.get('source') == 'discovered'])
-                    corrected_count = len([r for r in result if r.get('source') == 'corrected'])
-                    removed_count = original_count - verified_count - corrected_count
-
-                    logger.debug(f"LLM verification (model: {llm_model}): {verified_count} verified, {discovered_count} discovered, {corrected_count} corrected, {removed_count} removed")
-                
-                return result
+            # Determine consensus type (majority vote)
+            if type_votes:
+                consensus_type, vote_count = type_votes.most_common(1)[0]
+                confidence = vote_count / len(successful_models)  # Consensus confidence
             else:
-                logger.warning(f"No valid entities found in LLM verification response (model: {llm_model}), using original entities")
-                return entities
+                consensus_type = 'UNKNOWN'
+                confidence = 0.0
+
+            # Combine reasoning from all models
+            combined_reasoning = '; '.join(filter(None, reasoning_list))
+
+            # Use original entity for position info if available
+            original = original_entity_map.get(normalized_text)
+            if original:
+                merged_entity = {
+                    'text': original['text'],  # Use original casing
+                    'type': consensus_type,
+                    'start': original.get('start', 0),
+                    'end': original.get('end', 0),
+                    'confidence': confidence,
+                    'reasoning': f"Consensus from {len(entity_list)}/{len(successful_models)} models: {combined_reasoning}",
+                    'source': 'verified',
+                    'source_models': [e.get('source_model') for e in entity_list],
+                    'consensus_score': confidence
+                }
+            else:
+                # New entity discovered by LLM
+                merged_entity = {
+                    'text': entity_list[0]['text'],
+                    'type': consensus_type,
+                    'start': 0,
+                    'end': 0,
+                    'confidence': confidence * 0.8,  # Slightly lower confidence for new entities
+                    'reasoning': f"Discovered by consensus from {len(entity_list)}/{len(successful_models)} models: {combined_reasoning}",
+                    'source': 'discovered',
+                    'source_models': [e.get('source_model') for e in entity_list],
+                    'consensus_score': confidence
+                }
+
+            merged_entities.append(merged_entity)
+
+        logger.info(f"Merged {len(entity_groups)} entity groups into {len(merged_entities)} final entities")
+        return merged_entities
+
+    async def _verify_with_multiple_models_parallel(self, text: str, entities: List[Dict[str, Any]],
+                                                   verification_models: List[str], timeout: int, debug: bool) -> List[Dict[str, Any]]:
+        """
+        Verify entities using multiple Ollama models in parallel.
+
+        Args:
+            text: The text to verify entities in
+            entities: Original entities to verify
+            verification_models: List of model names to use
+            timeout: Timeout for each request
+            debug: Enable debug logging
+
+        Returns:
+            List of verified and merged entities
+        """
+        import asyncio
+
+        logger.info(f"Starting parallel multi-model verification with {len(verification_models)} models: {verification_models}")
+
+        # Create verification tasks for each model
+        tasks = []
+        for model_name in verification_models:
+            logger.debug(f"Creating verification task for model: {model_name}")
+            task = self._verify_with_single_model_async(text, entities, model_name, timeout, debug)
+            tasks.append(task)
+
+        # Execute all tasks in parallel
+        logger.debug(f"Executing {len(tasks)} verification tasks in parallel")
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Process results
+        all_verified_entities = []
+        successful_models = []
+
+        for i, result in enumerate(results):
+            model_name = verification_models[i]
+            if isinstance(result, Exception):
+                logger.error(f"Verification failed for model {model_name}: {result}")
+                continue
+
+            if result and len(result) > 0:
+                # Add model information to each entity
+                for entity in result:
+                    entity['source_model'] = model_name
+                all_verified_entities.extend(result)
+                successful_models.append(model_name)
+                logger.info(f"Model {model_name} returned {len(result)} verified entities")
+            else:
+                logger.warning(f"Model {model_name} returned no verified entities")
+
+        if not all_verified_entities:
+            logger.warning("All verification models failed, returning original entities")
+            return entities
+
+        # Merge results from all successful models
+        merged_entities = self._merge_multi_model_results(all_verified_entities, entities, successful_models)
+        logger.info(f"Multi-model verification complete: {len(merged_entities)} entities from {len(successful_models)} models")
+        return merged_entities
+
+    async def _verify_with_single_model_async(self, text: str, entities: List[Dict[str, Any]],
+                                             model_name: str, timeout: int, debug: bool) -> List[Dict[str, Any]]:
+        """
+        Verify entities using a single Ollama model asynchronously.
+
+        Args:
+            text: The text to verify entities in
+            entities: Original entities to verify
+            model_name: Name of the model to use
+            timeout: Timeout for the request
+            debug: Enable debug logging
+
+        Returns:
+            List of verified entities from this model
+        """
+        try:
+            # Create client
+            llm_client = self._create_ollama_client(model_name, timeout)
+            if not llm_client:
+                logger.warning(f"Failed to create LLM client for {model_name}")
+                return []
+
+            # Perform verification
+            logger.debug(f"Sending verification request to {model_name}")
+            verified_entities = await self._verify_ner_with_llm_client_async(text, entities, llm_client, model_name, debug)
+
+            return verified_entities or []
+
+        except Exception as e:
+            logger.error(f"Async verification failed for model {model_name}: {e}")
+            return []
 
     def _split_into_sentences(self, text: str) -> List[Dict[str, Any]]:
         """
@@ -1817,12 +1581,13 @@ class AIAgentDaemon:
             try:
                 llm_cfg = config.get_llm_config()
                 main_model = llm_cfg.get('model', 'unknown')
-                verification_model = llm_cfg.get('verification_model')
-                llm_model = verification_model if (verification_model and verification_model.strip()) else main_model
+                verification_model_str = llm_cfg.get('verification_model')
+                verification_models = self._parse_verification_models(verification_model_str, main_model)
+                llm_model = verification_models[0]  # Use first model for client creation
                 verification_timeout = llm_cfg.get('verification_timeout', 300)
                 parallel_requests = llm_cfg.get('parallel_requests', True)
 
-                logger.debug(f"Deep mode: verifying {len(blocks)} blocks with LLM (model: {llm_model}, blocksize={blocksize}, parallel={parallel_requests})")
+                logger.debug(f"Deep mode: verifying {len(blocks)} blocks with LLM (models: {verification_models}, blocksize={blocksize}, parallel={parallel_requests})")
 
                 # Prepare blocks for verification (filter out empty blocks)
                 blocks_to_verify = [
@@ -2072,11 +1837,11 @@ class AIAgentDaemon:
         if verify_ner:
             try:
                 llm_cfg = config.get_llm_config()
-                # Use verification model if specified, otherwise fallback to main model
+                # Parse verification models
                 main_model = llm_cfg.get('model', 'unknown')
-                verification_model = llm_cfg.get('verification_model')
-                llm_model = verification_model if (verification_model and verification_model.strip()) else main_model
-                logger.debug(f"Starting LLM verification (model: {llm_model}) for {len(original_entities)} entities")
+                verification_model_str = llm_cfg.get('verification_model')
+                verification_models = self._parse_verification_models(verification_model_str, main_model)
+                logger.debug(f"Starting LLM verification (models: {verification_models}) for {len(original_entities)} entities")
                 # We send unique entities to LLM to save tokens, but keep frequencies
                 # Actually, verify_ner_with_llm expects the full list to handle context
                 verified_entities = self.verify_ner_with_llm(text, original_entities, debug=True)
