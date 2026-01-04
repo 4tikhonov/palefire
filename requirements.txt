@@ -2,19 +2,19 @@
 
 # Core dependencies
 graphiti-core>=0.3.0
-python-dotenv>=1.0.0
+python-dotenv>=1.2.1
 
 # NER dependencies (optional but recommended)
-spacy>=3.7.0
+spacy>=3.7.0,<4.0.0
 # Run: python -m spacy download en_core_web_sm
 
 # FastAPI and server
-fastapi>=0.104.0
-uvicorn[standard]>=0.24.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
 pydantic>=2.5.0
 
 # Additional utilities
-python-multipart>=0.0.6  # For file uploads
+python-multipart>=0.0.20  # For file uploads
 
 # Keyword extraction
 gensim>=4.3.0
