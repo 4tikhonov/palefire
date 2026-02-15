@@ -22,6 +22,7 @@ Complete documentation for the Pale Fire knowledge graph search system.
 - **[NER_ENRICHMENT.md](NER_ENRICHMENT.md)** - Named Entity Recognition enrichment
 - **[QUESTION_TYPE_DETECTION.md](QUESTION_TYPE_DETECTION.md)** - Question type detection (WHO/WHERE/WHEN)
 - **[QUERY_MATCH_SCORING.md](QUERY_MATCH_SCORING.md)** - Query term matching algorithm
+- **[VOICES.md](VOICES.md)** - Parallel multi-model LLM requests and session logging
 
 ### Advanced Topics
 
@@ -93,6 +94,7 @@ docs/
 │   ├── NER_ENRICHMENT.md         # NER enrichment
 │   ├── QUESTION_TYPE_DETECTION.md # Question detection
 │   └── QUERY_MATCH_SCORING.md    # Query matching
+│   └── VOICES.md                 # Voices for parallel LLMs
 │
 ├── Advanced/
 │   ├── ARCHITECTURE.md           # Architecture

@@ -5,6 +5,11 @@ import asyncio
 from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
+if not logger.handlers:
+    _h = logging.StreamHandler()
+    _h.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+    logger.addHandler(_h)
+    logger.setLevel(logging.INFO)
 
 class SimpleOllamaClient:
     """
@@ -23,7 +28,7 @@ class SimpleOllamaClient:
         Accepts either a string prompt or a list of message dicts.
         """
         try:
-            logger.debug(f"Sending request to Ollama model {self.model} with timeout {self.timeout}s")
+            logger.info(f"[OllamaClient] Sending request to model={self.model}, timeout={self.timeout}s")
 
             # Handle both string and messages formats
             if isinstance(messages, str):
@@ -32,15 +37,22 @@ class SimpleOllamaClient:
                 # If it's a list of strings, convert to message format
                 messages = [{"role": "user", "content": messages[0]}]
 
+            # Log message preview and options
+            try:
+                _preview = messages[0].get('content', '') if isinstance(messages, list) else str(messages)
+                logger.info("[OllamaClient] message preview: %s", (_preview[:200] + ("..." if len(_preview) > 200 else "")))
+            except Exception:
+                pass
+            _options = {"temperature": temperature, "num_predict": max_tokens}
+            logger.info("[OllamaClient] options: %s", _options)
+
             response = self.client.chat(
                 model=self.model,
                 messages=messages,
-                options={
-                    "temperature": temperature,
-                    "num_predict": max_tokens
-                }
+                options=_options
             )
             content = response.get('message', {}).get('content', '')
+            logger.info("[OllamaClient] response content preview: %s", (content[:200] + ("..." if len(content) > 200 else "")))
             if not content:
                 logger.warning(f"Ollama returned empty response for model {self.model}")
                 return ""
@@ -82,6 +94,12 @@ class SimpleOllamaClient:
                 },
                 "stream": False
             }
+            try:
+                _preview = messages[0].get('content', '') if isinstance(messages, list) else str(messages)
+                logger.info("[OllamaClient] (async) message preview: %s", (_preview[:200] + ("..." if len(_preview) > 200 else "")))
+                logger.info("[OllamaClient] (async) options: %s", payload.get('options'))
+            except Exception:
+                pass
 
             # Use httpx for async HTTP request - this allows truly parallel requests
             async with httpx.AsyncClient(timeout=self.timeout) as client:
@@ -93,6 +111,7 @@ class SimpleOllamaClient:
                 response.raise_for_status()
                 result = response.json()
                 content = result.get('message', {}).get('content', '')
+                logger.info("[OllamaClient] (async) response content preview: %s", (content[:200] + ("..." if len(content) > 200 else "")))
                 if not content:
                     logger.warning(f"Ollama returned empty response for model {self.model}")
                     return ""

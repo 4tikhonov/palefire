@@ -145,23 +145,30 @@ Palefire provides an MCP server compatible with clients like Claude Desktop, all
 python mcp_server.py
 ```
 
-### Configuration (Claude Desktop)
+### Configuration (Claude Desktop with Docker)
 Add the following to your `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "palefire": {
-      "command": "python",
-      "args": ["/absolute/path/to/palefire/mcp_server.py"],
+      "command": "docker",
+      "args": [
+        "compose",
+        "run",
+        "--rm",
+        "-T", 
+        "mcp-server"
+      ],
+      "cwd": "/absolute/path/to/palefire",
       "env": {
-        "OLLAMA_HOST": "http://localhost:11434/v1",
-        "QDRANT_HOST": "localhost"
+        "PATH": "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
       }
     }
   }
 }
 ```
+**Note**: Replace `/absolute/path/to/palefire` with the actual path to your project. The `-T` flag is critical to disable pseudo-TTY allocation, which interferes with MCP communication.
 
 ### Available Tools
 - `ingest_url(url, collection_name)`

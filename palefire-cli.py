@@ -46,6 +46,14 @@ from utils.palefire_utils import (
     clean_database,
 )
 
+# Import Ghostwriter Skill
+try:
+    from modules.Ghostwriter import GhostwriterSkill
+    GHOSTWRITER_AVAILABLE = True
+except ImportError:
+    GHOSTWRITER_AVAILABLE = False
+
+
 # Configure logging from config
 logging.basicConfig(
     level=getattr(logging, config.LOG_LEVEL),
@@ -1372,6 +1380,96 @@ async def search_query(query: str, graphiti: Graphiti, method: str = 'question-a
         await graphiti.close()
 
 
+def init_command():
+    """
+    Initialize configuration interactively.
+    Prompts for Ghostwriter and Qdrant settings and saves to .env.
+    """
+    import os
+    
+    print("\n" + "="*60)
+    print("🔧 PALE FIRE CONFIGURATION INITIALIZATION")
+    print("="*60 + "\n")
+    print("This utility will help you configure the environment variables")
+    print("required for Ghostwriter and Qdrant integration.\n")
+    
+    # Define parameters and default values
+    params = [
+        ("OLLAMA_HOST", "http://10.147.18.82:8093", "Ollama Host URL"),
+        ("GHOSTWRITER_UI_CONTAINER", "coffeeghostwriter", "Ghostwriter UI Container Name"),
+        ("GHOSTWRITER_UI_PORT", "8515", "Ghostwriter UI Port"),
+        ("GHOSTWRITER_API_CONTAINER", "coffeeghostwriter_api", "Ghostwriter API Container Name"),
+        ("GHOSTWRITER_API_PORT", "8115", "Ghostwriter API Port"),
+        ("QDRANT_CONTAINER", "coffeeqdrant", "Qdrant Container Name"),
+        ("QDRANT_PORT", "6315", "Qdrant Port"),
+        ("QDRANT_HOST", "localhost", "Qdrant Host (usually localhost for local execution)"),
+    ]
+    
+    config_updates = {}
+    
+    for var_name, default_val, description in params:
+        # Get current value from env if exists, else use default from list
+        current_val = os.environ.get(var_name, default_val)
+        
+        prompt_text = f"{description} [{current_val}]: "
+        user_input = input(prompt_text).strip()
+        
+        # If user pressed enter, use current/default value
+        if not user_input:
+            config_updates[var_name] = current_val
+        else:
+            config_updates[var_name] = user_input
+            
+    print("\n" + "-"*60)
+    print("Configuration to save:")
+    for k, v in config_updates.items():
+        print(f"  {k}={v}")
+    print("-"*60 + "\n")
+    
+    confirm = input("Save to .env file? [Y/n]: ").strip().lower()
+    if confirm in ('', 'y', 'yes'):
+        # Read existing .env
+        env_path = '.env'
+        env_lines = []
+        if os.path.exists(env_path):
+            with open(env_path, 'r') as f:
+                env_lines = f.readlines()
+        
+        # Update or append lines
+        new_lines = []
+        processed_keys = set()
+        
+        for line in env_lines:
+            # Check if line is a variable setting
+            dummy = line.strip()
+            if not dummy or dummy.startswith('#'):
+                new_lines.append(line)
+                continue
+                
+            key = dummy.split('=')[0].strip()
+            if key in config_updates:
+                new_lines.append(f"{key}={config_updates[key]}\n")
+                processed_keys.add(key)
+            else:
+                new_lines.append(line)
+                
+        # Append new keys that weren't in the file
+        for k, v in config_updates.items():
+            if k not in processed_keys:
+                if new_lines and not new_lines[-1].endswith('\n'):
+                    new_lines.append('\n')
+                new_lines.append(f"{k}={v}\n")
+                
+        # Write back to .env
+        with open(env_path, 'w') as f:
+            f.writelines(new_lines)
+            
+        print(f"✅ Configuration saved to {env_path}")
+        print("You may need to restart the application for changes to take effect.")
+    else:
+        print("❌ Configuration not saved.")
+
+
 def create_cli_parser():
     """Create and configure the argument parser."""
     parser = argparse.ArgumentParser(
@@ -1439,6 +1537,32 @@ Examples:
                              help='Skip confirmation prompt')
     clean_parser.add_argument('--nodes-only', action='store_true',
                              help='Delete only nodes (keep indexes and constraints)')
+                             
+    # Init command
+    init_parser = subparsers.add_parser('init', help='Initialize configuration interactively')
+    
+    # Ghostwriter command
+    if GHOSTWRITER_AVAILABLE:
+        gw_parser = subparsers.add_parser('ghostwriter', help='Ghostwriter Agent commands')
+        gw_subparsers = gw_parser.add_subparsers(dest='gw_command', help='Ghostwriter action')
+        
+        # Ingest
+        gw_ingest = gw_subparsers.add_parser('ingest', help='Ingest a URL')
+        gw_ingest.add_argument('url', help='URL to ingest')
+        gw_ingest.add_argument('--collection', help='Target collection name')
+        
+        # Ask
+        gw_ask = gw_subparsers.add_parser('ask', help='Ask a question')
+        gw_ask.add_argument('question', help='Question to ask')
+        gw_ask.add_argument('--collection', help='Target collection')
+        
+        # Search
+        gw_search = gw_subparsers.add_parser('search', help='Semantic search')
+        gw_search.add_argument('query', help='Search query')
+        gw_search.add_argument('--collection', help='Target collection')
+        
+        # Collections
+        gw_subparsers.add_parser('collections', help='List collections')
     clean_parser.add_argument('--debug', action='store_true',
                              help='Enable debug output (verbose printing)')
     
@@ -1992,6 +2116,47 @@ async def main_cli(args):
     # Note: Agent command is handled synchronously in __main__ block
     # to avoid async event loop issues with process forking
     
+    elif args.command == 'clean':
+        # Create Graphiti instance
+        graphiti = create_graphiti_instance()
+        
+        # Clean database
+        await clean_database(graphiti, confirm=args.confirm, nodes_only=args.nodes_only)
+        
+    elif args.command == 'init':
+        init_command()
+        
+    elif args.command == 'ghostwriter' and GHOSTWRITER_AVAILABLE:
+        skill = GhostwriterSkill()
+        
+        if args.gw_command == 'ingest':
+            result = skill.ingest_url(args.url, collection_name=args.collection)
+            print(json.dumps(result, indent=2))
+            
+        elif args.gw_command == 'ask':
+            print(f"Thinking...\n")
+            result = await skill.ask_question(args.question, collection_name=args.collection)
+            print(f"\nAnswer:\n{result['answer']}\n")
+            if result['sources']:
+                print(f"Sources:\n" + "\n".join(f"- {s}" for s in result['sources']))
+                
+        elif args.gw_command == 'search':
+            results = skill.search(args.query, collection_name=args.collection)
+            for r in results:
+                print(f"\nSource: {r['source']} (Score: {r['score']:.4f})")
+                print(f"Content: {r['content'][:200]}...")
+                
+        elif args.gw_command == 'collections':
+            colls = skill.list_collections()
+            print("Collections:")
+            for c in colls:
+                print(f"- {c}")
+        else:
+            print("Please specify a ghostwriter subcommand (ingest, ask, search, collections)")
+            
+    elif args.command == 'ghostwriter' and not GHOSTWRITER_AVAILABLE:
+        print("Ghostwriter is not available. Please install 'qdrant-client' and 'sentence-transformers'.")
+
     else:
         if DEBUG:
             debug_print('No command specified. Use --help for usage information.')

@@ -307,8 +307,11 @@ python palefire-cli.py ghostwriter search "specific keyword" --collection my-kno
 Palefire implements the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) to expose Ghostwriter capabilities to LLM clients (like Claude Desktop).
 
 ```bash
-# Run the MCP server
+# Run locally (requires environment setup)
 python mcp_server.py
+
+# Run via Docker (Recommended)
+docker-compose up mcp-server
 ```
 
 It exposes the following tools:
