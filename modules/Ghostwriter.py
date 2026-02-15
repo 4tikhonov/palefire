@@ -89,6 +89,7 @@ class GhostwriterSkill:
         from graphiti_core.llm_client.openai_generic_client import OpenAIGenericClient
         
         llm_cfg = config.get_llm_config()
+        logger.info(f"Initializing LLM Client with base_url: {llm_cfg['base_url']}")
         llm_config = LLMConfig(
             api_key=llm_cfg['api_key'],
             model=llm_cfg['model'],
