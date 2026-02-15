@@ -201,8 +201,20 @@ class GhostwriterSkill:
                 limit=limit
             ).points
         
-        context_texts = [hit.payload['content'] for hit in search_result]
-        sources = list(set([hit.payload['source'] for hit in search_result]))
+        context_texts = []
+        sources = []
+        
+        for hit in search_result:
+            if hit.payload:
+                content = hit.payload.get('content')
+                source = hit.payload.get('source')
+                
+                if content:
+                    context_texts.append(content)
+                if source:
+                    sources.append(source)
+        
+        sources = list(set(sources))
         
         context_str = "\n\n---\n\n".join(context_texts)
         
@@ -265,9 +277,9 @@ Example: {{"answer": "The answer is..."}}"""
         return [
             {
                 "score": hit.score,
-                "content": hit.payload.get('content'),
-                "source": hit.payload.get('source'),
-                "title": hit.payload.get('title')
+                "content": hit.payload.get('content', '') if hit.payload else '',
+                "source": hit.payload.get('source', 'Unknown') if hit.payload else 'Unknown',
+                "title": hit.payload.get('title', 'Unknown') if hit.payload else 'Unknown'
             }
             for hit in results
         ]
