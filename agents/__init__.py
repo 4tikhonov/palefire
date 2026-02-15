@@ -5,6 +5,8 @@ Daemon service for keeping Gensim and spaCy models loaded in memory.
 """
 
 from .AIAgent import AIAgentDaemon, ModelManager, AIAgentClient, get_daemon
+from .response_parser import OllamaResponseParser
+from .entity_merger import EntityMerger
 
 # Import parsers (optional)
 try:
@@ -23,6 +25,8 @@ try:
         'ModelManager',
         'AIAgentClient',
         'get_daemon',
+        'OllamaResponseParser',
+        'EntityMerger',
         'BaseParser',
         'ParseResult',
         'TXTParser',
@@ -33,5 +37,5 @@ try:
         'PARSERS',
     ]
 except ImportError:
-    __all__ = ['AIAgentDaemon', 'ModelManager', 'AIAgentClient', 'get_daemon']
+    __all__ = ['AIAgentDaemon', 'ModelManager', 'AIAgentClient', 'get_daemon', 'OllamaResponseParser', 'EntityMerger']
 

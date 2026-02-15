@@ -86,7 +86,9 @@ class URLParser(BaseParser):
         
         try:
             # Fetch the URL
-            response = requests.get(url, headers=headers, timeout=timeout)
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            response = requests.get(url, headers=headers, timeout=timeout, verify=False)
             response.raise_for_status()
             
             # Parse HTML with BeautifulSoup
@@ -110,7 +112,7 @@ class URLParser(BaseParser):
             # Extract metadata
             metadata = {
                 'url': url,
-                'title': soup.title.string if soup.title else '',
+                'title': str(soup.title.string) if soup.title and soup.title.string else '',
                 'status_code': response.status_code,
                 'content_type': response.headers.get('content-type', ''),
                 'content_length': len(response.content),
