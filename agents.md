@@ -75,7 +75,45 @@ pytest tests/test_ai_agent.py -v
 ./run_tests.sh coverage
 ```
 
-## 6. Troubleshooting
+
+## 6. Ghostwriter Skill
+The Ghostwriter skill allows Palefire to ingest URLs, manage knowledge collections, and perform RAG-based Q&A.
+
+### Dependencies
+Ensure you have `qdrant-client` and `sentence-transformers` installed:
+```bash
+pip install qdrant-client sentence-transformers
+```
+
+### Commands
+*   **Ingest URL**:
+    ```bash
+    python palefire-cli.py ghostwriter ingest "https://example.com" --collection "my-collection"
+    # Output: Successfully ingested 5 chunks from https://example.com
+    ```
+
+*   **Ask Question (RAG)**:
+    ```bash
+    python palefire-cli.py ghostwriter ask "What is the main topic?" --collection "my-collection"
+    # Output: The main topic is... [Source: https://example.com]
+    ```
+
+*   **Semantic Search**:
+    ```bash
+    python palefire-cli.py ghostwriter search "specific keyword" --collection "my-collection"
+    # Output: Found content related to...
+    ```
+
+*   **List Collections**:
+    ```bash
+    python palefire-cli.py ghostwriter collections
+    # Output:
+    # - my-collection
+    # - palefire_knowledge (default)
+    ```
+
+## 7. Troubleshooting
 *   **Daemon not starting**: Check if `palefire_ai_agent.pid` exists in `/tmp/` and remove it if the process is dead.
 *   **Neo4j Connection**: Verify credentials in `.env` and that Neo4j is running on port 7687.
 *   **Missing Models**: Run `python -m spacy download en_core_web_sm` or `make setup` for Docker.
+*   **Ghostwriter Unavailable**: Ensure `qdrant-client` and `sentence-transformers` are installed.

@@ -54,6 +54,7 @@ Pale Fire is an advanced knowledge graph search system featuring:
 - **🤖 AI Agent Daemon** - Long-running daemon service that keeps Gensim and spaCy models loaded in memory for instant access
 - **🔑 Keyword Extraction** - Extract keywords and n-grams (2-4 words) using Gensim with configurable weights (TF-IDF, TextRank, Word Frequency)
 - **📄 File Parsing** - Extract text from multiple formats: TXT, CSV, PDF, Excel (.xlsx, .xls), OpenDocument (.ods), URLs/HTML
+- **👻 Ghostwriter** - RAG-based Q&A system that ingests content from URLs and answers questions using LLMs
 - **📚 Theoretical Foundation** - Based on Pale Fire's interpretive framework (see [docs/PROS-CONS.md](docs/PROS-CONS.md))
 
 ## Quick Start
@@ -283,6 +284,24 @@ python palefire-cli.py parse --help
 python palefire-cli.py agent --help
 ```
 
+### Ghostwriter (RAG & Web Ingestion)
+
+Ghostwriter allows you to ingest content from URLs and ask questions based on that knowledge.
+
+```bash
+# 1. Initialize configuration (if not already done)
+python palefire-cli.py init
+
+# 2. Ingest a URL
+python palefire-cli.py ghostwriter ingest "https://example.com/article" --collection my-knowledge
+
+# 3. Ask a question
+python palefire-cli.py ghostwriter ask "What is the article about?" --collection my-knowledge
+
+# 4. Search the knowledge base
+python palefire-cli.py ghostwriter search "specific keyword" --collection my-knowledge
+```
+
 ## Episode File Format
 
 Create a JSON file with your episodes:
@@ -424,6 +443,11 @@ WEIGHT_CONNECTION=0.15
 WEIGHT_TEMPORAL=0.20
 WEIGHT_QUERY_MATCH=0.20
 WEIGHT_ENTITY_TYPE=0.15
+
+# Ghostwriter Configuration
+QDRANT_HOST=localhost
+QDRANT_PORT=6333
+OLLAMA_HOST=http://localhost:11434/v1
 ```
 
 See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for complete documentation.
