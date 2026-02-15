@@ -302,6 +302,21 @@ python palefire-cli.py ghostwriter ask "What is the article about?" --collection
 python palefire-cli.py ghostwriter search "specific keyword" --collection my-knowledge
 ```
 
+### MCP Server (Model Context Protocol)
+
+Palefire implements the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) to expose Ghostwriter capabilities to LLM clients (like Claude Desktop).
+
+```bash
+# Run the MCP server
+python mcp_server.py
+```
+
+It exposes the following tools:
+- `ingest_url`: Download and index content from a URL.
+- `ask_question`: RAG-based Q&A.
+- `search_content`: Semantic search.
+- `list_collections`: List available knowledge collections.
+
 ## Episode File Format
 
 Create a JSON file with your episodes:
