@@ -1551,19 +1551,23 @@ Examples:
         gw_ingest = gw_subparsers.add_parser('ingest', help='Ingest a URL')
         gw_ingest.add_argument('url', help='URL to ingest')
         gw_ingest.add_argument('--collection', help='Target collection name')
+        gw_ingest.add_argument('--cpu', action='store_true', help='Force CPU usage')
         
         # Ask
         gw_ask = gw_subparsers.add_parser('ask', help='Ask a question')
         gw_ask.add_argument('question', help='Question to ask')
         gw_ask.add_argument('--collection', help='Target collection')
+        gw_ask.add_argument('--cpu', action='store_true', help='Force CPU usage')
         
         # Search
         gw_search = gw_subparsers.add_parser('search', help='Semantic search')
         gw_search.add_argument('query', help='Search query')
         gw_search.add_argument('--collection', help='Target collection')
+        gw_search.add_argument('--cpu', action='store_true', help='Force CPU usage')
         
         # Collections
-        gw_subparsers.add_parser('collections', help='List collections')
+        gw_collections = gw_subparsers.add_parser('collections', help='List collections')
+        gw_collections.add_argument('--cpu', action='store_true', help='Force CPU usage')
     clean_parser.add_argument('--debug', action='store_true',
                              help='Enable debug output (verbose printing)')
     
