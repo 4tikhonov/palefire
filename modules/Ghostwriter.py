@@ -48,7 +48,7 @@ class GhostwriterSkill:
     Implements the Ghostwriter Agent's skills within Palefire.
     """
     
-    def __init__(self):
+    def __init__(self, device: str = None):
         if not QDRANT_AVAILABLE:
             raise ImportError("Ghostwriter requires qdrant-client and sentence-transformers. Please install them.")
             
@@ -68,7 +68,12 @@ class GhostwriterSkill:
         # Initialize Embedding Model
         # 'all-MiniLM-L6-v2' is a good balance of speed and performance
         self.model_name = "all-MiniLM-L6-v2"
-        self.encoder = SentenceTransformer(self.model_name)
+        # Determine device (prioritize argument, then env var, then auto)
+        if not device:
+            device = os.getenv("GHOSTWRITER_DEVICE", None)
+            
+        logger.info(f"Initializing Ghostwriter with device: {device or 'auto'}")
+        self.encoder = SentenceTransformer(self.model_name, device=device)
         self.vector_size = 384
         
         # Default collection
