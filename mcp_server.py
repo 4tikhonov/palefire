@@ -12,6 +12,12 @@ logger = logging.getLogger("palefire.mcp")
 # Initialize FastMCP server
 mcp = FastMCP("Palefire")
 
+# Check for --cpu flag
+if "--cpu" in sys.argv:
+    os.environ["GHOSTWRITER_DEVICE"] = "cpu"
+    sys.argv.remove("--cpu")
+
+
 # Initialize Ghostwriter skills
 # We need to do this lazily or handle potential errors if DB isn't ready immediately.
 try:

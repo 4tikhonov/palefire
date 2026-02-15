@@ -142,3 +142,7 @@ services:
     profiles:
       - cli
     command: tail -f /dev/null
+
+networks:
+  palefire-network:
+    driver: bridge

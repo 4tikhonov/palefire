@@ -1544,6 +1544,7 @@ Examples:
     # Ghostwriter command
     if GHOSTWRITER_AVAILABLE:
         gw_parser = subparsers.add_parser('ghostwriter', help='Ghostwriter Agent commands')
+        gw_parser.add_argument('--cpu', action='store_true', help='Force CPU usage for embeddings (avoid CUDA)')
         gw_subparsers = gw_parser.add_subparsers(dest='gw_command', help='Ghostwriter action')
         
         # Ingest
@@ -2127,7 +2128,8 @@ async def main_cli(args):
         init_command()
         
     elif args.command == 'ghostwriter' and GHOSTWRITER_AVAILABLE:
-        skill = GhostwriterSkill()
+        device = 'cpu' if args.cpu else None
+        skill = GhostwriterSkill(device=device)
         
         if args.gw_command == 'ingest':
             result = skill.ingest_url(args.url, collection_name=args.collection)
