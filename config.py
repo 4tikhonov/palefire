@@ -30,7 +30,7 @@ OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 LLM_PROVIDER = os.environ.get('LLM_PROVIDER', 'ollama')
 
 # Ollama Configuration
-OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://10.147.18.253:11434/v1')
+OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', os.environ.get('OLLAMA_HOST', 'http://10.147.18.253:11434/v1'))
 OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'deepseek-r1:7b')
 OLLAMA_SMALL_MODEL = os.environ.get('OLLAMA_SMALL_MODEL', 'deepseek-r1:7b')
 OLLAMA_VERIFICATION_MODEL = os.environ.get('OLLAMA_VERIFICATION_MODEL', None)  # Optional: comma-separated list of models for NER verification (defaults to OLLAMA_MODEL)
