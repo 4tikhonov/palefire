@@ -1,6 +1,7 @@
 import subprocess
 import json
 import os
+import shutil
 
 def test_cdif_expert():
     prompt = """Act as CDIF expert. Analyze the following dummy text:
@@ -21,16 +22,26 @@ These variables represent the functional, engineering, and ecological capacities
 """
     
     skills_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '.agent/skills'))
+    
+    env = os.environ.copy()
+    env['PATH'] = env.get('PATH', '') + ':/opt/homebrew/bin:/usr/local/bin:/Users/vyacheslavtykhonov/.nvm/versions/node/v20.12.2/bin'
+
+    gemini_path = shutil.which('gemini', path=env['PATH'])
+    if not gemini_path:
+        for p in ['/opt/homebrew/bin/gemini', '/usr/local/bin/gemini', '/usr/bin/gemini', os.path.expanduser('~/.local/bin/gemini')]:
+            if os.path.exists(p):
+                gemini_path = p
+                break
+        else:
+            gemini_path = 'gemini'
+            
     cmd = [
-        '/opt/homebrew/bin/gemini',
+        gemini_path,
         '-p', prompt,
         '--yolo',
         '-o', 'json',
         '--policy', skills_dir
     ]
-    
-    env = os.environ.copy()
-    env['PATH'] = env.get('PATH', '') + ':/opt/homebrew/bin:/usr/local/bin:/Users/vyacheslavtykhonov/.nvm/versions/node/v20.12.2/bin'
     
     print("Running Gemini CLI... (this may take a moment)")
     result = subprocess.run(cmd, env=env, capture_output=True, text=True)

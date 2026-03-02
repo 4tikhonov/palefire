@@ -4,6 +4,7 @@ import subprocess
 import json
 import os
 import re
+import shutil
 
 # Paths dynamically resolved relative to this backend.py script
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../footnotes'))
@@ -30,6 +31,16 @@ def load_cache():
             pass
     return []
 
+def get_gemini_path(env=None):
+    if env and 'PATH' in env:
+        path = shutil.which('gemini', path=env['PATH'])
+        if path:
+            return path
+    for p in ['/opt/homebrew/bin/gemini', '/usr/local/bin/gemini', '/usr/bin/gemini', os.path.expanduser('~/.local/bin/gemini')]:
+        if os.path.exists(p):
+            return p
+    return 'gemini'
+
 global_state['pages'] = load_cache()
 
 async def broadcast(message_dict):
@@ -46,11 +57,12 @@ async def broadcast(message_dict):
 def run_gemini(prompt_input, env):
     # We try to use "-r latest" to preserve conversation history natively
     skills_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '.agent/skills'))
-    cmd = ['/opt/homebrew/bin/gemini', '-p', prompt_input, '--yolo', '-o', 'json', '-r', 'latest', '--policy', skills_dir]
+    gemini_path = get_gemini_path(env)
+    cmd = [gemini_path, '-p', prompt_input, '--yolo', '-o', 'json', '-r', 'latest', '--policy', skills_dir]
     try:
         result = subprocess.run(cmd, env=env, capture_output=True, text=True, cwd=BASE_DIR)
         if result.returncode != 0 and "No sessions found" in result.stderr:
-            cmd = ['/opt/homebrew/bin/gemini', '-p', prompt_input, '--yolo', '-o', 'json', '--policy', skills_dir]
+            cmd = [gemini_path, '-p', prompt_input, '--yolo', '-o', 'json', '--policy', skills_dir]
             result = subprocess.run(cmd, env=env, capture_output=True, text=True, cwd=BASE_DIR)
         return result.stdout, result.stderr, result.returncode
     except Exception as e:
