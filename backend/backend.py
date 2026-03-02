@@ -5,6 +5,7 @@ import json
 import os
 import re
 import shutil
+import sys
 
 # Paths dynamically resolved relative to this backend.py script
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../footnotes'))
@@ -37,16 +38,25 @@ def get_gemini_path(env=None):
         if path:
             return path
             
-    # Advanced search locations for Linux and MacOS
-    search_paths = [
-        '/opt/homebrew/bin/gemini',     # MacOS Apple Silicon Homebrew
-        '/usr/local/bin/gemini',        # MacOS Intel & common Linux
-        '/usr/bin/gemini',              # Linux standard bin
-        '/bin/gemini',                  # Linux base bin
-        os.path.expanduser('~/.local/bin/gemini'), # User-local bin installations
-        os.path.expanduser('~/bin/gemini'),        # User bin directory
-        '/opt/gemini/bin/gemini'        # Specialized opt install
-    ]
+    # Advanced search locations based on OS
+    if sys.platform == 'darwin':
+        search_paths = [
+            '/opt/homebrew/bin/gemini',     # MacOS Apple Silicon Homebrew
+            '/usr/local/bin/gemini',        # MacOS Intel & common Node
+            os.path.expanduser('~/.npm-global/bin/gemini'),
+            '/usr/bin/gemini',              
+            os.path.expanduser('~/.local/bin/gemini')
+        ]
+    else:
+        search_paths = [
+            '/usr/local/bin/gemini',        # Linux primary Node bin
+            os.path.expanduser('~/.npm-global/bin/gemini'),
+            '/usr/bin/gemini',              
+            '/bin/gemini',                  
+            os.path.expanduser('~/.local/bin/gemini'), 
+            os.path.expanduser('~/bin/gemini'),        
+            '/opt/gemini/bin/gemini'        
+        ]
     
     for p in search_paths:
         if os.path.exists(p) and os.access(p, os.X_OK):
@@ -196,13 +206,14 @@ async def chat_handler(websocket):
 
     env = os.environ.copy()
     
-    # Try to dynamically extend PATH with node/npm global bins using common paths rather than hardcoding user-specific strings
-    node_paths = [
-        '/opt/homebrew/bin', 
+    node_paths = []
+    if sys.platform == 'darwin':
+        node_paths.append('/opt/homebrew/bin')
+    node_paths.extend([
         '/usr/local/bin',
         os.path.expanduser('~/.npm-global/bin'),
         os.path.expanduser('~/.nvm/versions/node/current/bin')
-    ]
+    ])
     
     # Try to add actual nvm node path if present
     try:

@@ -2,13 +2,17 @@ import subprocess
 import os
 import json
 import shutil
+import sys
 
 env = os.environ.copy()
 
 # Try to dynamically extend PATH
-node_paths = [
-    '/opt/homebrew/bin', '/usr/local/bin', os.path.expanduser('~/.npm-global/bin')
-]
+node_paths = []
+if sys.platform == 'darwin':
+    node_paths.append('/opt/homebrew/bin')
+node_paths.extend([
+    '/usr/local/bin', os.path.expanduser('~/.npm-global/bin')
+])
 try:
     nvm_dir = os.path.expanduser('~/.nvm/versions/node')
     if os.path.isdir(nvm_dir):
@@ -24,10 +28,18 @@ for np in node_paths:
 
 gemini_path = shutil.which('gemini', path=env['PATH'])
 if not gemini_path:
-    search_paths = [
-        '/opt/homebrew/bin/gemini', '/usr/local/bin/gemini', '/usr/bin/gemini', '/bin/gemini', 
-        os.path.expanduser('~/.local/bin/gemini'), os.path.expanduser('~/bin/gemini'), '/opt/gemini/bin/gemini'
-    ]
+    if sys.platform == 'darwin':
+        search_paths = [
+            '/opt/homebrew/bin/gemini', '/usr/local/bin/gemini', 
+            os.path.expanduser('~/.npm-global/bin/gemini'),
+            '/usr/bin/gemini', os.path.expanduser('~/.local/bin/gemini')
+        ]
+    else:
+        search_paths = [
+            '/usr/local/bin/gemini', os.path.expanduser('~/.npm-global/bin/gemini'),
+            '/usr/bin/gemini', '/bin/gemini', 
+            os.path.expanduser('~/.local/bin/gemini'), os.path.expanduser('~/bin/gemini'), '/opt/gemini/bin/gemini'
+        ]
     for p in search_paths:
         if os.path.exists(p) and os.access(p, os.X_OK):
             gemini_path = p
