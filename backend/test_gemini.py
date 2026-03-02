@@ -8,7 +8,23 @@ pid, fd = pty.fork()
 if pid == 0:
     env = os.environ.copy()
     env['TERM'] = 'xterm-256color'
-    env['PATH'] = env.get('PATH', '') + ':/opt/homebrew/bin:/usr/local/bin'
+    
+    # Try to dynamically extend PATH
+    node_paths = [
+        '/opt/homebrew/bin', '/usr/local/bin', os.path.expanduser('~/.npm-global/bin')
+    ]
+    try:
+        nvm_dir = os.path.expanduser('~/.nvm/versions/node')
+        if os.path.isdir(nvm_dir):
+            versions = sorted(os.listdir(nvm_dir), reverse=True)
+            if versions:
+                node_paths.append(os.path.join(nvm_dir, versions[0], 'bin'))
+    except Exception:
+        pass
+        
+    for np in node_paths:
+        if os.path.isdir(np) and np not in env.get('PATH', '').split(':'):
+            env['PATH'] = env.get('PATH', '') + f':{np}'
     
     gemini_path = shutil.which('gemini', path=env['PATH'])
     if not gemini_path:

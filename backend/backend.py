@@ -195,7 +195,28 @@ async def chat_handler(websocket):
             pass
 
     env = os.environ.copy()
-    env['PATH'] = env.get('PATH', '') + ':/opt/homebrew/bin:/usr/local/bin:/Users/vyacheslavtykhonov/.nvm/versions/node/v20.12.2/bin'
+    
+    # Try to dynamically extend PATH with node/npm global bins using common paths rather than hardcoding user-specific strings
+    node_paths = [
+        '/opt/homebrew/bin', 
+        '/usr/local/bin',
+        os.path.expanduser('~/.npm-global/bin'),
+        os.path.expanduser('~/.nvm/versions/node/current/bin')
+    ]
+    
+    # Try to add actual nvm node path if present
+    try:
+        nvm_dir = os.path.expanduser('~/.nvm/versions/node')
+        if os.path.isdir(nvm_dir):
+            versions = sorted(os.listdir(nvm_dir), reverse=True)
+            if versions:
+                node_paths.append(os.path.join(nvm_dir, versions[0], 'bin'))
+    except Exception:
+        pass
+        
+    for np in node_paths:
+        if os.path.isdir(np) and np not in env.get('PATH', '').split(':'):
+            env['PATH'] = env.get('PATH', '') + f':{np}'
 
     try:
         async for message in websocket:

@@ -24,7 +24,23 @@ These variables represent the functional, engineering, and ecological capacities
     skills_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '.agent/skills'))
     
     env = os.environ.copy()
-    env['PATH'] = env.get('PATH', '') + ':/opt/homebrew/bin:/usr/local/bin:/Users/vyacheslavtykhonov/.nvm/versions/node/v20.12.2/bin'
+    
+    # Try to dynamically extend PATH
+    node_paths = [
+        '/opt/homebrew/bin', '/usr/local/bin', os.path.expanduser('~/.npm-global/bin')
+    ]
+    try:
+        nvm_dir = os.path.expanduser('~/.nvm/versions/node')
+        if os.path.isdir(nvm_dir):
+            versions = sorted(os.listdir(nvm_dir), reverse=True)
+            if versions:
+                node_paths.append(os.path.join(nvm_dir, versions[0], 'bin'))
+    except Exception:
+        pass
+        
+    for np in node_paths:
+        if os.path.isdir(np) and np not in env.get('PATH', '').split(':'):
+            env['PATH'] = env.get('PATH', '') + f':{np}'
 
     gemini_path = shutil.which('gemini', path=env['PATH'])
     if not gemini_path:
