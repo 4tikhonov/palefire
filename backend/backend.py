@@ -96,6 +96,8 @@ def run_gemini(prompt_input, env):
             cmd = [gemini_path, '-p', prompt_input, '--yolo', '-o', 'json', '--policy', skills_dir]
             result = subprocess.run(cmd, env=env, capture_output=True, text=True, cwd=BASE_DIR)
         return result.stdout, result.stderr, result.returncode
+    except FileNotFoundError:
+        return "", f"Gemini CLI tool '{gemini_path}' was not found. Please ensure it is installed and in your PATH.", 1
     except Exception as e:
         return "", str(e), 1
 
@@ -229,6 +231,14 @@ async def chat_handler(websocket):
         if os.path.isdir(np) and np not in env.get('PATH', '').split(':'):
             env['PATH'] = env.get('PATH', '') + f':{np}'
 
+    gemini_path = get_gemini_path(env)
+    if not shutil.which(gemini_path, path=env['PATH']):
+        try:
+            warning_msg = f"⚠️ System Check Failed: 'gemini' CLI tool not found on the backend path: {gemini_path}. The extension will not function correctly until you install the AI Footnotes CLI and ensure it is accessible in your environment."
+            await websocket.send(json.dumps({'type': 'error', 'data': warning_msg}))
+        except:
+            pass
+
     try:
         async for message in websocket:
             try:
@@ -282,6 +292,16 @@ async def keepalive_loop():
 
 async def main():
     print("Starting Pale Fire Footnotes JSON RPC Backend on ws://127.0.0.1:8775")
+    
+    # Startup check for gemini CLI
+    env = os.environ.copy()
+    env['PATH'] = env.get('PATH', '') + ':/opt/homebrew/bin:/usr/local/bin:/Users/vyacheslavtykhonov/.nvm/versions/node/v20.12.2/bin'
+    gemini_path = get_gemini_path(env)
+    if not shutil.which(gemini_path, path=env['PATH']):
+        print(f"\n[WARNING] 'gemini' CLI not found at path: {gemini_path}")
+        print("Please ensure you have installed the gemini CLI and it is accessible in your environment.")
+        print("The extension will not function correctly until the CLI is available.\n")
+        
     # Start the keepalive loop in the background
     asyncio.create_task(keepalive_loop())
     
