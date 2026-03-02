@@ -1,6 +1,7 @@
 import pty
 import os
 import shutil
+import subprocess
 
 pid, fd = pty.fork()
 if pid == 0:
@@ -9,12 +10,24 @@ if pid == 0:
     
     gemini_path = shutil.which('gemini', path=env['PATH'])
     if not gemini_path:
-        for p in ['/opt/homebrew/bin/gemini', '/usr/local/bin/gemini', '/usr/bin/gemini', os.path.expanduser('~/.local/bin/gemini')]:
-            if os.path.exists(p):
+        search_paths = [
+            '/opt/homebrew/bin/gemini', '/usr/local/bin/gemini', '/usr/bin/gemini', '/bin/gemini', 
+            os.path.expanduser('~/.local/bin/gemini'), os.path.expanduser('~/bin/gemini'), '/opt/gemini/bin/gemini'
+        ]
+        for p in search_paths:
+            if os.path.exists(p) and os.access(p, os.X_OK):
                 gemini_path = p
                 break
         else:
-            gemini_path = 'gemini'
+            try:
+                which_result = subprocess.run(['which', 'gemini'], capture_output=True, text=True)
+                if which_result.returncode == 0:
+                    gemini_path = which_result.stdout.strip()
+            except Exception:
+                pass
+                
+    if not gemini_path:
+        gemini_path = 'gemini'
 
     os.execve(gemini_path, ['gemini', '--yolo', '-o', 'stream-json'], env)
 else:

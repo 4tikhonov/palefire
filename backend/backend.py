@@ -36,9 +36,30 @@ def get_gemini_path(env=None):
         path = shutil.which('gemini', path=env['PATH'])
         if path:
             return path
-    for p in ['/opt/homebrew/bin/gemini', '/usr/local/bin/gemini', '/usr/bin/gemini', os.path.expanduser('~/.local/bin/gemini')]:
-        if os.path.exists(p):
+            
+    # Advanced search locations for Linux and MacOS
+    search_paths = [
+        '/opt/homebrew/bin/gemini',     # MacOS Apple Silicon Homebrew
+        '/usr/local/bin/gemini',        # MacOS Intel & common Linux
+        '/usr/bin/gemini',              # Linux standard bin
+        '/bin/gemini',                  # Linux base bin
+        os.path.expanduser('~/.local/bin/gemini'), # User-local bin installations
+        os.path.expanduser('~/bin/gemini'),        # User bin directory
+        '/opt/gemini/bin/gemini'        # Specialized opt install
+    ]
+    
+    for p in search_paths:
+        if os.path.exists(p) and os.access(p, os.X_OK):
             return p
+            
+    # Attempt to locate via system 'which' fallback
+    try:
+        which_result = subprocess.run(['which', 'gemini'], capture_output=True, text=True)
+        if which_result.returncode == 0:
+            return which_result.stdout.strip()
+    except Exception:
+        pass
+        
     return 'gemini'
 
 global_state['pages'] = load_cache()
