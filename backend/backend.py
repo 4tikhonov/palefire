@@ -33,12 +33,7 @@ def load_cache():
     return []
 
 def get_gemini_path(env=None):
-    if env and 'PATH' in env:
-        path = shutil.which('gemini', path=env['PATH'])
-        if path:
-            return path
-            
-    # Advanced search locations based on OS
+    # Advanced search locations based on OS prioritized FIRST
     if sys.platform == 'darwin':
         search_paths = [
             '/opt/homebrew/bin/gemini',     # MacOS Apple Silicon Homebrew
@@ -61,6 +56,11 @@ def get_gemini_path(env=None):
     for p in search_paths:
         if os.path.exists(p) and os.access(p, os.X_OK):
             return p
+
+    if env and 'PATH' in env:
+        path = shutil.which('gemini', path=env['PATH'])
+        if path:
+            return path
             
     # Attempt to locate via system 'which' fallback
     try:
