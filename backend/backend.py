@@ -1,0 +1,228 @@
+import asyncio
+import websockets
+import subprocess
+import json
+import os
+import re
+
+# Absolute paths for safe caching points back to the Footnotes extension dir
+BASE_DIR = '/Users/vyacheslavtykhonov/projects/footnotes'
+CACHE_DIR = os.path.join(BASE_DIR, 'cache')
+CACHE_FILE = os.path.join(CACHE_DIR, 'history.json')
+
+# Global State to persist across client reconnects
+global_state = {
+    'task': None,
+    'prompt': None,
+    'result_type': None,
+    'result_data': None,
+    'is_delivered': True,
+    'clients': set(),
+    'pages': []
+}
+
+def load_cache():
+    if os.path.exists(CACHE_FILE):
+        try:
+            with open(CACHE_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            pass
+    return []
+
+global_state['pages'] = load_cache()
+
+async def broadcast(message_dict):
+    if not global_state['clients']:
+        return
+    message_str = json.dumps(message_dict)
+    # create a copy of clients to safely iterate
+    for ws in list(global_state['clients']):
+        try:
+            await ws.send(message_str)
+        except websockets.exceptions.ConnectionClosed:
+            global_state['clients'].remove(ws)
+
+def run_gemini(prompt_input, env):
+    # We try to use "-r latest" to preserve conversation history natively
+    skills_dir = '/Users/vyacheslavtykhonov/projects/palefire/backend/.agent/skills'
+    cmd = ['/opt/homebrew/bin/gemini', '-p', prompt_input, '--yolo', '-o', 'json', '-r', 'latest', '--policy', skills_dir]
+    try:
+        result = subprocess.run(cmd, env=env, capture_output=True, text=True, cwd=BASE_DIR)
+        if result.returncode != 0 and "No sessions found" in result.stderr:
+            cmd = ['/opt/homebrew/bin/gemini', '-p', prompt_input, '--yolo', '-o', 'json', '--policy', skills_dir]
+            result = subprocess.run(cmd, env=env, capture_output=True, text=True, cwd=BASE_DIR)
+        return result.stdout, result.stderr, result.returncode
+    except Exception as e:
+        return "", str(e), 1
+
+async def background_gemini_task(prompt_text, env):
+    loop = asyncio.get_event_loop()
+    
+    # Check if prompt contains youtube URL
+    if "youtube.com/watch" in prompt_text or "youtu.be/" in prompt_text:
+        match = re.search(r'(?:v=|youtu\.be/)([\w-]+)', prompt_text)
+        if match:
+            video_id = match.group(1)
+            transcript_cache_file = os.path.join(CACHE_DIR, f'transcript_{video_id}.txt')
+            transcript_text = None
+            
+            if os.path.exists(transcript_cache_file):
+                try:
+                    with open(transcript_cache_file, 'r', encoding='utf-8') as f:
+                        transcript_text = f.read()
+                    print(f"Loaded transcript for {video_id} from cache.")
+                except Exception as e:
+                    print(f"Failed to read transcript cache: {e}")
+
+            if not transcript_text:
+                try:
+                    from youtube_transcript_api import YouTubeTranscriptApi
+                    t_list = YouTubeTranscriptApi().list(video_id)
+                    try:
+                        transcript_obj = t_list.find_transcript(['en'])
+                    except Exception:
+                        # Fallback to the first available transcript
+                        for t in t_list:
+                            transcript_obj = t
+                            break
+                    fetched = transcript_obj.fetch()
+                    # Text attribute requires dict access in older version but objects in newer versions. 
+                    # Let's handle both gracefully:
+                    transcript_text = " ".join([t['text'] if isinstance(t, dict) else t.text for t in fetched])
+                    transcript_text = transcript_text[:30000] # Limit to ~10k words
+                    
+                    # Save to cache
+                    if not os.path.exists(CACHE_DIR):
+                        os.makedirs(CACHE_DIR)
+                    with open(transcript_cache_file, 'w', encoding='utf-8') as f:
+                        f.write(transcript_text)
+                    print(f"Saved transcript for {video_id} to cache.")
+                except Exception as e:
+                    prompt_text = f"{prompt_text}\n\n[FAILED TO INJECT YOUTUBE TRANSCRIPT]: {str(e)}"
+            
+            if transcript_text:
+                prompt_text = f"{prompt_text}\n\nYou MUST use this extracted video transcript as the canonical content of the video:\n[YOUTUBE TRANSCRIPT]:\n{transcript_text}"
+    
+    # Execute blocking operation in an executor so the event loop remains unblocked
+    stdout_data, stderr_data, returncode = await loop.run_in_executor(None, run_gemini, prompt_text, env)
+    
+    # Process Results
+    json_match = re.search(r'(\{.*\})', stdout_data, re.DOTALL)
+    if json_match and returncode == 0:
+        json_str = json_match.group(1)
+        try:
+            parsed = json.loads(json_str)
+            response_text = parsed.get("response", "No response parsed.")
+            
+            global_state['result_type'] = 'response'
+            global_state['result_data'] = response_text
+        except json.JSONDecodeError:
+            global_state['result_type'] = 'error'
+            global_state['result_data'] = f"Failed to parse JSON response: {json_str[:200]}..."
+    else:
+        err_msg = stderr_data if stderr_data else stdout_data
+        if "response" not in stdout_data and len(stdout_data.strip()) > 0:
+            global_state['result_type'] = 'response'
+            global_state['result_data'] = stdout_data.strip()
+        else:
+            global_state['result_type'] = 'error'
+            global_state['result_data'] = f"Error from Gemini CLI: {err_msg}"
+
+    global_state['is_delivered'] = False
+    
+    # Broadcast to all connected clients immediately!
+    await broadcast({'type': global_state['result_type'], 'data': global_state['result_data']})
+    global_state['is_delivered'] = True
+    global_state['task'] = None
+
+async def chat_handler(websocket):
+    global_state['clients'].add(websocket)
+    print("New chat client connected. Active clients:", len(global_state['clients']))
+
+    # 1. On connect, send history cache immediately!
+    try:
+        await websocket.send(json.dumps({'type': 'cache_data', 'data': global_state['pages']}))
+    except:
+        pass
+
+    # 2. On connect, restore state! (crucial for Chrome/Opera extensions dropping background websockets)
+    if global_state['task'] is not None and not global_state['task'].done():
+        print(f"Restoring running task for prompt: {global_state['prompt'][:50]}")
+        try:
+            await websocket.send(json.dumps({'type': 'restore_running', 'data': global_state['prompt']}))
+        except:
+            pass
+    elif not global_state['is_delivered'] and global_state['result_data'] is not None:
+        print("Delivering missed response to new client.")
+        try:
+            await websocket.send(json.dumps({'type': global_state['result_type'], 'data': global_state['result_data']}))
+            global_state['is_delivered'] = True
+        except:
+            pass
+
+    env = os.environ.copy()
+    env['PATH'] = env.get('PATH', '') + ':/opt/homebrew/bin:/usr/local/bin:/Users/vyacheslavtykhonov/.nvm/versions/node/v20.12.2/bin'
+
+    try:
+        async for message in websocket:
+            try:
+                msg = json.loads(message)
+                if msg.get('type') == 'input' and 'data' in msg:
+                    prompt_text = msg['data']
+                    print(f"Received prompt: {prompt_text[:50]}...")
+
+                    if global_state['task'] and not global_state['task'].done():
+                        await websocket.send(json.dumps({'type': 'error', 'data': 'A previous task is already running. Please wait for it to finish...'}))
+                        continue
+
+                    global_state['prompt'] = prompt_text
+                    global_state['is_delivered'] = False
+
+                    # Start the background execution task globally
+                    global_state['task'] = asyncio.create_task(background_gemini_task(prompt_text, env))
+
+                elif msg.get('type') == 'keepalive':
+                    pass
+                elif msg.get('type') == 'save_cache':
+                    global_state['pages'] = msg.get('data', [])
+                    if not os.path.exists(CACHE_DIR):
+                        os.makedirs(CACHE_DIR)
+                    with open(CACHE_FILE, 'w') as f:
+                        json.dump(global_state['pages'], f)
+            except json.JSONDecodeError:
+                pass
+            except websockets.exceptions.ConnectionClosed:
+                break
+            except Exception as e:
+                print(f"Error handling message: {e}")
+                try:
+                    await websocket.send(json.dumps({'type': 'error', 'data': f"System error: {str(e)}"}))
+                except:
+                    pass
+
+    except websockets.exceptions.ConnectionClosed:
+        pass
+    except Exception as e:
+        print(f"Error in connection loop: {e}")
+    finally:
+        print("Chat client disconnected.")
+        if websocket in global_state['clients']:
+            global_state['clients'].remove(websocket)
+
+async def keepalive_loop():
+    while True:
+        await asyncio.sleep(2.0)
+        await broadcast({'type': 'keepalive'})
+
+async def main():
+    print("Starting Pale Fire Footnotes JSON RPC Backend on ws://127.0.0.1:8775")
+    # Start the keepalive loop in the background
+    asyncio.create_task(keepalive_loop())
+    
+    # Run the server with native pings disabled from the library so we rely solely on our broadcasted JSON keepalives
+    async with websockets.serve(chat_handler, "127.0.0.1", 8775, ping_interval=None, ping_timeout=None):
+        await asyncio.Future()  # run forever
+
+if __name__ == "__main__":
+    asyncio.run(main())
