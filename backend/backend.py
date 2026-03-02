@@ -92,7 +92,9 @@ def run_gemini(prompt_input, env):
     cmd = [gemini_path, '-p', prompt_input, '--yolo', '-o', 'json', '-r', 'latest', '--policy', skills_dir]
     try:
         result = subprocess.run(cmd, env=env, capture_output=True, text=True, cwd=BASE_DIR)
-        if result.returncode != 0 and "No sessions found" in result.stderr:
+        fallback_triggers = ["No sessions found", "No previous sessions found"]
+        needs_fallback = any(trigger in (result.stderr + result.stdout) for trigger in fallback_triggers)
+        if result.returncode != 0 and needs_fallback:
             cmd = [gemini_path, '-p', prompt_input, '--yolo', '-o', 'json', '--policy', skills_dir]
             result = subprocess.run(cmd, env=env, capture_output=True, text=True, cwd=BASE_DIR)
         return result.stdout, result.stderr, result.returncode
