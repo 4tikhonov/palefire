@@ -86,34 +86,27 @@ async def broadcast(message_dict):
             global_state['clients'].remove(ws)
 
 def run_gemini(prompt_input, env):
-    # We try to use "-r latest" to preserve conversation history natively
     skills_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '.agent/skills'))
     gemini_path = get_gemini_path(env)
-    cmd = [gemini_path, '-p', prompt_input, '--yolo', '-o', 'json', '-r', 'latest', '--policy', skills_dir]
+    
+    # 1. First Attempt: Try to resume latest session
+    cmd_resume = [gemini_path, '-p', prompt_input, '--yolo', '-o', 'json', '-r', 'latest', '--policy', skills_dir]
     try:
-        # 1. Attempt with session restoration
-        result = subprocess.run(cmd, env=env, capture_output=True, text=True, cwd=BASE_DIR)
+        result = subprocess.run(cmd_resume, env=env, capture_output=True, text=True, cwd=BASE_DIR)
         
-        fallback_triggers = ["no sessions found", "no previous sessions found", "error resuming session"]
+        # Check if it failed specifically because of session resume issues
         combined_output = (result.stderr + result.stdout).lower()
-        needs_fallback = any(trigger in combined_output for trigger in fallback_triggers)
+        session_error = any(msg in combined_output for msg in ["no sessions found", "no previous sessions found", "error resuming session"])
         
-        # 2. Fallback if session restoration failed
-        if needs_fallback:
-            print("[DEBUG] Session not found, starting fresh session...")
-            cmd_fresh = [gemini_path, '-p', prompt_input, '--yolo', '-o', 'json', '--policy', skills_dir]
-            result = subprocess.run(cmd_fresh, env=env, capture_output=True, text=True, cwd=BASE_DIR)
-            
-        # 3. If there was no clear trigger but we didn't get a valid JSON response, try fresh anyway
-        # (This handles cases where the error message might be slightly different)
-        elif result.returncode != 0 or not re.search(r'\{.*\}', result.stdout, re.DOTALL):
-            print("[DEBUG] No valid response/JSON, attempting fresh session as last resort...")
+        # If the resume call failed with that specific error, retry WITHOUT any session flags
+        if session_error:
+            # 2. Second Attempt: Fresh session (no session restoration)
             cmd_fresh = [gemini_path, '-p', prompt_input, '--yolo', '-o', 'json', '--policy', skills_dir]
             result = subprocess.run(cmd_fresh, env=env, capture_output=True, text=True, cwd=BASE_DIR)
             
         return result.stdout, result.stderr, result.returncode
     except FileNotFoundError:
-        return "", f"Gemini CLI tool '{gemini_path}' was not found. Please ensure it is installed and in your PATH.", 1
+        return "", f"Gemini CLI tool '{gemini_path}' was not found.", 1
     except Exception as e:
         return "", str(e), 1
 
@@ -170,7 +163,8 @@ async def background_gemini_task(prompt_text, env):
     
     # Process Results
     json_match = re.search(r'(\{.*\})', stdout_data, re.DOTALL)
-    if json_match and returncode == 0:
+    # Be more flexible: if we have JSON, use it, even if the exit code was non-zero (common for CLI warnings)
+    if json_match:
         json_str = json_match.group(1)
         try:
             parsed = json.loads(json_str)
