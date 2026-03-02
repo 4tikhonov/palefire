@@ -5,8 +5,8 @@ import json
 import os
 import re
 
-# Absolute paths for safe caching points back to the Footnotes extension dir
-BASE_DIR = '/Users/vyacheslavtykhonov/projects/footnotes'
+# Paths dynamically resolved relative to this backend.py script
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../footnotes'))
 CACHE_DIR = os.path.join(BASE_DIR, 'cache')
 CACHE_FILE = os.path.join(CACHE_DIR, 'history.json')
 
@@ -45,7 +45,7 @@ async def broadcast(message_dict):
 
 def run_gemini(prompt_input, env):
     # We try to use "-r latest" to preserve conversation history natively
-    skills_dir = '/Users/vyacheslavtykhonov/projects/palefire/backend/.agent/skills'
+    skills_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '.agent/skills'))
     cmd = ['/opt/homebrew/bin/gemini', '-p', prompt_input, '--yolo', '-o', 'json', '-r', 'latest', '--policy', skills_dir]
     try:
         result = subprocess.run(cmd, env=env, capture_output=True, text=True, cwd=BASE_DIR)

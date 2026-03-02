@@ -20,7 +20,7 @@ Pedotransfer Functions 	Model 	Mathematical 	Mathematical models used to infer c
 These variables represent the functional, engineering, and ecological capacities of the soil system.
 """
     
-    skills_dir = '/Users/vyacheslavtykhonov/projects/palefire/backend/.agent/skills'
+    skills_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '.agent/skills'))
     cmd = [
         '/opt/homebrew/bin/gemini',
         '-p', prompt,
