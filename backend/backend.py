@@ -91,14 +91,25 @@ def run_gemini(prompt_input, env):
     gemini_path = get_gemini_path(env)
     cmd = [gemini_path, '-p', prompt_input, '--yolo', '-o', 'json', '-r', 'latest', '--policy', skills_dir]
     try:
+        # 1. Attempt with session restoration
         result = subprocess.run(cmd, env=env, capture_output=True, text=True, cwd=BASE_DIR)
+        
         fallback_triggers = ["no sessions found", "no previous sessions found", "error resuming session"]
         combined_output = (result.stderr + result.stdout).lower()
         needs_fallback = any(trigger in combined_output for trigger in fallback_triggers)
         
+        # 2. Fallback if session restoration failed
         if needs_fallback:
-            cmd = [gemini_path, '-p', prompt_input, '--yolo', '-o', 'json', '--policy', skills_dir]
-            result = subprocess.run(cmd, env=env, capture_output=True, text=True, cwd=BASE_DIR)
+            print("[DEBUG] Session not found, starting fresh session...")
+            cmd_fresh = [gemini_path, '-p', prompt_input, '--yolo', '-o', 'json', '--policy', skills_dir]
+            result = subprocess.run(cmd_fresh, env=env, capture_output=True, text=True, cwd=BASE_DIR)
+            
+        # 3. If there was no clear trigger but we didn't get a valid JSON response, try fresh anyway
+        # (This handles cases where the error message might be slightly different)
+        elif result.returncode != 0 or not re.search(r'\{.*\}', result.stdout, re.DOTALL):
+            print("[DEBUG] No valid response/JSON, attempting fresh session as last resort...")
+            cmd_fresh = [gemini_path, '-p', prompt_input, '--yolo', '-o', 'json', '--policy', skills_dir]
+            result = subprocess.run(cmd_fresh, env=env, capture_output=True, text=True, cwd=BASE_DIR)
             
         return result.stdout, result.stderr, result.returncode
     except FileNotFoundError:
