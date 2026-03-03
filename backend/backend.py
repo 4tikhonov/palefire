@@ -172,11 +172,10 @@ async def background_gemini_task(prompt_text, env):
     stdout_data, stderr_data, returncode = await loop.run_in_executor(None, run_gemini, prompt_text, env)
     
     # Process Results
-    # Use re.DOTALL and search for the LAST json-like block to avoid banner noise
-    json_blocks = re.findall(r'(\{.*?\})', stdout_data, re.DOTALL)
-    if json_blocks:
-        # Take the last block which is most likely the actual response
-        json_str = json_blocks[-1]
+    # Use greedy search to find the outermost valid JSON object (from first { to last })
+    json_match = re.search(r'(\{.*\})', stdout_data, re.DOTALL)
+    if json_match:
+        json_str = json_match.group(1)
         try:
             parsed = json.loads(json_str)
             response_text = parsed.get("response", "No response parsed.")
