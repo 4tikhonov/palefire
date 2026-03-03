@@ -8,7 +8,10 @@ import shutil
 import sys
 
 # Paths dynamically resolved relative to this backend.py script
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../footnotes'))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+# Try to find 'footnotes' as a sibling (standard for the extension dev environment)
+FOOTNOTES_DIR = os.path.abspath(os.path.join(PROJECT_ROOT, '../footnotes'))
+BASE_DIR = FOOTNOTES_DIR if os.path.isdir(FOOTNOTES_DIR) else PROJECT_ROOT
 CACHE_DIR = os.path.join(BASE_DIR, 'cache')
 CACHE_FILE = os.path.join(CACHE_DIR, 'history.json')
 
@@ -87,8 +90,6 @@ async def broadcast(message_dict):
 
 def run_gemini(prompt_input, env):
     skills_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '.agent/skills'))
-    gemini_path = get_gemini_path(env)
-    
     # 1. First Attempt: Try to resume latest session
     cmd_resume = [gemini_path, '-p', prompt_input, '--yolo', '-o', 'json', '-r', 'latest', '--policy', skills_dir]
     try:
@@ -96,10 +97,11 @@ def run_gemini(prompt_input, env):
         
         # Check if it failed specifically because of session resume issues
         combined_output = (result.stderr + result.stdout).lower()
-        session_error = any(msg in combined_output for msg in ["no sessions found", "no previous sessions found", "error resuming session"])
+        session_triggers = ["no sessions found", "no previous sessions found", "error resuming session", "failed to resume"]
+        is_session_error = any(msg in combined_output for msg in session_triggers)
         
-        # If the resume call failed with that specific error, retry WITHOUT any session flags
-        if session_error:
+        # If the resume call failed with that specific error OR if we got an empty response
+        if is_session_error or (result.returncode != 0 and "response" not in result.stdout):
             # 2. Second Attempt: Fresh session (no session restoration)
             cmd_fresh = [gemini_path, '-p', prompt_input, '--yolo', '-o', 'json', '--policy', skills_dir]
             result = subprocess.run(cmd_fresh, env=env, capture_output=True, text=True, cwd=BASE_DIR)
@@ -301,16 +303,36 @@ async def keepalive_loop():
         await broadcast({'type': 'keepalive'})
 
 async def main():
-    print("Starting Pale Fire Footnotes JSON RPC Backend on ws://127.0.0.1:8775")
+    print(f"Starting Pale Fire Footnotes JSON RPC Backend on ws://127.0.0.1:8775 (CWD: {BASE_DIR})")
     
-    # Startup check for gemini CLI
+    # Startup check for gemini CLI with dynamic path expansion
     env = os.environ.copy()
-    env['PATH'] = env.get('PATH', '') + ':/opt/homebrew/bin:/usr/local/bin:/Users/vyacheslavtykhonov/.nvm/versions/node/v20.12.2/bin'
+    
+    node_bin_paths = []
+    if sys.platform == 'darwin':
+        node_bin_paths.append('/opt/homebrew/bin')
+    node_bin_paths.extend(['/usr/local/bin', os.path.expanduser('~/.npm-global/bin')])
+    
+    try:
+        nvm_dir = os.path.expanduser('~/.nvm/versions/node')
+        if os.path.isdir(nvm_dir):
+            versions = sorted(os.listdir(nvm_dir), reverse=True)
+            if versions:
+                node_bin_paths.append(os.path.join(nvm_dir, versions[0], 'bin'))
+    except:
+        pass
+
+    path_addition = ':'.join(p for p in node_bin_paths if os.path.isdir(p))
+    if path_addition:
+        env['PATH'] = env.get('PATH', '') + f':{path_addition}'
+        
     gemini_path = get_gemini_path(env)
-    if not shutil.which(gemini_path, path=env['PATH']):
-        print(f"\n[WARNING] 'gemini' CLI not found at path: {gemini_path}")
+    if not shutil.which(gemini_path, path=env['PATH']) and not os.path.exists(gemini_path):
+        print(f"\n[WARNING] 'gemini' CLI not found. Resolved path attempted: {gemini_path}")
         print("Please ensure you have installed the gemini CLI and it is accessible in your environment.")
         print("The extension will not function correctly until the CLI is available.\n")
+    else:
+        print(f"Gemini CLI found at: {shutil.which(gemini_path, path=env['PATH']) or gemini_path}")
         
     # Start the keepalive loop in the background
     asyncio.create_task(keepalive_loop())
