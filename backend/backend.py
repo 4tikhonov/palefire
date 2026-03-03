@@ -90,27 +90,35 @@ async def broadcast(message_dict):
 
 def run_gemini(prompt_input, env):
     skills_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '.agent/skills'))
-    # 1. First Attempt: Try to resume latest session
+    gemini_path = get_gemini_path(env)
+    
+    # 1. Attempt with session restoration
     cmd_resume = [gemini_path, '-p', prompt_input, '--yolo', '-o', 'json', '-r', 'latest', '--policy', skills_dir]
     try:
+        print(f"[DEBUG] CLI Call (Attempt 1): {' '.join(cmd_resume)}")
         result = subprocess.run(cmd_resume, env=env, capture_output=True, text=True, cwd=BASE_DIR)
         
-        # Check if it failed specifically because of session resume issues
+        # Check for ANY signs of session resume failure
         combined_output = (result.stderr + result.stdout).lower()
-        session_triggers = ["no sessions found", "no previous sessions found", "error resuming session", "failed to resume"]
-        is_session_error = any(msg in combined_output for msg in session_triggers)
+        needs_fallback = any(msg in combined_output for msg in [
+            "no sessions found", "no previous sessions found", 
+            "error resuming session", "failed to resume", 
+            "no session"
+        ])
         
-        # If the resume call failed with that specific error OR if we got an empty response
-        if is_session_error or (result.returncode != 0 and "response" not in result.stdout):
-            # 2. Second Attempt: Fresh session (no session restoration)
+        # If the resume call failed OR didn't produce JSON
+        if needs_fallback or (result.returncode != 0 and "response" not in result.stdout) or not re.search(r'\{.*\}', result.stdout, re.DOTALL):
+            print("[DEBUG] Session restoration failed or invalid output, falling back to fresh session...")
+            # 2. Fresh session (no session restoration)
             cmd_fresh = [gemini_path, '-p', prompt_input, '--yolo', '-o', 'json', '--policy', skills_dir]
+            print(f"[DEBUG] CLI Call (Attempt 2 - Fresh): {' '.join(cmd_fresh)}")
             result = subprocess.run(cmd_fresh, env=env, capture_output=True, text=True, cwd=BASE_DIR)
             
         return result.stdout, result.stderr, result.returncode
     except FileNotFoundError:
-        return "", f"Gemini CLI tool '{gemini_path}' was not found.", 1
+        return "", f"Gemini CLI tool '{gemini_path}' was not found. Please ensure it is installed and in your PATH.", 1
     except Exception as e:
-        return "", str(e), 1
+        return "", f"Execution error: {str(e)}", 1
 
 async def background_gemini_task(prompt_text, env):
     loop = asyncio.get_event_loop()
@@ -164,10 +172,11 @@ async def background_gemini_task(prompt_text, env):
     stdout_data, stderr_data, returncode = await loop.run_in_executor(None, run_gemini, prompt_text, env)
     
     # Process Results
-    json_match = re.search(r'(\{.*\})', stdout_data, re.DOTALL)
-    # Be more flexible: if we have JSON, use it, even if the exit code was non-zero (common for CLI warnings)
-    if json_match:
-        json_str = json_match.group(1)
+    # Use re.DOTALL and search for the LAST json-like block to avoid banner noise
+    json_blocks = re.findall(r'(\{.*?\})', stdout_data, re.DOTALL)
+    if json_blocks:
+        # Take the last block which is most likely the actual response
+        json_str = json_blocks[-1]
         try:
             parsed = json.loads(json_str)
             response_text = parsed.get("response", "No response parsed.")
