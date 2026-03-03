@@ -139,6 +139,50 @@ async def background_gemini_task(prompt_text, env):
                 except Exception as e:
                     print(f"Failed to read transcript cache: {e}")
 
+            metadata_cache_file = os.path.join(CACHE_DIR, f'metadata_{video_id}.json')
+            video_metadata = None
+            if os.path.exists(metadata_cache_file):
+                try:
+                    with open(metadata_cache_file, 'r', encoding='utf-8') as f:
+                        video_metadata = json.load(f)
+                    print(f"Loaded metadata for {video_id} from cache.")
+                except Exception:
+                    pass
+
+            if not video_metadata:
+                try:
+                    # Fetch basic metadata via oEmbed
+                    oembed_url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
+                    with urllib.request.urlopen(oembed_url) as resp:
+                        video_metadata = json.loads(resp.read().decode())
+                    
+                    # Try to fetch additional metadata (description) from script tags if possible, 
+                    # but for now oEmbed is a safe start for title/author.
+                    # We can also add a placeholder for description if oEmbed doesn't provide it.
+                    if video_metadata:
+                        # Try to get description which oEmbed doesn't provide
+                        try:
+                            watch_url = f"https://www.youtube.com/watch?v={video_id}"
+                            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+                            req = urllib.request.Request(watch_url, headers=headers)
+                            with urllib.request.urlopen(req) as watch_resp:
+                                html = watch_resp.read().decode('utf-8', errors='ignore')
+                                # Look for <meta name="description" content="...">
+                                desc_match = re.search(r'<meta name="description" content="([^"]*)">', html)
+                                if desc_match:
+                                    video_metadata['description'] = desc_match.group(1)
+                        except Exception as desc_e:
+                            print(f"Failed to fetch video description: {desc_e}")
+
+                        with open(metadata_cache_file, 'w', encoding='utf-8') as f:
+                            json.dump(video_metadata, f)
+                except Exception as e:
+                    print(f"Failed to fetch video metadata: {e}")
+
+            metadata_context = ""
+            if video_metadata:
+                metadata_context = f"\n[VIDEO METADATA]:\nTitle: {video_metadata.get('title')}\nAuthor: {video_metadata.get('author_name')}\nProvider: {video_metadata.get('provider_name')}\nURL: https://www.youtube.com/watch?v={video_id}\nDescription: {video_metadata.get('description', 'N/A')}\n"
+
             if not transcript_text:
                 try:
                     from youtube_transcript_api import YouTubeTranscriptApi
@@ -166,7 +210,9 @@ async def background_gemini_task(prompt_text, env):
                     prompt_text = f"{prompt_text}\n\n[FAILED TO INJECT YOUTUBE TRANSCRIPT]: {str(e)}"
             
             if transcript_text:
-                prompt_text = f"{prompt_text}\n\nYou MUST use this extracted video transcript as the canonical content of the video:\n[YOUTUBE TRANSCRIPT]:\n{transcript_text}"
+                prompt_text = f"{prompt_text}\n{metadata_context}\nYou MUST use this extracted video transcript as the canonical content of the video:\n[YOUTUBE TRANSCRIPT]:\n{transcript_text}"
+            elif metadata_context:
+                prompt_text = f"{prompt_text}\n{metadata_context}"
     
     # Execute blocking operation in an executor so the event loop remains unblocked
     stdout_data, stderr_data, returncode = await loop.run_in_executor(None, run_gemini, prompt_text, env)
