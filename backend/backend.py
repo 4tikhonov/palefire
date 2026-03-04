@@ -257,7 +257,10 @@ async def background_inference_task(prompt_text, env, provider_name='ollama', mo
             
     # Add instruction for exhaustive variable extraction (CDIF Expert behavior)
     if "variable" in prompt_text.lower() or "cdif" in prompt_text.lower() or "measurement" in prompt_text.lower() or web_content:
-        prompt_text += "\n\nMANDATORY INSTRUCTION: You are acting as a CDIF (Cross-Domain Integration Framework) and Data Extraction Expert. Your task is to extract and show ALL variables, numerical measurements, qualitative attributes, geolocation coordinates, and timespatial data found in the provided context WITHOUT EXCEPTION. List every single data point in a detailed Markdown table with columns: Name, Value, Unit, and Context. Do not summarize, do not truncate, and do not provide placeholders. Every variable found must be included."
+        prompt_text += "\n\nMANDATORY INSTRUCTION: You are acting as a CDIF (Cross-Domain Integration Framework) and Data Extraction Expert. Your task is to extract and show ALL variables, numerical measurements, qualitative attributes, geolocation coordinates, and timespatial data found in the provided context WITHOUT EXCEPTION. "
+        prompt_text += "You MUST present the data in a Markdown table with exactly these columns: Name, Value, Unit, and Context. "
+        prompt_text += "CRITICAL: For every variable, if the unit of measurement is not explicitly mentioned in the text, you MUST PREDICT the most likely unit based on the context (e.g., 'µg/m³' for PM2.5, '%' for humidity, '°C' for temperature). "
+        prompt_text += "Do not summarize, do not truncate, and do not provide placeholders. Every single variable or data point found must be included in the table."
 
     
     # Check if prompt contains youtube URL
