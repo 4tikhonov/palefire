@@ -232,12 +232,12 @@ async def background_inference_task(prompt_text, env, provider_name='ollama', mo
     url_match = re.search(r'(https?://[^\s]+)', prompt_text)
     is_youtube = "youtube.com" in prompt_text or "youtu.be" in prompt_text
     
+    web_content = None
     if url_match and not is_youtube:
         target_url = url_match.group(1)
         url_hash = hashlib.md5(target_url.encode()).hexdigest()
         cache_path = os.path.join(CACHE_DIR, f"web_{url_hash}.txt")
         
-        web_content = None
         if os.path.exists(cache_path):
             try:
                 with open(cache_path, 'r', encoding='utf-8') as f:
@@ -252,8 +252,12 @@ async def background_inference_task(prompt_text, env, provider_name='ollama', mo
                 with open(cache_path, 'w', encoding='utf-8') as f:
                     f.write(web_content)
         
-        if web_content:
-            prompt_text = f"{prompt_text}\n\n[WEBSITE CONTENT FROM {target_url}]:\n{web_content}"
+    if web_content:
+        prompt_text = f"{prompt_text}\n\n[WEBSITE CONTENT FROM {target_url}]:\n{web_content}\n\n"
+            
+    # Add instruction for exhaustive variable extraction (CDIF Expert behavior)
+    if "variable" in prompt_text.lower() or "cdif" in prompt_text.lower() or "measurement" in prompt_text.lower() or web_content:
+        prompt_text += "\n\nMANDATORY INSTRUCTION: You are acting as a CDIF (Cross-Domain Integration Framework) and Data Extraction Expert. Your task is to extract and show ALL variables, numerical measurements, qualitative attributes, geolocation coordinates, and timespatial data found in the provided context WITHOUT EXCEPTION. List every single data point in a detailed Markdown table with columns: Name, Value, Unit, and Context. Do not summarize, do not truncate, and do not provide placeholders. Every variable found must be included."
 
     
     # Check if prompt contains youtube URL
