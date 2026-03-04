@@ -90,7 +90,7 @@ global_state = {
     'clients': set(),
     'pages': [],
     'inference_provider': 'ollama',
-    'model_name': 'gpt-oss:20b'
+    'model_name': 'gemma3:27b'
 }
 
 providers = {
@@ -192,7 +192,7 @@ def run_gemini(prompt_input, env):
     except Exception as e:
         return "", f"Execution error: {str(e)}", 1
 
-async def background_inference_task(prompt_text, env, provider_name='ollama', model_name='gpt-oss:20b'):
+async def background_inference_task(prompt_text, env, provider_name='ollama', model_name='gemma3:27b'):
     loop = asyncio.get_event_loop()
     
     # Check if prompt contains youtube URL
