@@ -8,6 +8,8 @@ import shutil
 import sys
 import urllib.request
 import requests
+from bs4 import BeautifulSoup
+import hashlib
 
 # Paths dynamically resolved relative to this backend.py script
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -192,8 +194,67 @@ def run_gemini(prompt_input, env):
     except Exception as e:
         return "", f"Execution error: {str(e)}", 1
 
+def scrape_url(url):
+    """Fetch URL and extract main text content using BeautifulSoup."""
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        print(f"[DEBUG] Scraping URL: {url}")
+        response = requests.get(url, headers=headers, timeout=15)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Remove script and style elements
+        for script in soup(["script", "style", "nav", "footer", "header"]):
+            script.extract()
+
+        # Get text
+        text = soup.get_text(separator=' ')
+        
+        # Break into lines and remove leading and trailing whitespace
+        lines = (line.strip() for line in text.splitlines())
+        # Break multi-headlines into a line each
+        chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+        # Drop blank lines
+        text = '\n'.join(chunk for chunk in chunks if chunk)
+        
+        return text[:50000] # Limit to ~50k characters
+    except Exception as e:
+        print(f"[ERROR] Failed to scrape {url}: {e}")
+        return None
+
 async def background_inference_task(prompt_text, env, provider_name='ollama', model_name='gemma3:27b'):
     loop = asyncio.get_event_loop()
+    
+    # URL Detection (excluding already handled youtube)
+    url_match = re.search(r'(https?://[^\s]+)', prompt_text)
+    is_youtube = "youtube.com" in prompt_text or "youtu.be" in prompt_text
+    
+    if url_match and not is_youtube:
+        target_url = url_match.group(1)
+        url_hash = hashlib.md5(target_url.encode()).hexdigest()
+        cache_path = os.path.join(CACHE_DIR, f"web_{url_hash}.txt")
+        
+        web_content = None
+        if os.path.exists(cache_path):
+            try:
+                with open(cache_path, 'r', encoding='utf-8') as f:
+                    web_content = f.read()
+                print(f"[DEBUG] Loaded {target_url} from cache.")
+            except: pass
+            
+        if not web_content:
+            web_content = await loop.run_in_executor(None, scrape_url, target_url)
+            if web_content:
+                if not os.path.exists(CACHE_DIR): os.makedirs(CACHE_DIR)
+                with open(cache_path, 'w', encoding='utf-8') as f:
+                    f.write(web_content)
+        
+        if web_content:
+            prompt_text = f"{prompt_text}\n\n[WEBSITE CONTENT FROM {target_url}]:\n{web_content}"
+
     
     # Check if prompt contains youtube URL
     if "youtube.com/watch" in prompt_text or "youtu.be/" in prompt_text:
