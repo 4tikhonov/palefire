@@ -1,5 +1,7 @@
 # Pale Fire - Intelligent Knowledge Graph Search System
-This framework is being developed by [Slava Tykhonov](https://www.linkedin.com/in/vyacheslavtikhonov/) and highly experimental.
+This framework is being developed by [Slava Tykhonov](https://www.linkedin.com/in/vyacheslavtikhonov/) and is highly experimental.
+
+**Pale Fire is hosted by [AgStack](https://agstack.org/) of the [Linux Foundation](https://www.linuxfoundation.org/).**
 
 > Named after Vladimir Nabokov's novel ["Pale Fire"](https://en.wikipedia.org/wiki/Pale_Fire), where a poem becomes the subject of extensive commentary and interpretation—just like how this system builds a rich knowledge graph from text and enables intelligent exploration through questions. 
 
