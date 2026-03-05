@@ -31,7 +31,7 @@ make setup
     ```bash
     pip install -r requirements.txt
     python -m spacy download en_core_web_sm
-    pip install gensim>=4.3.0
+    pip install gensim>=4.3.0 websockets youtube-transcript-api
     ```
 2.  **Configuration**:
     ```bash
