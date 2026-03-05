@@ -82,25 +82,20 @@ make query
 
 See **[docs/DOCKER.md](docs/DOCKER.md)** for complete Docker documentation.
 
-## Ollama Installation
+## Inference Engine
+
+Pale Fire supports multiple inference providers for intelligent exploration and data extraction.
+
+### Ollama (Local)
 
 Ollama is used as the default LLM provider for local inference and RAG capabilities.
 
-### macOS
-- **Download Executable**: [ollama.com/download/mac](https://ollama.com/download/mac)
-- **Homebrew**: `brew install ollama`
+**Installation**:
+- **macOS**: `brew install ollama` or download from [ollama.com](https://ollama.com/download/mac)
+- **Windows**: Download from [ollama.com](https://ollama.com/download/windows)
+- **Linux**: `curl -fsSL https://ollama.com/install.sh | sh`
 
-### Windows
-- **Download Installer**: [ollama.com/download/windows](https://ollama.com/download/windows)
-
-### Linux
-- **One-line Installation**:
-  ```bash
-  curl -fsSL https://ollama.com/install.sh | sh
-  ```
-
-### Pull Required Models
-After installation, pull the models used by Pale Fire:
+**Pull Required Models**:
 ```bash
 # Default model for inference
 ollama pull gemma3:27b
@@ -108,6 +103,26 @@ ollama pull gemma3:27b
 # Alternative models
 ollama pull deepseek-r1:7b
 ```
+
+### Google Gemini (AI Footnotes)
+
+The Gemini CLI provides cloud-based inference with support for agent skills and session restoration.
+
+**Installation**:
+Requires [Node.js](https://nodejs.org/) to be installed.
+```bash
+npm install -g gemini-chat-cli
+```
+
+**Configuration**:
+1. Obtain an API key from [Google AI Studio](https://aistudio.google.com/).
+2. Set the `GOOGLE_API_KEY` environment variable:
+   ```bash
+   export GOOGLE_API_KEY="your_api_key_here"
+   ```
+
+**Browser Extension Interop**: 
+The backend automatically detects the `gemini` binary in your PATH or at common locations like `/opt/homebrew/bin/gemini`.
 
 ## CLI Usage
 
