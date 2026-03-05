@@ -5,6 +5,35 @@ This framework is being developed by [Slava Tykhonov](https://www.linkedin.com/i
 
 "The novel is presented as a 999-line poem, written by the fictional poet John Shade, with a foreword, lengthy commentary, and index written by Shade's neighbor and academic colleague, Charles Kinbote. Together these elements form a narrative in which both fictional authors are central characters. Pale Fire's unusual structure has attracted much attention, and it is often cited as an important example of metafiction, as well as an analog precursor to hypertext fiction, and a poioumenon."
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Example](#example)
+- [Quick Start](#quick-start)
+- [Inference Engine](#inference-engine)
+- [CLI Usage](#cli-usage)
+- [API Usage](#api-usage)
+- [Features](#features)
+- [CLI Commands](#cli-commands)
+- [Episode File Format](#episode-file-format)
+- [Architecture](#architecture)
+- [5-Factor Ranking System](#5-factor-ranking-system)
+- [Question Types](#question-types)
+- [Entity Types](#entity-types)
+- [Configuration](#configuration)
+- [Examples](#examples)
+- [Documentation](#documentation)
+- [Testing](#testing)
+- [Requirements](#requirements)
+- [Performance](#performance)
+- [Troubleshooting](#troubleshooting)
+- [Best Practices](#best-practices)
+- [AI Agent Daemon](#ai-agent-daemon)
+- [Future Enhancements](#future-enhancements)
+- [Contributing](#contributing)
+- [License](#license)
+- [Support](#support)
+
 ## Example
 
 Pale Fire can transform factually correct and evidence-confirmed data points from research datasets into human-readable descriptions based on annotations created by querying knowledge graphs on event entities and LLM integration of new knowledge into understandable narratives. In opposite, it can turn back any human-readable annotation to factually correct data points and link the provenance information as reference.
