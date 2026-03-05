@@ -82,7 +82,34 @@ make query
 
 See **[docs/DOCKER.md](docs/DOCKER.md)** for complete Docker documentation.
 
-### CLI Usage
+## Ollama Installation
+
+Ollama is used as the default LLM provider for local inference and RAG capabilities.
+
+### macOS
+- **Download Executable**: [ollama.com/download/mac](https://ollama.com/download/mac)
+- **Homebrew**: `brew install ollama`
+
+### Windows
+- **Download Installer**: [ollama.com/download/windows](https://ollama.com/download/windows)
+
+### Linux
+- **One-line Installation**:
+  ```bash
+  curl -fsSL https://ollama.com/install.sh | sh
+  ```
+
+### Pull Required Models
+After installation, pull the models used by Pale Fire:
+```bash
+# Default model for inference
+ollama pull gemma3:27b
+
+# Alternative models
+ollama pull deepseek-r1:7b
+```
+
+## CLI Usage
 
 ```bash
 # 1. Install dependencies
@@ -107,7 +134,7 @@ python palefire-cli.py ingest --demo
 python palefire-cli.py query "Who was the California Attorney General in 2020?"
 ```
 
-### API Usage
+## API Usage
 
 ```bash
 # 1. Install dependencies
@@ -594,6 +621,8 @@ See:
 - `spacy>=3.7.0` - Named Entity Recognition (optional but recommended)
 - `fastapi>=0.104.0` - API framework
 - `uvicorn[standard]>=0.24.0` - ASGI server
+- `websockets>=12.0` - WebSocket server for browser integration
+- `youtube-transcript-api>=0.6.0` - YouTube transcript extraction
 - `pydantic>=2.5.0` - Data validation
 
 ### Optional Dependencies
@@ -615,6 +644,8 @@ See:
 - graphiti-core
 - python-dotenv
 - Neo4j database
+- websockets>=12.0
+- youtube-transcript-api>=0.6.0
 - gensim>=4.3.0 (for keyword extraction)
 
 **NER (Optional but Recommended):**
