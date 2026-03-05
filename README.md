@@ -1,9 +1,40 @@
 # Pale Fire - Intelligent Knowledge Graph Search System
-This framework is being developed by [Slava Tykhonov](https://www.linkedin.com/in/vyacheslavtikhonov/) and highly experimental.
+This framework is being developed by [Slava Tykhonov](https://www.linkedin.com/in/vyacheslavtikhonov/) and is highly experimental.
+
+**Pale Fire is hosted by [AgStack](https://agstack.org/) of the [Linux Foundation](https://www.linuxfoundation.org/).**
 
 > Named after Vladimir Nabokov's novel ["Pale Fire"](https://en.wikipedia.org/wiki/Pale_Fire), where a poem becomes the subject of extensive commentary and interpretation—just like how this system builds a rich knowledge graph from text and enables intelligent exploration through questions. 
 
 "The novel is presented as a 999-line poem, written by the fictional poet John Shade, with a foreword, lengthy commentary, and index written by Shade's neighbor and academic colleague, Charles Kinbote. Together these elements form a narrative in which both fictional authors are central characters. Pale Fire's unusual structure has attracted much attention, and it is often cited as an important example of metafiction, as well as an analog precursor to hypertext fiction, and a poioumenon."
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Example](#example)
+- [Quick Start](#quick-start)
+- [Inference Engine](#inference-engine)
+- [CLI Usage](#cli-usage)
+- [API Usage](#api-usage)
+- [Features](#features)
+- [CLI Commands](#cli-commands)
+- [Episode File Format](#episode-file-format)
+- [Architecture](#architecture)
+- [5-Factor Ranking System](#5-factor-ranking-system)
+- [Question Types](#question-types)
+- [Entity Types](#entity-types)
+- [Configuration](#configuration)
+- [Examples](#examples)
+- [Documentation](#documentation)
+- [Testing](#testing)
+- [Requirements](#requirements)
+- [Performance](#performance)
+- [Troubleshooting](#troubleshooting)
+- [Best Practices](#best-practices)
+- [AI Agent Daemon](#ai-agent-daemon)
+- [Future Enhancements](#future-enhancements)
+- [Contributing](#contributing)
+- [License](#license)
+- [Support](#support)
 
 ## Example
 
@@ -82,7 +113,49 @@ make query
 
 See **[docs/DOCKER.md](docs/DOCKER.md)** for complete Docker documentation.
 
-### CLI Usage
+## Inference Engine
+
+Pale Fire supports multiple inference providers for intelligent exploration and data extraction.
+
+### Ollama (Local)
+
+Ollama is used as the default LLM provider for local inference and RAG capabilities.
+
+**Installation**:
+- **macOS**: `brew install ollama` or download from [ollama.com](https://ollama.com/download/mac)
+- **Windows**: Download from [ollama.com](https://ollama.com/download/windows)
+- **Linux**: `curl -fsSL https://ollama.com/install.sh | sh`
+
+**Pull Required Models**:
+```bash
+# Default model for inference
+ollama pull gemma3:27b
+
+# Alternative models
+ollama pull deepseek-r1:7b
+```
+
+### Google Gemini (AI Footnotes)
+
+The Gemini CLI provides cloud-based inference with support for agent skills and session restoration.
+
+**Installation**:
+Requires [Node.js](https://nodejs.org/) to be installed.
+```bash
+npm install -g gemini-chat-cli
+```
+
+**Configuration**:
+1. Obtain an API key from [Google AI Studio](https://aistudio.google.com/).
+2. Set the `GOOGLE_API_KEY` environment variable:
+   ```bash
+   export GOOGLE_API_KEY="your_api_key_here"
+   ```
+
+**Browser Extension Interop**: 
+The backend automatically detects the `gemini` binary in your PATH or at common locations like `/opt/homebrew/bin/gemini`.
+
+## CLI Usage
 
 ```bash
 # 1. Install dependencies
@@ -107,7 +180,7 @@ python palefire-cli.py ingest --demo
 python palefire-cli.py query "Who was the California Attorney General in 2020?"
 ```
 
-### API Usage
+## API Usage
 
 ```bash
 # 1. Install dependencies
@@ -594,6 +667,8 @@ See:
 - `spacy>=3.7.0` - Named Entity Recognition (optional but recommended)
 - `fastapi>=0.104.0` - API framework
 - `uvicorn[standard]>=0.24.0` - ASGI server
+- `websockets>=12.0` - WebSocket server for browser integration
+- `youtube-transcript-api>=0.6.0` - YouTube transcript extraction
 - `pydantic>=2.5.0` - Data validation
 
 ### Optional Dependencies
@@ -615,6 +690,8 @@ See:
 - graphiti-core
 - python-dotenv
 - Neo4j database
+- websockets>=12.0
+- youtube-transcript-api>=0.6.0
 - gensim>=4.3.0 (for keyword extraction)
 
 **NER (Optional but Recommended):**

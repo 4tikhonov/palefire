@@ -6,16 +6,83 @@ import os
 import re
 import shutil
 import sys
+import urllib.request
+import requests
+from bs4 import BeautifulSoup
+import hashlib
 
 # Paths dynamically resolved relative to this backend.py script
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-# Try to find 'footnotes' as a sibling (standard for the extension dev environment)
 FOOTNOTES_DIR = os.path.abspath(os.path.join(PROJECT_ROOT, '../footnotes'))
 BASE_DIR = FOOTNOTES_DIR if os.path.isdir(FOOTNOTES_DIR) else PROJECT_ROOT
 CACHE_DIR = os.path.join(BASE_DIR, 'cache')
 CACHE_FILE = os.path.join(CACHE_DIR, 'history.json')
 
-# Global State to persist across client reconnects
+OLLAMA_HOST = "http://10.147.18.114:11434"
+
+# ============================================================================
+# LLM Interoperability Layer
+# ============================================================================
+
+class LLMProvider:
+    async def generate(self, prompt, model, env=None):
+        raise NotImplementedError
+
+class GeminiCLIProvider(LLMProvider):
+    async def generate(self, prompt, model, env=None):
+        loop = asyncio.get_event_loop()
+        stdout, stderr, code = await loop.run_in_executor(None, run_gemini, prompt, env)
+        
+        # Process Results
+        json_match = re.search(r'(\{.*\})', stdout, re.DOTALL)
+        if json_match:
+            try:
+                parsed = json.loads(json_match.group(1))
+                return parsed.get("response", "No response parsed."), None
+            except:
+                pass
+        
+        if code == 0 and stdout:
+            return stdout.strip(), None
+        return None, stderr if stderr else stdout
+
+class OllamaProvider(LLMProvider):
+    def __init__(self, host=OLLAMA_HOST):
+        self.host = host
+
+    async def generate(self, prompt, model, env=None):
+        # Try OpenAI-compatible endpoint first for better interoperability
+        url = f"{self.host}/v1/chat/completions"
+        payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": False
+        }
+        
+        try:
+            print(f"[DEBUG] Ollama (OpenAI-compat) Call: {model} at {self.host}")
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(None, lambda: requests.post(url, json=payload, timeout=120))
+            
+            if response.status_code == 200:
+                data = response.json()
+                return data['choices'][0]['message']['content'], None
+            
+            # Fallback to native Ollama API if OpenAI endpoint fails
+            print(f"[DEBUG] OpenAI-compat failed ({response.status_code}), trying native /api/generate...")
+            native_url = f"{self.host}/api/generate"
+            native_payload = {"model": model, "prompt": prompt, "stream": False}
+            
+            native_resp = await loop.run_in_executor(None, lambda: requests.post(native_url, json=native_payload, timeout=120))
+            if native_resp.status_code == 200:
+                return native_resp.json().get("response", ""), None
+            
+            return None, f"Ollama Error ({native_resp.status_code}): {native_resp.text}"
+            
+        except Exception as e:
+            return None, f"Ollama Connection Error: {str(e)}"
+
+# Global State
 global_state = {
     'task': None,
     'prompt': None,
@@ -23,7 +90,14 @@ global_state = {
     'result_data': None,
     'is_delivered': True,
     'clients': set(),
-    'pages': []
+    'pages': [],
+    'inference_provider': 'ollama',
+    'model_name': 'gemma3:27b'
+}
+
+providers = {
+    'gemini': GeminiCLIProvider(),
+    'ollama': OllamaProvider()
 }
 
 def load_cache():
@@ -120,8 +194,74 @@ def run_gemini(prompt_input, env):
     except Exception as e:
         return "", f"Execution error: {str(e)}", 1
 
-async def background_gemini_task(prompt_text, env):
+def scrape_url(url):
+    """Fetch URL and extract main text content using BeautifulSoup."""
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        print(f"[DEBUG] Scraping URL: {url}")
+        response = requests.get(url, headers=headers, timeout=15)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Remove script and style elements
+        for script in soup(["script", "style", "nav", "footer", "header"]):
+            script.extract()
+
+        # Get text
+        text = soup.get_text(separator=' ')
+        
+        # Break into lines and remove leading and trailing whitespace
+        lines = (line.strip() for line in text.splitlines())
+        # Break multi-headlines into a line each
+        chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+        # Drop blank lines
+        text = '\n'.join(chunk for chunk in chunks if chunk)
+        
+        return text[:50000] # Limit to ~50k characters
+    except Exception as e:
+        print(f"[ERROR] Failed to scrape {url}: {e}")
+        return None
+
+async def background_inference_task(prompt_text, env, provider_name='ollama', model_name='gemma3:27b'):
     loop = asyncio.get_event_loop()
+    
+    # URL Detection (excluding already handled youtube)
+    url_match = re.search(r'(https?://[^\s]+)', prompt_text)
+    is_youtube = "youtube.com" in prompt_text or "youtu.be" in prompt_text
+    
+    web_content = None
+    if url_match and not is_youtube:
+        target_url = url_match.group(1)
+        url_hash = hashlib.md5(target_url.encode()).hexdigest()
+        cache_path = os.path.join(CACHE_DIR, f"web_{url_hash}.txt")
+        
+        if os.path.exists(cache_path):
+            try:
+                with open(cache_path, 'r', encoding='utf-8') as f:
+                    web_content = f.read()
+                print(f"[DEBUG] Loaded {target_url} from cache.")
+            except: pass
+            
+        if not web_content:
+            web_content = await loop.run_in_executor(None, scrape_url, target_url)
+            if web_content:
+                if not os.path.exists(CACHE_DIR): os.makedirs(CACHE_DIR)
+                with open(cache_path, 'w', encoding='utf-8') as f:
+                    f.write(web_content)
+        
+    if web_content:
+        prompt_text = f"{prompt_text}\n\n[WEBSITE CONTENT FROM {target_url}]:\n{web_content}\n\n"
+            
+    # Add instruction for exhaustive variable extraction (CDIF Expert behavior)
+    if "variable" in prompt_text.lower() or "cdif" in prompt_text.lower() or "measurement" in prompt_text.lower() or web_content:
+        prompt_text += "\n\nMANDATORY INSTRUCTION: You are acting as a CDIF (Cross-Domain Integration Framework) and Data Extraction Expert. Your task is to extract and show ALL variables, numerical measurements, qualitative attributes, geolocation coordinates, and timespatial data found in the provided context WITHOUT EXCEPTION. "
+        prompt_text += "You MUST present the data in a Markdown table with exactly these columns: Name, Value, Unit, and Context. "
+        prompt_text += "CRITICAL: For every variable, if the unit of measurement is not explicitly mentioned in the text, you MUST PREDICT the most likely unit based on the context (e.g., 'µg/m³' for PM2.5, '%' for humidity, '°C' for temperature). "
+        prompt_text += "Do not summarize, do not truncate, and do not provide placeholders. Every single variable or data point found must be included in the table."
+
     
     # Check if prompt contains youtube URL
     if "youtube.com/watch" in prompt_text or "youtu.be/" in prompt_text:
@@ -151,23 +291,19 @@ async def background_gemini_task(prompt_text, env):
 
             if not video_metadata:
                 try:
+                    import urllib.request
                     # Fetch basic metadata via oEmbed
                     oembed_url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
                     with urllib.request.urlopen(oembed_url) as resp:
                         video_metadata = json.loads(resp.read().decode())
                     
-                    # Try to fetch additional metadata (description) from script tags if possible, 
-                    # but for now oEmbed is a safe start for title/author.
-                    # We can also add a placeholder for description if oEmbed doesn't provide it.
                     if video_metadata:
-                        # Try to get description which oEmbed doesn't provide
                         try:
                             watch_url = f"https://www.youtube.com/watch?v={video_id}"
-                            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+                            headers = {'User-Agent': 'Mozilla/5.0'}
                             req = urllib.request.Request(watch_url, headers=headers)
                             with urllib.request.urlopen(req) as watch_resp:
                                 html = watch_resp.read().decode('utf-8', errors='ignore')
-                                # Look for <meta name="description" content="...">
                                 desc_match = re.search(r'<meta name="description" content="([^"]*)">', html)
                                 if desc_match:
                                     video_metadata['description'] = desc_match.group(1)
@@ -181,7 +317,7 @@ async def background_gemini_task(prompt_text, env):
 
             metadata_context = ""
             if video_metadata:
-                metadata_context = f"\n[VIDEO METADATA]:\nTitle: {video_metadata.get('title')}\nAuthor: {video_metadata.get('author_name')}\nProvider: {video_metadata.get('provider_name')}\nURL: https://www.youtube.com/watch?v={video_id}\nDescription: {video_metadata.get('description', 'N/A')}\n"
+                metadata_context = f"\n[VIDEO METADATA]:\nTitle: {video_metadata.get('title')}\nAuthor: {video_metadata.get('author_name')}\nDescription: {video_metadata.get('description', 'N/A')}\n"
 
             if not transcript_text:
                 try:
@@ -190,22 +326,17 @@ async def background_gemini_task(prompt_text, env):
                     try:
                         transcript_obj = t_list.find_transcript(['en'])
                     except Exception:
-                        # Fallback to the first available transcript
                         for t in t_list:
                             transcript_obj = t
                             break
                     fetched = transcript_obj.fetch()
-                    # Text attribute requires dict access in older version but objects in newer versions. 
-                    # Let's handle both gracefully:
                     transcript_text = " ".join([t['text'] if isinstance(t, dict) else t.text for t in fetched])
-                    transcript_text = transcript_text[:30000] # Limit to ~10k words
+                    transcript_text = transcript_text[:30000]
                     
-                    # Save to cache
                     if not os.path.exists(CACHE_DIR):
                         os.makedirs(CACHE_DIR)
                     with open(transcript_cache_file, 'w', encoding='utf-8') as f:
                         f.write(transcript_text)
-                    print(f"Saved transcript for {video_id} to cache.")
                 except Exception as e:
                     prompt_text = f"{prompt_text}\n\n[FAILED TO INJECT YOUTUBE TRANSCRIPT]: {str(e)}"
             
@@ -214,31 +345,18 @@ async def background_gemini_task(prompt_text, env):
             elif metadata_context:
                 prompt_text = f"{prompt_text}\n{metadata_context}"
     
-    # Execute blocking operation in an executor so the event loop remains unblocked
-    stdout_data, stderr_data, returncode = await loop.run_in_executor(None, run_gemini, prompt_text, env)
+    # Execute via the selected provider
+    print(f"[DEBUG] Executing inference via {provider_name} ({model_name})")
+    provider = providers.get(provider_name, providers['ollama'])
     
-    # Process Results
-    # Use greedy search to find the outermost valid JSON object (from first { to last })
-    json_match = re.search(r'(\{.*\})', stdout_data, re.DOTALL)
-    if json_match:
-        json_str = json_match.group(1)
-        try:
-            parsed = json.loads(json_str)
-            response_text = parsed.get("response", "No response parsed.")
-            
-            global_state['result_type'] = 'response'
-            global_state['result_data'] = response_text
-        except json.JSONDecodeError:
-            global_state['result_type'] = 'error'
-            global_state['result_data'] = f"Failed to parse JSON response: {json_str[:200]}..."
+    response_text, error_msg = await provider.generate(prompt_text, model_name, env)
+    
+    if response_text:
+        global_state['result_type'] = 'response'
+        global_state['result_data'] = response_text
     else:
-        err_msg = stderr_data if stderr_data else stdout_data
-        if "response" not in stdout_data and len(stdout_data.strip()) > 0:
-            global_state['result_type'] = 'response'
-            global_state['result_data'] = stdout_data.strip()
-        else:
-            global_state['result_type'] = 'error'
-            global_state['result_data'] = f"Error from Gemini CLI: {err_msg}"
+        global_state['result_type'] = 'error'
+        global_state['result_data'] = f"Inference Error ({provider_name}): {error_msg}"
 
     global_state['is_delivered'] = False
     
@@ -311,7 +429,16 @@ async def chat_handler(websocket):
                 msg = json.loads(message)
                 if msg.get('type') == 'input' and 'data' in msg:
                     prompt_text = msg['data']
-                    print(f"Received prompt: {prompt_text[:50]}...")
+                    
+                    # Extract provider and model if provided, else use defaults
+                    provider = msg.get('provider', global_state['inference_provider'])
+                    model = msg.get('model', global_state['model_name'])
+                    
+                    print(f"Received prompt ({provider}/{model}): {prompt_text[:50]}...")
+                    
+                    # Update state with latest choices
+                    global_state['inference_provider'] = provider
+                    global_state['model_name'] = model
 
                     if global_state['task'] and not global_state['task'].done():
                         await websocket.send(json.dumps({'type': 'error', 'data': 'A previous task is already running. Please wait for it to finish...'}))
@@ -321,7 +448,7 @@ async def chat_handler(websocket):
                     global_state['is_delivered'] = False
 
                     # Start the background execution task globally
-                    global_state['task'] = asyncio.create_task(background_gemini_task(prompt_text, env))
+                    global_state['task'] = asyncio.create_task(background_inference_task(prompt_text, env, provider, model))
 
                 elif msg.get('type') == 'keepalive':
                     pass
