@@ -23,4 +23,13 @@ When the user asks about Dataverse metadata, "show fields", or requests help wit
     - **Output Table**: Present the results in a Markdown table with: `Input Variable`, `Dataverse Field (System Name)`, `Probability (%)`, and `Matching Rationale`.
     - If no field matches with >80% probability, explicitly state "No High-Confidence Match Found" for that variable.
 
+6. **Deposit CSV Generation (Per-Row Creation)**: After performing a high-confidence mapping, you MUST be able to generate separate deposit CSV files for EVERY row in the spreadsheet.
+    - **Separate Datasets**: Each row in the source spreadsheet represents a separate dataset to be deposited.
+    - **Command Execution**: You MUST run a bash command using the `generate_dataverse_csv.py` script. You need to provide the path to the cached source CSV and the mapping in JSON format.
+      ```bash
+      python3 ../palefire/backend/generate_dataverse_csv.py "cache/gsheet_SPREADSHEET_ID_GID.csv" '{"Mapping Name": "systemName"}'
+      ```
+    - **Header Transformation**: The output CSVs will automatically use the Dataverse `System Names` as headers.
+    - **Confirmation**: Confirm the number of files generated and their location in `cache/dataverse/deposits/`.
+
 Always confirm that you are using the official Dataverse basic metadata schema.
