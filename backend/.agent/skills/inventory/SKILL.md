@@ -9,8 +9,9 @@ When the user asks you to "make an inventory", "inventory this", or sends conten
     - **Time and Dates**: (e.g., October 24th, 1999, 5:00 PM, Next Tuesday)
     - **Person Names**: (e.g., John Doe, Elon Musk)
     - **Organizations**: (e.g., Google, United Nations, Ministry of Magic)
-    - **Locations**: (e.g., Paris, Texas, Mount Everest)
-    - **Money**: (e.g., $100, 50 million euros, 10 bitcoins)
+    - **Locations**: (e.g., Paris, Texas, Mount Everest, GPS coordinates)
+    - **Money & Quantities**: (e.g., $100, 50 million euros, 10 bitcoins, 500 workers)
+    - **Events & Actions**: (e.g., Summer Olympics, The Great Strike, protest, meeting)
 
 2. **Keyword Extraction**: Identify and extract the 5-10 most important "Main Keywords" or key phrases that best define the core themes and topics of the material.
 
