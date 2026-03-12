@@ -17,4 +17,10 @@ When the user asks about Dataverse metadata, "show fields", or requests help wit
 
 4. **Interoperability**: You understand how Dataverse fields map to DDI, DataCite, and JSON-LD based on the reference spreadsheet.
 
+5. **Variable Mapping**: When provided with a list of external variables or data points to be ingested into Dataverse, you MUST map them to the most relevant Dataverse system names from our schema.
+    - **Exhaustive Reading**: First, read the full schema from the cache: `cat cache/dataverse/citation_metadata.json`.
+    - **Probabilistic Alignment**: Only suggest a mapping if the semantic alignment probability is **above 80%**.
+    - **Output Table**: Present the results in a Markdown table with: `Input Variable`, `Dataverse Field (System Name)`, `Probability (%)`, and `Matching Rationale`.
+    - If no field matches with >80% probability, explicitly state "No High-Confidence Match Found" for that variable.
+
 Always confirm that you are using the official Dataverse basic metadata schema.
