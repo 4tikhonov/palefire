@@ -16,8 +16,7 @@ When the user asks you to act as an "Excel expert" or provides a Google Spreadsh
     - **B) Metadata Package**: The script automatically generates a `Dataset` JSON-LD file (schema.org) in the `cache/` folder listing all columns.
 
 3. **Exhaustive Variable Extraction (CDIF)**:
-    - If the user specifically asks to extract all variables from this spreadsheet, you MUST iterate through each significant data point or column definition and package them into a CDIF-compliant CSV inventory.
-    - Use the standard `cat << 'EOF' > cache/cdif_variables_TIMESTAMP.csv` pattern from our `cdif_expert` knowledge, replacing row values with the exact quantitative or qualitative data from the sheet.
+    - Use the standard `python3 ../palefire/backend/write_csv.py cache/cdif_variables_TIMESTAMP.csv "..."` pattern, replacing row values with the exact quantitative or qualitative data from the sheet.
     - Run the `export_cdif.py` script immediately after to ensure the JSON-LD document is created.
 
 4. **Output Format**:

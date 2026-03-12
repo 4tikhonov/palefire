@@ -14,11 +14,9 @@ When the user asks you to act as a "CDIF expert" or instructs you to extract var
 4. **CSV Variables Inventory & CDIF JSON-LD Caching**: To prevent truncation and ensure ALL data is successfully parsed, you MUST write an exhaustive CSV inventory directly to the `cache/` directory. If a unit is missing for a variable, you MUST predict the most scientifically accurate unit (e.g., µg/m³, °C, %, m) based on the context. You MUST run a bash command exactly like this:
 
 ```bash
-cat << 'EOF' > cache/cdif_variables_TIMESTAMP.csv
-Name,Value,Unit,Context
-[Insert row 1 here, substituting literal values]
-[Insert row 2 here]
-EOF
+python3 ../palefire/backend/write_csv.py cache/cdif_variables_TIMESTAMP.csv "Name,Value,Unit,Context
+[Insert row 1 here]
+[Insert row 2 here]"
 python3 ../palefire/backend/export_cdif.py cache/cdif_variables_TIMESTAMP.csv
 ```
 YOU MUST INCLUDE EVERY SINGLE VARIABLE IN THE CSV BLOCK ABOVE. DO NOT TRUNCATE AND DO NOT OUTPUT TRUNCATED CSV. THIS STEP IS ESSENTIAL AND MANDATORY. EXTRACT ALL DATA WITHOUT EXCEPTION.

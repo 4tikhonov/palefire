@@ -27,7 +27,21 @@ def process_sheets(url, output_dir='cache'):
     export_url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/export?format=csv&gid={gid}"
     
     try:
-        df = pd.read_csv(export_url)
+        # Load without headers first to find the best header row
+        df_raw = pd.read_csv(export_url, header=None)
+        
+        header_row = 0
+        for i in range(min(5, len(df_raw))):
+            row_values = df_raw.iloc[i].astype(str).tolist()
+            if any(h in row_values for h in ['Title', 'Field Label', 'Field Label Order']):
+                header_row = i
+                break
+        
+        # Re-load with the correct header
+        df = pd.read_csv(export_url, skiprows=header_row)
+        
+        # Drop completely empty rows and columns
+        df = df.dropna(how='all').dropna(axis=1, how='all')
         
         # Save to local cache
         if not os.path.exists(output_dir):
