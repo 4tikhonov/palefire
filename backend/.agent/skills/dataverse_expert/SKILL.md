@@ -39,6 +39,6 @@ When the user asks about Dataverse metadata, "show fields", or requests help wit
       python3 ../palefire/backend/dataverse_uploader.py "https://dataverse.example.org" "YOUR_API_TOKEN" "collection_alias" "cache/gsheet_source.csv" '{"Column": "title", "EmailCol": "datasetContactEmail"}'
       ```
     - This script creates a new dataset for EACH row and uploads the row content as a CSV file.
-    - **Automatic URL Collection**: The uploader automatically scans ALL columns for URLs. If a link is found, the system will attempt to download the remote content and upload it as an additional file to the same Dataverse dataset, ensuring no external data references are ignored.
+    - **URL Management**: The uploader ensures that all URLs present in the spreadsheet are preserved and included within the generated CSV file for each dataset. Automated downloading of remote content is disabled to maintain direct references.
 
 Always confirm that you are using the official Dataverse basic metadata schema.

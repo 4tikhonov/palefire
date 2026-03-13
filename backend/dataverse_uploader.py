@@ -6,13 +6,6 @@ import pandas as pd
 from datetime import datetime
 import urllib.parse
 
-def is_url(string):
-    try:
-        result = urllib.parse.urlparse(str(string))
-        return all([result.scheme, result.netloc])
-    except:
-        return False
-
 def construct_dataset_json(row_data, mapping):
     """
     Constructs the Dataverse JSON for dataset creation based on row data and mapping.
@@ -139,7 +132,6 @@ def upload_file(server_url, api_token, persistent_id, file_path, target_filename
     
     try:
         with open(file_path, 'rb') as f:
-            # Note: We send the file with the desired filename in the multipart form
             files = {
                 'file': (filename, f, 'text/csv'),
                 'jsonData': (None, json.dumps(json_data))
@@ -157,32 +149,6 @@ def upload_file(server_url, api_token, persistent_id, file_path, target_filename
     except Exception as e:
         print(f"Exception during upload: {str(e)}")
         return False
-
-def download_remote_file(url, output_dir="cache"):
-    try:
-        os.makedirs(output_dir, exist_ok=True)
-        # Try to get filename from URL
-        parsed_url = urllib.parse.urlparse(url)
-        filename = os.path.basename(parsed_url.path)
-        if not filename or '.' not in filename:
-            filename = "data_source_" + datetime.now().strftime("%Y%m%d_%H%M%S")
-            # Try to guess extension if missing?
-            
-        filepath = os.path.join(output_dir, filename)
-        
-        print(f"Downloading remote data from {url}...")
-        response = requests.get(url, stream=True, timeout=30)
-        if response.status_code == 200:
-            with open(filepath, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-            return filepath
-        else:
-            print(f"Failed to download {url}: Status {response.status_code}")
-            return None
-    except Exception as e:
-        print(f"Error downloading {url}: {str(e)}")
-        return None
 
 def main():
     if len(sys.argv) < 5:
@@ -216,25 +182,13 @@ def main():
         if not pid:
             continue
 
-        # 2. Extract and Upload Row CSV
+        # 2. Extract and Upload Row CSV (URLs are naturally included here)
         os.makedirs("cache", exist_ok=True)
         row_filename = f"row{i}_data.csv"
         temp_csv = f"cache/temp_{row_filename}"
         pd.DataFrame([row]).to_csv(temp_csv, index=False)
         upload_file(server_url, api_token, pid, temp_csv, row_filename)
         os.remove(temp_csv)
-
-        # 3. Detect and Upload Remote Data Links
-        for col_name, value in row.items():
-            val_str = str(value)
-            if is_url(val_str):
-                # Filter out generic or non-data links if needed, 
-                # but user says "Never ignore any reference to download"
-                remote_file = download_remote_file(val_str)
-                if remote_file:
-                    upload_file(server_url, api_token, pid, remote_file)
-                    # Optional: cleanup remote file?
-                    # os.remove(remote_file)
 
 if __name__ == "__main__":
     main()
