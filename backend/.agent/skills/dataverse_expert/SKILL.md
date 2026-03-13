@@ -31,4 +31,14 @@ When the user asks about Dataverse metadata, "show fields", or requests help wit
       ```
     - **Location**: Confirmation MUST state the number of files generated in `cache/dataverse/deposits/`.
 
+7. **Dataverse API Upload (Deposit)**: To perform the actual upload to a Dataverse instance, use the `dataverse_uploader.py` script.
+    - **Prerequisites**: Ensure `DATAVERSE_SERVER_URL` and `DATAVERSE_API_TOKEN` are available (ask user if missing).
+    - **Parent Collection**: Use the alias of the target collection (default: `root`).
+    - **Command Execution**:
+      ```bash
+      python3 ../palefire/backend/dataverse_uploader.py "https://dataverse.example.org" "YOUR_API_TOKEN" "collection_alias" "cache/gsheet_source.csv" '{"Column": "title", "EmailCol": "datasetContactEmail"}'
+      ```
+    - This script creates a new dataset for EACH row and uploads the row content as a CSV file.
+    - **Automatic URL Collection**: The uploader automatically scans ALL columns for URLs. If a link is found, the system will attempt to download the remote content and upload it as an additional file to the same Dataverse dataset, ensuring no external data references are ignored.
+
 Always confirm that you are using the official Dataverse basic metadata schema.
