@@ -95,6 +95,19 @@ def construct_dataset_json(row_data, mapping):
         "value": subject
     })
 
+    # 6. Alternative URL (Optional but requested)
+    alt_url = row_data.get(reverse_mapping.get('alternativeURL'))
+    if not alt_url and 'download_url' in row_data:
+        alt_url = row_data['download_url']
+    
+    if alt_url:
+        fields.append({
+            "typeName": "alternativeURL",
+            "typeClass": "primitive",
+            "multiple": False,
+            "value": str(alt_url)
+        })
+
     return {
         "datasetVersion": {
             "metadataBlocks": {
@@ -105,6 +118,23 @@ def construct_dataset_json(row_data, mapping):
             }
         }
     }
+
+def update_dataset_metadata(server_url, api_token, persistent_id, metadata_json):
+    # For updating, we target the citation fields
+    url = f"{server_url.rstrip('/')}/api/datasets/:persistentId/editMetadata?persistentId={persistent_id}"
+    headers = {"X-Dataverse-key": api_token, "Content-Type": "application/json"}
+    
+    # Extract fields from the construct_dataset_json structure
+    fields = metadata_json['datasetVersion']['metadataBlocks']['citation']['fields']
+    payload = {"fields": fields}
+    
+    response = requests.put(url, headers=headers, json=payload)
+    if response.status_code in [200, 201]:
+        print(f"Successfully updated metadata for {persistent_id}")
+        return True
+    else:
+        print(f"Failed to update metadata: {response.text}")
+        return False
 
 def create_dataset(server_url, api_token, parent_alias, metadata_json):
     url = f"{server_url.rstrip('/')}/api/dataverses/{parent_alias}/datasets"
@@ -155,6 +185,7 @@ def main():
         print("Usage:")
         print("  Bulk Upload:   python3 dataverse_uploader.py <server_url> <api_token> <parent_alias> <source_csv> <mapping_json>")
         print("  Single Upload: python3 dataverse_uploader.py <server_url> <api_token> <persistent_id> <file_path> --single")
+        print("  Update Meta:   python3 dataverse_uploader.py <server_url> <api_token> <persistent_id> <source_csv_row> <mapping_json> --update")
         sys.exit(1)
         
     server_url = sys.argv[1]
@@ -165,6 +196,16 @@ def main():
         file_path = sys.argv[4]
         filename = os.path.basename(file_path)
         upload_file(server_url, api_token, persistent_id, file_path, filename)
+        return
+
+    if "--update" in sys.argv:
+        persistent_id = sys.argv[3]
+        source_csv = sys.argv[4]
+        mapping = json.loads(sys.argv[5])
+        df = pd.read_csv(source_csv)
+        row = df.iloc[0]
+        metadata = construct_dataset_json(row, mapping)
+        update_dataset_metadata(server_url, api_token, persistent_id, metadata)
         return
 
     parent_alias = sys.argv[3]
