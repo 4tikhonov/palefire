@@ -97,8 +97,16 @@ def construct_dataset_json(row_data, mapping):
 
     # 6. Alternative URL (Optional but requested)
     alt_url = row_data.get(reverse_mapping.get('alternativeURL'))
-    if not alt_url and 'download_url' in row_data:
-        alt_url = row_data['download_url']
+    
+    # Fallback to common URL field names if not found via mapping
+    url_fallbacks = ['download_url', 'url', 'alternativeURL', 'link', 'source_url', 'uri']
+    if not alt_url:
+        for fb in url_fallbacks:
+            if fb in row_data and pd.notna(row_data[fb]):
+                candidate = str(row_data[fb]).strip()
+                if candidate.startswith('http'):
+                    alt_url = candidate
+                    break
     
     if alt_url:
         fields.append({

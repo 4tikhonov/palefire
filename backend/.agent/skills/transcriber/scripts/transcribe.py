@@ -23,8 +23,8 @@ def transcribe_media(file_path, language=None, output_path=None, model_name="gem
     
     try:
         print(f"Uploading {file_path} to Gemini...")
-        # Upload the file
-        media_file = client.files.upload(path=file_path)
+        # Upload the file - the correct argument name is 'file'
+        media_file = client.files.upload(file=file_path)
         
         # Wait for processing
         while media_file.state == "PROCESSING":

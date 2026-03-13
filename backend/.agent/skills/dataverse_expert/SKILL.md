@@ -39,6 +39,14 @@ When the user asks about Dataverse metadata, "show fields", or requests help wit
       python3 ../palefire/backend/dataverse_uploader.py "https://dataverse.example.org" "YOUR_API_TOKEN" "collection_alias" "cache/gsheet_source.csv" '{"Column": "title", "EmailCol": "datasetContactEmail"}'
       ```
     - This script creates a new dataset for EACH row and uploads the row content as a CSV file.
-    - **URL Management**: The uploader ensures that all URLs present in the spreadsheet are preserved and included within the generated CSV file for each dataset. Automated downloading of remote content is disabled to maintain direct references.
+    - **URL Management**: The uploader ensures that all URLs present in the spreadsheet are preserved and included within the generated CSV file for each dataset. It also automatically detects common URL column names (like `download_url`, `url`, `link`) and maps them to the **Alternative URL** metadata field in Dataverse, even if not explicitly mapped. Automated downloading of remote content is disabled to maintain direct references.
+
+8. **Automated Data Expansion (Copernicus Marine)**: If the user provides a URL matching or containing `data.marine.copernicus.eu`, or asks for "Copernicus Marine data" for a specific topic (e.g., "Salinity"):
+    - **Incomplete URLs**: URLs like `https://data.marine.copernicus.eu/` are considered incomplete. You MUST go to the Copernicus search page to find specific datasets.
+    - **Extraction Command**:
+      ```bash
+      python3 ../palefire/backend/extract_copernicus_data.py "QUERY"
+      ```
+    - **Ingestion Flow**: After extraction, use `cache/copernicus_inventory.csv` as the source for mapping and deposition. This allows batch ingestion of all datasets matching the query.
 
 Always confirm that you are using the official Dataverse basic metadata schema.
