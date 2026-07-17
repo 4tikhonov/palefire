@@ -1,0 +1,3036 @@
+{
+  "debug_full_page-01_left.png": [],
+  "debug_full_page-01_right.png": [],
+  "debug_full_page-02_left.png": [],
+  "debug_full_page-02_right.png": [
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "AHS-ACCESS"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "BCC DIAP"
+    },
+    {
+      "color": "Green",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "CMC CANSIP"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "CMCC DYNAMIC"
+    },
+    {
+      "color": "Yellow",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "COLA CCSM4"
+    },
+    {
+      "color": "Red",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "CS-IRI-MM"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "IOCAS ICM"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "JMA"
+    },
+    {
+      "color": "Green",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "KMA"
+    },
+    {
+      "color": "Yellow",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "LDEO"
+    },
+    {
+      "color": "Red",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "MetFRANCE"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "NASA GMAOv3"
+    },
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "NCEP CFSv2"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "SINTEX-F"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "UKMO"
+    },
+    {
+      "color": "Dark Red",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "DYN AVG"
+    },
+    {
+      "color": "Light Yellow",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "BCC_RZDM"
+    },
+    {
+      "color": "Red",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "CPC_MRKOV"
+    },
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "CSU_CLIPR"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "IAP-NN"
+    },
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "TONGJI-ML"
+    },
+    {
+      "color": "Green",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "UCLA-TCD"
+    },
+    {
+      "color": "Orange",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "UW PSL-CSLIM"
+    },
+    {
+      "color": "Red",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "UW PSL-LIM"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "XRO"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "STAT AVG"
+    }
+  ],
+  "debug_full_page-03_left.png": [],
+  "debug_full_page-03_right.png": [
+    {
+      "color": "Dark Red",
+      "value_range": ">= 3 °C",
+      "absolute_range": "N/A",
+      "label": ">= 3 °C"
+    },
+    {
+      "color": "Red",
+      "value_range": "2 to <3 °C",
+      "absolute_range": "N/A",
+      "label": "2 to <3 °C"
+    },
+    {
+      "color": "Orange",
+      "value_range": "1 to <2 °C",
+      "absolute_range": "N/A",
+      "label": "1 to <2 °C"
+    },
+    {
+      "color": "Light Yellow",
+      "value_range": "0.5 to <1 °C",
+      "absolute_range": "N/A",
+      "label": "0.5 to <1 °C"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "-1 to <-0.5 °C",
+      "absolute_range": "N/A",
+      "label": "-1 to <-0.5 °C"
+    },
+    {
+      "color": "Blue",
+      "value_range": "-2 to <-1 °C",
+      "absolute_range": "N/A",
+      "label": "-2 to <-1 °C"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "-3 to <-2 °C",
+      "absolute_range": "N/A",
+      "label": "-3 to <-2 °C"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "<= -3 °C",
+      "absolute_range": "N/A",
+      "label": "<= -3 °C"
+    }
+  ],
+  "debug_full_page-04_left.png": [
+    {
+      "color": "Green",
+      "value_range": ">= 20%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "0% to 20%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Yellow",
+      "value_range": "-20% to 0%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Orange",
+      "value_range": "-40% to -20%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Orange",
+      "value_range": "-65% to -40%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Red",
+      "value_range": "<= -65%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-04_right.png": [
+    {
+      "color": "Light Green",
+      "value_range": "<= 0 °C",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Yellow",
+      "value_range": "0 to 0.5 °C",
+      "absolute_range": "0 to 0.5",
+      "label": "N/A"
+    },
+    {
+      "color": "Yellow",
+      "value_range": "0.5 to 1 °C",
+      "absolute_range": "0.5 to 1",
+      "label": "N/A"
+    },
+    {
+      "color": "Orange",
+      "value_range": "1 to 1.5 °C",
+      "absolute_range": "1 to 1.5",
+      "label": "N/A"
+    },
+    {
+      "color": "Red",
+      "value_range": "1.5 to 2 °C",
+      "absolute_range": "1.5 to 2",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": ">= 2 °C",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-05_left.png": [
+    {
+      "color": "Grey",
+      "value_range": ">= 20%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "0% to 20%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Yellow",
+      "value_range": "-20% to 0%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Orange",
+      "value_range": "-40% to -20%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Orange",
+      "value_range": "-60% to -40%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Red",
+      "value_range": "-80% to -60%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Red",
+      "value_range": "< -80%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-05_right.png": [
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "> 2 °C",
+      "label": "N/A"
+    },
+    {
+      "color": "Red",
+      "value_range": "N/A",
+      "absolute_range": "1.5 to 2 °C",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Orange",
+      "value_range": "N/A",
+      "absolute_range": "1 to 1.5 °C",
+      "label": "N/A"
+    },
+    {
+      "color": "Orange",
+      "value_range": "N/A",
+      "absolute_range": "0.5 to 1 °C",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Yellow",
+      "value_range": "N/A",
+      "absolute_range": "0 to 0.5 °C",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "< 0 °C",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-06_left.png": [
+    {
+      "color": "Green",
+      "value_range": ">= 40%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "20% to 40%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Yellow",
+      "value_range": "0% to 20%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Yellow",
+      "value_range": "-20% to 0%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Orange",
+      "value_range": "-40% to -20%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Orange",
+      "value_range": "-60% to -40%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Red",
+      "value_range": "-80% to -60%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-06_right.png": [
+    {
+      "color": "Green",
+      "value_range": "<= 0 °C",
+      "absolute_range": "<= 0 °C",
+      "label": "N/A"
+    },
+    {
+      "color": "Yellow",
+      "value_range": "0 to 0.5 °C",
+      "absolute_range": "0 to 0.5 °C",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Orange",
+      "value_range": "0.5 to 1 °C",
+      "absolute_range": "0.5 to 1 °C",
+      "label": "N/A"
+    },
+    {
+      "color": "Orange",
+      "value_range": "1 to 1.5 °C",
+      "absolute_range": "1 to 1.5 °C",
+      "label": "N/A"
+    },
+    {
+      "color": "Red",
+      "value_range": "1.5 to 2 °C",
+      "absolute_range": "1.5 to 2 °C",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": ">= 2 °C",
+      "absolute_range": ">= 2 °C",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-07_left.png": [
+    {
+      "color": "Light Green",
+      "value_range": ">= 40%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Green",
+      "value_range": "20% to 40%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Yellow",
+      "value_range": "0% to 20%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Yellow",
+      "value_range": "0%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Orange",
+      "value_range": "-20% to 0%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Orange",
+      "value_range": "-40% to -20%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Orange",
+      "value_range": "-60% to -40%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Red",
+      "value_range": "-80% to -60%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "<= -80%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-07_right.png": [
+    {
+      "color": "Grey",
+      "value_range": "> 2 °C",
+      "absolute_range": "2",
+      "label": "N/A"
+    },
+    {
+      "color": "Red",
+      "value_range": "1.5 to 2 °C",
+      "absolute_range": "1.5 to 2",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Orange",
+      "value_range": "1 to 1.5 °C",
+      "absolute_range": "1 to 1.5",
+      "label": "N/A"
+    },
+    {
+      "color": "Orange",
+      "value_range": "0.5 to 1 °C",
+      "absolute_range": "0.5 to 1",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Yellow",
+      "value_range": "0 to 0.5 °C",
+      "absolute_range": "0 to 0.5",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "< 0 °C",
+      "absolute_range": "0",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-08_left.png": [
+    {
+      "color": "Grey",
+      "value_range": "> 40%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Green",
+      "value_range": "20% to 40%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "0% to 20%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Yellow",
+      "value_range": "-20% to 0%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Orange",
+      "value_range": "-40% to -20%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Orange",
+      "value_range": "-60% to -40%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Orange",
+      "value_range": "-80% to -60%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Red",
+      "value_range": "< -80%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-08_right.png": [
+    {
+      "color": "Grey",
+      "value_range": ">= 2.5 °C",
+      "absolute_range": "2.5",
+      "label": "N/A"
+    },
+    {
+      "color": "Red",
+      "value_range": "2 to <2.5 °C",
+      "absolute_range": "2",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Orange",
+      "value_range": "1.5 to <2 °C",
+      "absolute_range": "1.5",
+      "label": "N/A"
+    },
+    {
+      "color": "Orange",
+      "value_range": "1 to <1.5 °C",
+      "absolute_range": "1",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Orange",
+      "value_range": "0.5 to <1 °C",
+      "absolute_range": "0.5",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "0 to <0.5 °C",
+      "absolute_range": "0",
+      "label": "N/A"
+    },
+    {
+      "color": "Green",
+      "value_range": "< 0 °C",
+      "absolute_range": "0",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-09_left.png": [
+    {
+      "color": "Dark Orange",
+      "value_range": "N/A",
+      "absolute_range": "<-200 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Orange",
+      "value_range": "N/A",
+      "absolute_range": "-200 to -100 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Orange",
+      "value_range": "N/A",
+      "absolute_range": "-100 to -50 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Orange",
+      "value_range": "N/A",
+      "absolute_range": "-50 to 0 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "White",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "No Signal"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "0 to 50 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Green",
+      "value_range": "N/A",
+      "absolute_range": "50 to 100 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "100 to 200 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "> 200 mm",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-09_right.png": [
+    {
+      "color": "Dark Blue",
+      "value_range": "<-2.0°C",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "-2.0..-1.0°C",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "-1.0..-0.5°C",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "-0.5..0°C",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "White",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "No Signal"
+    },
+    {
+      "color": "Yellow",
+      "value_range": "0..0.5°C",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Orange",
+      "value_range": "0.5..1.0°C",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Orange",
+      "value_range": "1.0..2.0°C",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Red",
+      "value_range": "> 2.0°C",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-10_left.png": [
+    {
+      "color": "White",
+      "value_range": "N/A",
+      "absolute_range": "0.1 - 1 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Yellow",
+      "value_range": "N/A",
+      "absolute_range": "1.1 - 5 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "5.1 - 10 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "10.1 - 15 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Green",
+      "value_range": "N/A",
+      "absolute_range": "15.1 - 25 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Green",
+      "value_range": "N/A",
+      "absolute_range": "25.1 - 50 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "50.1 - 75 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "75.1 - 100 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "100.1 - 125 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "125.1 - 150 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "150.1 - 200 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "200.1 - 250 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "250.1 - 275 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "275.1 - 300 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Red",
+      "value_range": "N/A",
+      "absolute_range": "300.1 - 350 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Red",
+      "value_range": "N/A",
+      "absolute_range": "350.1 - 400 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Red",
+      "value_range": "N/A",
+      "absolute_range": "400.1 - 450 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Red",
+      "value_range": "N/A",
+      "absolute_range": "450.1 - 500 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Red",
+      "value_range": "N/A",
+      "absolute_range": "500.1 - 550 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Red",
+      "value_range": "N/A",
+      "absolute_range": "550.1 - 600 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Red",
+      "value_range": "N/A",
+      "absolute_range": "600.1 - 650 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Red",
+      "value_range": "N/A",
+      "absolute_range": "650.1 - 700 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Red",
+      "value_range": "N/A",
+      "absolute_range": "700.1 - 750 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "White",
+      "value_range": "N/A",
+      "absolute_range": "750.1 - 800 mm",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-10_right.png": [
+    {
+      "color": "White",
+      "value_range": "N/A",
+      "absolute_range": "0.1 - 1 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "1.1 - 5 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "5.1 - 10 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "10.1 - 15 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Green",
+      "value_range": "N/A",
+      "absolute_range": "15.1 - 25 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "25.1 - 50 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "50.1 - 75 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "75.1 - 100 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "100.1 - 125 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "125.1 - 150 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "150.1 - 200 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "200.1 - 250 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "250.1 - 275 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "275.1 - 300 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "300.1 - 350 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "350.1 - 400 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "400.1 - 450 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "450.1 - 500 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "500.1 - 550 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "550.1 - 600 mm",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-11_left.png": [
+    {
+      "color": "White",
+      "value_range": "N/A",
+      "absolute_range": "0.1 - 1",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "1.1 - 5",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "5.1 - 10",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "10.1 - 15",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "15.1 - 25",
+      "label": "N/A"
+    },
+    {
+      "color": "Green",
+      "value_range": "N/A",
+      "absolute_range": "25.1 - 50",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "50.1 - 75",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "75.1 - 100",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "100.1 - 125",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "125.1 - 150",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "150.1 - 200",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "200.1 - 250",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "250.1 - 275",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "275.1 - 300",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "300.1 - 350",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "350.1 - 400",
+      "label": "N/A"
+    },
+    {
+      "color": "Red",
+      "value_range": "N/A",
+      "absolute_range": "400.1 - 450",
+      "label": "N/A"
+    },
+    {
+      "color": "Red",
+      "value_range": "N/A",
+      "absolute_range": "450.1 - 500",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Red",
+      "value_range": "N/A",
+      "absolute_range": "500.1 - 550",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Red",
+      "value_range": "N/A",
+      "absolute_range": "550.1 - 600",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Red",
+      "value_range": "N/A",
+      "absolute_range": "600.1 - 650",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Red",
+      "value_range": "N/A",
+      "absolute_range": "650.1 - 700",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Red",
+      "value_range": "N/A",
+      "absolute_range": "700.1 - 750",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Red",
+      "value_range": "N/A",
+      "absolute_range": "750.1 - 800",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-11_right.png": [
+    {
+      "color": "Dark Orange",
+      "value_range": "<= -60%",
+      "absolute_range": "N/A",
+      "label": "<= -60%"
+    },
+    {
+      "color": "Orange",
+      "value_range": "-60% to -40%",
+      "absolute_range": "N/A",
+      "label": "-60% to -40%"
+    },
+    {
+      "color": "Light Orange",
+      "value_range": "-40% to -20%",
+      "absolute_range": "N/A",
+      "label": "-40% to -20%"
+    },
+    {
+      "color": "Light Yellow",
+      "value_range": "-20% to 20%",
+      "absolute_range": "N/A",
+      "label": "-20% to 20%"
+    },
+    {
+      "color": "Green",
+      "value_range": "20% to 40%",
+      "absolute_range": "N/A",
+      "label": "20% to 40%"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": ">= 40%",
+      "absolute_range": "N/A",
+      "label": ">= 40%"
+    }
+  ],
+  "debug_full_page-12_left.png": [
+    {
+      "color": "White",
+      "value_range": "0.1 - 1",
+      "absolute_range": "0.1 - 1 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "1.1 - 5",
+      "absolute_range": "1.1 - 5 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "5.1 - 10",
+      "absolute_range": "5.1 - 10 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "10.1 - 15",
+      "absolute_range": "10.1 - 15 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "15.1 - 25",
+      "absolute_range": "15.1 - 25 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Green",
+      "value_range": "25.1 - 50",
+      "absolute_range": "25.1 - 50 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "50.1 - 75",
+      "absolute_range": "50.1 - 75 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "75.1 - 100",
+      "absolute_range": "75.1 - 100 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "100.1 - 125",
+      "absolute_range": "100.1 - 125 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "125.1 - 150",
+      "absolute_range": "125.1 - 150 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "150.1 - 200",
+      "absolute_range": "150.1 - 200 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "200.1 - 250",
+      "absolute_range": "200.1 - 250 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "250.1 - 275",
+      "absolute_range": "250.1 - 275 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "275.1 - 300",
+      "absolute_range": "275.1 - 300 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "300.1 - 350",
+      "absolute_range": "300.1 - 350 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "350.1 - 400",
+      "absolute_range": "350.1 - 400 mm",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-12_right.png": [
+    {
+      "color": "White",
+      "value_range": "N/A",
+      "absolute_range": "0.1 - 1 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "1.1 - 5 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "5.1 - 10 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "10.1 - 15 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "15.1 - 25 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Green",
+      "value_range": "N/A",
+      "absolute_range": "25.1 - 50 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "50.1 - 75 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "75.1 - 100 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "100.1 - 125 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "125.1 - 150 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "150.1 - 200 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "200.1 - 250 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "250.1 - 275 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "275.1 - 300 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "300.1 - 350 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "350.1 - 400 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "400.1 - 450 mm",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-13_left.png": [
+    {
+      "color": "White",
+      "value_range": "0.1 - 1 mm",
+      "absolute_range": "0.1 - 1 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "1.1 - 5 mm",
+      "absolute_range": "1.1 - 5 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "5.1 - 10 mm",
+      "absolute_range": "5.1 - 10 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "10.1 - 15 mm",
+      "absolute_range": "10.1 - 15 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "15.1 - 25 mm",
+      "absolute_range": "15.1 - 25 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "25.1 - 50 mm",
+      "absolute_range": "25.1 - 50 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Green",
+      "value_range": "50.1 - 75 mm",
+      "absolute_range": "50.1 - 75 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "75.1 - 100 mm",
+      "absolute_range": "75.1 - 100 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "100.1 - 125 mm",
+      "absolute_range": "100.1 - 125 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "125.1 - 150 mm",
+      "absolute_range": "125.1 - 150 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "150.1 - 200 mm",
+      "absolute_range": "150.1 - 200 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "200.1 - 250 mm",
+      "absolute_range": "200.1 - 250 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "250.1 - 275 mm",
+      "absolute_range": "250.1 - 275 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "275.1 - 300 mm",
+      "absolute_range": "275.1 - 300 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "300.1 - 350 mm",
+      "absolute_range": "300.1 - 350 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "350.1 - 400 mm",
+      "absolute_range": "350.1 - 400 mm",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-13_right.png": [
+    {
+      "color": "Dark Orange",
+      "value_range": "<= -60%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Orange",
+      "value_range": "-60% to -40%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Yellow",
+      "value_range": "-40% to -20%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "-20% to 20%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-14_left.png": [
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "0.1 - 1 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "1.1 - 5 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "5.1 - 10 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "10.1 - 15 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Green",
+      "value_range": "N/A",
+      "absolute_range": "15.1 - 25 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "25.1 - 50 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "50.1 - 75 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "75.1 - 100 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "100.1 - 125 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "125.1 - 150 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "150.1 - 200 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "200.1 - 250 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "250.1 - 275 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "275.1 - 300 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "300.1 - 350 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "350.1 - 400 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "400.1 - 450 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "450.1 - 500 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "500.1 - 550 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "550.1 - 600 mm",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-14_right.png": [
+    {
+      "color": "White",
+      "value_range": "N/A",
+      "absolute_range": "0.1 - 1",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "1.1 - 5",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "5.1 - 10",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "10.1 - 15",
+      "label": "N/A"
+    },
+    {
+      "color": "Green",
+      "value_range": "N/A",
+      "absolute_range": "15.1 - 25",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "25.1 - 50",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "50.1 - 75",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "75.1 - 100",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "100.1 - 125",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "125.1 - 150",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "150.1 - 200",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "200.1 - 250",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "250.1 - 275",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "275.1 - 300",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "300.1 - 350",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "350.1 - 400",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "400.1 - 450",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "450.1 - 500",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "500.1 - 550",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "550.1 - 600",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "600.1 - 650",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "650.1 - 700",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "700.1 - 750",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "750.1 - 800",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-15_left.png": [
+    {
+      "color": "White",
+      "value_range": "N/A",
+      "absolute_range": "0.1 - 1 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "1.1 - 5 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "5.1 - 10 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "10.1 - 15 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Green",
+      "value_range": "N/A",
+      "absolute_range": "15.1 - 25 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "25.1 - 50 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "50.1 - 75 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "75.1 - 100 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "100.1 - 125 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "125.1 - 150 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "150.1 - 200 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "200.1 - 250 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "250.1 - 275 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "275.1 - 300 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "300.1 - 350 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "350.1 - 400 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "400.1 - 450 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "450.1 - 500 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "500.1 - 550 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "550.1 - 600 mm",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-15_right.png": [
+    {
+      "color": "Dark Orange",
+      "value_range": "< -40%",
+      "absolute_range": "N/A",
+      "label": "Far Below Normal"
+    },
+    {
+      "color": "Light Orange",
+      "value_range": "-40% to -20%",
+      "absolute_range": "N/A",
+      "label": "Below Normal"
+    },
+    {
+      "color": "Light Green",
+      "value_range": ">= 20%",
+      "absolute_range": "N/A",
+      "label": "Above Normal"
+    }
+  ],
+  "debug_full_page-16_left.png": [
+    {
+      "color": "White",
+      "value_range": "N/A",
+      "absolute_range": "0.1 - 1",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "1.1 - 5",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "5.1 - 10",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "10.1 - 15",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "15.1 - 25",
+      "label": "N/A"
+    },
+    {
+      "color": "Green",
+      "value_range": "N/A",
+      "absolute_range": "25.1 - 50",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "50.1 - 75",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "75.1 - 100",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "100.1 - 125",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "125.1 - 150",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "150.1 - 200",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "200.1 - 250",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "250.1 - 275",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "275.1 - 300",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "300.1 - 350",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "350.1 - 400",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "400.1 - 450",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "450.1 - 500",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-16_right.png": [
+    {
+      "color": "White",
+      "value_range": "N/A",
+      "absolute_range": "0.1 - 1",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "1.1 - 5",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "5.1 - 10",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "10.1 - 15",
+      "label": "N/A"
+    },
+    {
+      "color": "Green",
+      "value_range": "N/A",
+      "absolute_range": "15.1 - 25",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "25.1 - 50",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "50.1 - 75",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "75.1 - 100",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "100.1 - 125",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "125.1 - 150",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "150.1 - 200",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "200.1 - 250",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "250.1 - 275",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "275.1 - 300",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "300.1 - 350",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "350.1 - 400",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "400.1 - 450",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "450.1 - 500",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "500.1 - 550",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "550.1 - 600",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "600.1 - 650",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "650.1 - 700",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-17_left.png": [
+    {
+      "color": "White",
+      "value_range": "N/A",
+      "absolute_range": "0.1 - 1",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "1.1 - 5",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "5.1 - 10",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "10.1 - 15",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "15.1 - 25",
+      "label": "N/A"
+    },
+    {
+      "color": "Green",
+      "value_range": "N/A",
+      "absolute_range": "25.1 - 50",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "50.1 - 75",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "75.1 - 100",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "100.1 - 125",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "125.1 - 150",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "150.1 - 200",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "200.1 - 250",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "250.1 - 275",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "275.1 - 300",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "300.1 - 350",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "350.1 - 400",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "400.1 - 450",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "450.1 - 500",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-17_right.png": [
+    {
+      "color": "Dark Orange",
+      "value_range": "<= -60%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Orange",
+      "value_range": "> -60% to -40%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Orange",
+      "value_range": "> -40% to -20%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Yellow",
+      "value_range": "> -20% to 20%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-18_left.png": [
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "0.1 - 1",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "1.1 - 5",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "5.1 - 10",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "10.1 - 15",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "15.1 - 25",
+      "label": "N/A"
+    },
+    {
+      "color": "Green",
+      "value_range": "N/A",
+      "absolute_range": "25.1 - 50",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "50.1 - 75",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "75.1 - 100",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "100.1 - 125",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "125.1 - 150",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "150.1 - 200",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "200.1 - 250",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "250.1 - 275",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "275.1 - 300",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "300.1 - 350",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "350.1 - 400",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "400.1 - 450",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "450.1 - 500",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "500.1 - 550",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "550.1 - 600",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "600.1 - 650",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-18_right.png": [
+    {
+      "color": "Grey",
+      "value_range": "0.1 - 1 mm",
+      "absolute_range": "0.1 - 1 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "White",
+      "value_range": "1.1 - 5 mm",
+      "absolute_range": "1.1 - 5 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "5.1 - 10 mm",
+      "absolute_range": "5.1 - 10 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Green",
+      "value_range": "10.1 - 15 mm",
+      "absolute_range": "10.1 - 15 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "15.1 - 25 mm",
+      "absolute_range": "15.1 - 25 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Yellow",
+      "value_range": "25.1 - 50 mm",
+      "absolute_range": "25.1 - 50 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Yellow",
+      "value_range": "50.1 - 75 mm",
+      "absolute_range": "50.1 - 75 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Orange",
+      "value_range": "75.1 - 100 mm",
+      "absolute_range": "75.1 - 100 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Orange",
+      "value_range": "100.1 - 125 mm",
+      "absolute_range": "100.1 - 125 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Orange",
+      "value_range": "125.1 - 150 mm",
+      "absolute_range": "125.1 - 150 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Red",
+      "value_range": "150.1 - 200 mm",
+      "absolute_range": "150.1 - 200 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Red",
+      "value_range": "200.1 - 250 mm",
+      "absolute_range": "200.1 - 250 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "250.1 - 275 mm",
+      "absolute_range": "250.1 - 275 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "275.1 - 300 mm",
+      "absolute_range": "275.1 - 300 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "300.1 - 350 mm",
+      "absolute_range": "300.1 - 350 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "350.1 - 400 mm",
+      "absolute_range": "350.1 - 400 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "400.1 - 450 mm",
+      "absolute_range": "400.1 - 450 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "450.1 - 500 mm",
+      "absolute_range": "450.1 - 500 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "500.1 - 550 mm",
+      "absolute_range": "500.1 - 550 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "550.1 - 600 mm",
+      "absolute_range": "550.1 - 600 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "600.1 - 650 mm",
+      "absolute_range": "600.1 - 650 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "650.1 - 700 mm",
+      "absolute_range": "650.1 - 700 mm",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "700.1 - 750 mm",
+      "absolute_range": "700.1 - 750 mm",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-19_left.png": [
+    {
+      "color": "White",
+      "value_range": "N/A",
+      "absolute_range": "0.1 - 1",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "N/A",
+      "absolute_range": "1.1 - 5",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "5.1 - 10",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "10.1 - 15",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "15.1 - 25",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "25.1 - 50",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "50.1 - 75",
+      "label": "N/A"
+    },
+    {
+      "color": "Green",
+      "value_range": "N/A",
+      "absolute_range": "75.1 - 100",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "100.1 - 125",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "125.1 - 150",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "150.1 - 200",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "200.1 - 250",
+      "label": "N/A"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "250.1 - 275",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "275.1 - 300",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "300.1 - 350",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "350.1 - 400",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "400.1 - 450",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "450.1 - 500",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "500.1 - 550",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "550.1 - 600",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Blue",
+      "value_range": "N/A",
+      "absolute_range": "600.1 - 650",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-19_right.png": [
+    {
+      "color": "Dark Orange",
+      "value_range": "<= -60%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Orange",
+      "value_range": "> -60% to -40%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Orange",
+      "value_range": "> -40% to -20%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "> -20% to 20%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Green",
+      "value_range": "> 20% to 40%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "> 40% to 60%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "> 60% to 80%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": ">= 100%",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-20_left.png": [
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Pronóstico"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Promedio"
+    }
+  ],
+  "debug_full_page-20_right.png": [
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Pronóstico"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Promedio"
+    }
+  ],
+  "debug_full_page-21_left.png": [
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Pronóstico"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Promedio"
+    }
+  ],
+  "debug_full_page-21_right.png": [
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Pronóstico"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Promedio"
+    }
+  ],
+  "debug_full_page-22_left.png": [
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Pronóstico"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Promedio"
+    }
+  ],
+  "debug_full_page-22_right.png": [],
+  "debug_full_page-23_left.png": [
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Pronóstico"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Promedio"
+    }
+  ],
+  "debug_full_page-23_right.png": [
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Pronóstico"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Promedio"
+    }
+  ],
+  "debug_full_page-24_left.png": [
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Pronóstico"
+    },
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Promedio"
+    }
+  ],
+  "debug_full_page-24_right.png": [
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Pronóstico"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Promedio"
+    }
+  ],
+  "debug_full_page-25_left.png": [
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Pronóstico"
+    }
+  ],
+  "debug_full_page-25_right.png": [],
+  "debug_full_page-26_left.png": [
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Pronóstico"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Promedio"
+    }
+  ],
+  "debug_full_page-26_right.png": [
+    {
+      "color": "Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "N/A"
+    }
+  ],
+  "debug_full_page-27_left.png": [
+    {
+      "color": "Orange",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Above Normal"
+    },
+    {
+      "color": "Light Blue",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Near Normal"
+    },
+    {
+      "color": "Green",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Below Normal"
+    }
+  ],
+  "debug_full_page-27_right.png": [
+    {
+      "color": "Green",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Forecast mean"
+    },
+    {
+      "color": "Orange",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Climate mean"
+    },
+    {
+      "color": "White",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Not Significant"
+    },
+    {
+      "color": "Light Orange",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "Significant at 5%"
+    }
+  ],
+  "debug_full_page-28_left.png": [
+    {
+      "color": "Light Green",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "75 municipios bajo alerta v... producto del Fenóm..."
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "N/A",
+      "absolute_range": "N/A",
+      "label": "75 municipios bajo alerta v... producto del Fenóm..."
+    }
+  ],
+  "debug_full_page-28_right.png": [
+    {
+      "color": "Light Green",
+      "value_range": "0% a 20%",
+      "absolute_range": "N/A",
+      "label": "NORMAL"
+    },
+    {
+      "color": "Green",
+      "value_range": "20% a 40%",
+      "absolute_range": "N/A",
+      "label": "ARRIBA DE LO NORMAL"
+    },
+    {
+      "color": "Dark Green",
+      "value_range": "> 40%",
+      "absolute_range": "N/A",
+      "label": "MUY ARRIBA DE LO NORMAL"
+    },
+    {
+      "color": "Light Yellow",
+      "value_range": "-20% a 0%",
+      "absolute_range": "0 a 25 mm",
+      "label": "DEFICIT LEVE"
+    },
+    {
+      "color": "Yellow",
+      "value_range": "-40% a -20%",
+      "absolute_range": "25 a 50 mm",
+      "label": "DEFICIT MODERADO"
+    },
+    {
+      "color": "Orange",
+      "value_range": "-60% a -40%",
+      "absolute_range": "50 a 100 mm",
+      "label": "DEFICIT SEVERO"
+    },
+    {
+      "color": "Red",
+      "value_range": "<-60%",
+      "absolute_range": "> 100 mm",
+      "label": "DEFICIT EXTREMO"
+    }
+  ]
+}
