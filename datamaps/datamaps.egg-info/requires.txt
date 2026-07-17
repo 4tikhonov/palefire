@@ -1,0 +1,8 @@
+opencv-python-headless
+numpy
+geopandas
+pandas
+google-genai
+
+[dev]
+pytest

@@ -1,0 +1,2 @@
+[console_scripts]
+datamaps = datamaps.cli:main

@@ -1,0 +1,298 @@
+import json
+import urllib.parse
+import os
+import re
+import csv
+from typing import Dict, Any, List
+
+
+def get_color_name(bgr):
+    def dist(c1, c2):
+        return sum((a - b) ** 2 for a, b in zip(c1, c2)) ** 0.5
+
+    color_map = {
+        (204, 204, 204): "Grey",
+        (201, 239, 219): "Light Green",
+        (158, 216, 179): "Green",
+        (120, 194, 145): "Dark Green",
+        (66, 151, 93): "Dark Green",
+        (182, 240, 255): "Light Yellow",
+        (50, 220, 230): "Yellow",
+        (55, 217, 227): "Yellow",
+        (139, 219, 255): "Light Orange",
+        (181, 232, 253): "Light Orange",
+        (47, 207, 216): "Orange",
+        (144, 212, 253): "Orange",
+        (46, 190, 230): "Dark Orange",
+        (116, 197, 253): "Dark Orange",
+        (96, 185, 253): "Red"
+    }
+
+    best_dist = float("inf")
+    best_name = "Unknown"
+
+    for c_bgr, name in color_map.items():
+        d = dist(bgr, c_bgr)
+        if d < best_dist and d < 80:
+            best_dist = d
+            best_name = name
+
+    return best_name
+
+
+def parse_source(src: str):
+    """Parse full_page-02.png_left -> (page_num, side)."""
+    m = re.match(r"full_page-(\d+)\.png_(left|right)$", src)
+    if not m:
+        return None, None
+    return int(m.group(1)), m.group(2)
+
+
+def load_raw_legend(raw_dir: str, page_num: int) -> List[str]:
+    """Load filtered legend lines from raw/page-NN/legend.txt."""
+    if page_num is None:
+        return []
+    path = os.path.join(raw_dir, f"page-{page_num:02d}", "legend.txt")
+    if not os.path.exists(path):
+        return []
+    with open(path, "r", encoding="utf-8") as f:
+        return [line.strip() for line in f if line.strip()]
+
+
+def safe_filename_part(text: str, max_len: int = 60) -> str:
+    safe = "".join(c if c.isalnum() else "_" for c in text).strip("_")
+    safe = "_".join(filter(None, safe.split("_")))
+    if len(safe) > max_len:
+        safe = safe[:max_len].rstrip("_")
+    return safe or "untitled"
+
+
+def split_and_convert_to_jsonld(
+    dataset_path: str,
+    titles_path: str,
+    output_dir: str,
+    raw_dir: str = "raw",
+):
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Restructure: replace legacy title-only filenames with page_N_* reports
+    for name in os.listdir(output_dir):
+        if not name.endswith(".json"):
+            continue
+        path = os.path.join(output_dir, name)
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            pass
+
+    with open(dataset_path, "r", encoding="utf-8") as f:
+        data = json.load(f)["data"]
+
+    titles = {}
+    if os.path.exists(titles_path):
+        with open(titles_path, "r", encoding="utf-8") as f:
+            titles = json.load(f)
+
+    legends = {}
+    if os.path.exists("data/legends.json"):
+        with open("data/legends.json", "r", encoding="utf-8") as f:
+            legends = json.load(f)
+
+    # Cache raw/page-*/legend.txt by page number
+    raw_legend_cache = {}
+
+    grouped = {}
+    for row in data:
+        src = row["source"]
+        loc = row["location"]
+        bgr = row["color_bgr"]
+
+        if src not in grouped:
+            grouped[src] = {}
+        grouped[src][loc] = get_color_name(bgr)
+
+    for src, points in grouped.items():
+        page_num, side = parse_source(src)
+        raw_title = titles.get(src, f"Unknown ({src})")
+
+        if page_num not in raw_legend_cache:
+            raw_legend_cache[page_num] = load_raw_legend(raw_dir, page_num)
+        page_legend_lines = raw_legend_cache[page_num]
+
+        # Convert full_page-05.png_left to debug_full_page-05_left.png
+        legend_key = "debug_" + src.replace(".png_left", "_left.png").replace(".png_right", "_right.png")
+        legend = legends.get(legend_key, [])
+
+        # Build a fast lookup for this map's color legend (Gemini)
+        legend_lookup = {item["color"]: item for item in legend}
+
+        graph = []
+        for loc_name, color_name in points.items():
+            if color_name == "Unknown":
+                continue
+
+            safe_id = loc_name.replace(" ", "_")
+            safe_id = (
+                safe_id.replace("á", "%C3%A1")
+                .replace("í", "%C3%AD")
+                .replace("ó", "%C3%B3")
+                .replace("é", "%C3%A9")
+                .replace("ú", "%C3%BA")
+                .replace("ñ", "%C3%B1")
+            )
+
+            obs = {
+                "@type": "Observation",
+                "location": f"http://maps2ai.org/locations/{safe_id}",
+                "name": loc_name,
+            }
+
+            if color_name == "Grey" or color_name == "No Map":
+                obs["value_range"] = "No Map"
+                obs["value"] = "No Map"
+            else:
+                mapping = legend_lookup.get(color_name)
+
+                # Fuzzy fallback if exact color is not found
+                if not mapping:
+                    for k in legend_lookup.keys():
+                        if color_name in k or k in color_name:
+                            mapping = legend_lookup[k]
+                            break
+
+                if not mapping:
+                    mapping = {}
+
+                v_range = mapping.get("value_range", "Unknown")
+                label = mapping.get("label", "Unknown")
+                absolute_val = mapping.get("absolute_range", "N/A")
+
+                # Determine if it's percentage or temperature based on the string
+                if "%" in v_range:
+                    obs["value_percentage"] = v_range
+                elif "°C" in v_range or "C" in v_range:
+                    obs["value_temperature"] = v_range
+                else:
+                    obs["value_range"] = v_range
+
+                if absolute_val != "N/A":
+                    obs["absolute_range"] = absolute_val
+
+                obs["label"] = label
+                if absolute_val != "N/A":
+                    obs["value"] = f"{v_range} ({absolute_val}) ({label})"
+                else:
+                    obs["value"] = f"{v_range} ({label})"
+
+            graph.append(obs)
+
+        output_data = {
+            "@context": {
+                "schema": "http://schema.org/",
+                "Observation": "schema:Observation",
+                "location": {"@id": "schema:location", "@type": "@id"},
+                "value": "schema:value",
+                "value_range": "schema:description",
+                "value_percentage": "schema:description",
+                "value_temperature": "schema:description",
+                "absolute_range": "schema:value",
+                "label": "schema:name",
+                "variable": "schema:variableMeasured",
+                "source": "schema:publisher",
+                "legend": "schema:description",
+                "page": "schema:position",
+            },
+            "source": src,
+            "page": page_num,
+            "side": side,
+            "variable_page_title": raw_title,
+            "legend": page_legend_lines,
+            "@graph": graph,
+        }
+
+        title_part = safe_filename_part(raw_title)
+        if page_num is not None and side:
+            filename = f"page_{page_num}_{side}_{title_part}.json"
+        elif page_num is not None:
+            filename = f"page_{page_num}_{title_part}.json"
+        else:
+            filename = f"page_unknown_{title_part}.json"
+
+        filepath = os.path.join(output_dir, filename)
+
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(output_data, f, indent=2, ensure_ascii=False)
+
+        print(f"Wrote {filepath} (legend lines: {len(page_legend_lines)})")
+
+    return len(grouped)
+
+
+def compile_report(data_dir: str, output_csv: str):
+    files = [f for f in os.listdir(data_dir) if f.endswith(".json")]
+
+    loaded_data = {}
+    all_locations = set()
+
+    for filename in files:
+        filepath = os.path.join(data_dir, filename)
+        with open(filepath, "r", encoding="utf-8") as f:
+            content = json.load(f)
+
+        src = content["source"]
+        title = content["variable_page_title"]
+
+        points = {}
+        for obs in content.get("@graph", []):
+            loc_url = obs.get("location", "")
+            loc_name = urllib.parse.unquote(loc_url.split("/")[-1]).replace("_", " ")
+            v = obs.get("value", "No Map")
+            vr = obs.get("value_range", "")
+            if vr:
+                points[loc_name] = f"{vr} ({v})"
+            else:
+                points[loc_name] = v
+
+        loaded_data[src] = {
+            "title": title,
+            "page": content.get("page"),
+            "legend": content.get("legend", []),
+            "points": points,
+        }
+
+        for loc in points.keys():
+            all_locations.add(loc)
+
+    def get_page_num(src_name):
+        page = loaded_data[src_name].get("page")
+        if page is not None:
+            return int(page)
+        m = re.search(r"page[_-](\d+)", src_name)
+        if m:
+            return int(m.group(1))
+        return 999
+
+    sorted_sources = sorted(loaded_data.keys(), key=lambda x: (get_page_num(x), x))
+    sorted_locations = sorted(list(all_locations))
+
+    headers = ["Location"]
+    for src in sorted_sources:
+        headers.append(loaded_data[src]["title"])
+
+    with open(output_csv, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+
+        # Optional legend row summarizing raw/page-*/legend.txt per column
+        legend_row = ["Legend"]
+        for src in sorted_sources:
+            lines = loaded_data[src].get("legend") or []
+            legend_row.append(" | ".join(lines) if lines else "")
+        writer.writerow(legend_row)
+
+        for loc in sorted_locations:
+            row = [loc]
+            for src in sorted_sources:
+                val = loaded_data[src]["points"].get(loc, "No Map")
+                row.append(val)
+            writer.writerow(row)

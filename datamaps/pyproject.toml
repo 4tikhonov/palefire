@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "datamaps"
+version = "0.1.0"
+description = "A pipeline for extracting data from map images and PDFs"
+authors = [
+    {name = "User", email = "user@example.com"}
+]
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "opencv-python-headless",
+    "numpy",
+    "geopandas",
+    "pandas",
+    "google-genai"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest"
+]
+
+[project.scripts]
+datamaps = "datamaps.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["datamaps"]

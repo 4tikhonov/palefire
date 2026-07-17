@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./run_pipeline.sh *)",
+      "Bash(python3 *)",
+      "Bash(chmod +x /Users/tykhonov/projects/datamaps/run_pipeline.sh)",
+      "Bash(chmod +x /Users/tykhonov/projects/datamaps/*.sh)"
+    ]
+  }
+}

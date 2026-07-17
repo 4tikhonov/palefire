@@ -1,0 +1,221 @@
+1. Downloading PDF...
+Using cached report/source.pdf (6125693 bytes)
+2. Extracting pages to PNG...
+PDF conversion complete. Running datamaps extract pipeline...
+ Container datamaps-app-run-2ad6bf5a244e Creating 
+ Container datamaps-app-run-2ad6bf5a244e Created 
+Extracting...
+Processing report/full_page-01.png...
+Processing report/full_page-02.png...
+Processing report/full_page-03.png...
+Processing report/full_page-04.png...
+Processing report/full_page-05.png...
+Processing report/full_page-06.png...
+Processing report/full_page-07.png...
+Processing report/full_page-08.png...
+Processing report/full_page-09.png...
+Processing report/full_page-10.png...
+Processing report/full_page-11.png...
+Processing report/full_page-12.png...
+Processing report/full_page-13.png...
+Processing report/full_page-14.png...
+Processing report/full_page-15.png...
+Processing report/full_page-16.png...
+Processing report/full_page-17.png...
+Processing report/full_page-18.png...
+Processing report/full_page-19.png...
+Processing report/full_page-20.png...
+Processing report/full_page-21.png...
+Processing report/full_page-22.png...
+Processing report/full_page-23.png...
+Processing report/full_page-24.png...
+Processing report/full_page-25.png...
+Processing report/full_page-26.png...
+Processing report/full_page-27.png...
+Processing report/full_page-28.png...
+3. Running OCR on extracted maps (raw Tesseract -> raw/page-NN/)...
+ Container datamaps-app-run-50f9591d9ff6 Creating 
+ Container datamaps-app-run-50f9591d9ff6 Created 
+Running OCR on extracted maps...
+full_page-01 -> raw/page-01/fullpage.txt
+full_page-01.png_left -> REPUBLICA DE HONDURAS (Page 1) [raw: raw/page-01/left.txt]
+full_page-01.png_right -> ee PT on! a») mt at @ (Page 1) [raw: raw/page-01/right.txt]
+full_page-02 -> raw/page-02/fullpage.txt
+full_page-02.png_left -> _. REPUBLICA DE HONDURAS (Page 2) [raw: raw/page-02/left.txt]
+full_page-02.png_right -> ENSO from Jun 2026 (Page 2) [raw: raw/page-02/right.txt]
+full_page-03 -> raw/page-03/fullpage.txt
+full_page-03.png_left -> __. REPUBLICA DE HONDU (Page 3) [raw: raw/page-03/left.txt]
+full_page-03.png_right -> TS oa ae a a (Page 3) [raw: raw/page-03/right.txt]
+full_page-04 -> raw/page-04/fullpage.txt
+full_page-04.png_left -> Pronostico de anomalia de lluvia (%) Jul 2026 (Page 4) [raw: raw/page-04/left.txt]
+full_page-04.png_right -> Pronostico de anomalia de Temp.(C), Julio 2026 (Page 4) [raw: raw/page-04/right.txt]
+full_page-05 -> raw/page-05/fullpage.txt
+full_page-05.png_left -> Pronostico de anomalia de lluvia (%), Agosto 2026 (Page 5) [raw: raw/page-05/left.txt]
+full_page-05.png_right -> Pronostico de anomalia de Temp.(C), Agosto 2026 (Page 5) [raw: raw/page-05/right.txt]
+full_page-06 -> raw/page-06/fullpage.txt
+full_page-06.png_left -> Pronostico de anomalia de lluvia (%) sep 2026 (Page 6) [raw: raw/page-06/left.txt]
+full_page-06.png_right -> Pronostico de anomalia de Temp.(C), septiembre 2026 (Page 6) [raw: raw/page-06/right.txt]
+full_page-07 -> raw/page-07/fullpage.txt
+full_page-07.png_left -> Pronostico de anomalia de lluvia (%) oct 2026 (Page 7) [raw: raw/page-07/left.txt]
+full_page-07.png_right -> Pronostico de anomalias de Temperatura (Page 7) [raw: raw/page-07/right.txt]
+full_page-08 -> raw/page-08/fullpage.txt
+full_page-08.png_left -> Pronostico de anomalia de lluvia (%), Noviembre 2026 (Page 8) [raw: raw/page-08/left.txt]
+full_page-08.png_right -> Pronostico de anomalias de Temperatura (Page 8) [raw: raw/page-08/right.txt]
+full_page-09 -> raw/page-09/fullpage.txt
+full_page-09.png_left -> W<-200mm fj -200..-100 j-100..- 50 []- 50.0 [ ]NoSignal[]o..50 [50.100 fji00.200 fj> 200mm (Page 9) [raw: raw/page-09/left.txt]
+full_page-09.png_right -> Mi<20° §-20.-1.0 Gj-10.05 [05.0 [_)NoSignaljo.05 fjos.1.0 fi0.20 J 20°c (Page 9) [raw: raw/page-09/right.txt]
+full_page-10 -> raw/page-10/fullpage.txt
+full_page-10.png_left -> PRONOSTICO DE LLUVIA ACUMULADA G22 GOBIERNO m1 zt @G CENAOs (Page 10) [raw: raw/page-10/left.txt]
+full_page-10.png_right -> NORMA CLIMATICA (1991-2020) (Page 10) [raw: raw/page-10/right.txt]
+full_page-11 -> raw/page-11/fullpage.txt
+full_page-11.png_left -> PRONOSTICO DE LLUVIA ACUMULADA G22 GOBIERNO m1 : Gcenaos (Page 11) [raw: raw/page-11/left.txt]
+full_page-11.png_right -> ANOMALIA % (Page 11) [raw: raw/page-11/right.txt]
+full_page-12 -> raw/page-12/fullpage.txt
+full_page-12.png_left -> PRONOSTICO DE LLUVIA ACUMULADA (Page 12) [raw: raw/page-12/left.txt]
+full_page-12.png_right -> NORMA CLIMATICA (1991-2020) (Page 12) [raw: raw/page-12/right.txt]
+full_page-13 -> raw/page-13/fullpage.txt
+full_page-13.png_left -> PRONOSTICO DE LLUVIA ACUMULADA a _— . (Page 13) [raw: raw/page-13/left.txt]
+full_page-13.png_right -> AGOSTO 2026 (Page 13) [raw: raw/page-13/right.txt]
+full_page-14 -> raw/page-14/fullpage.txt
+full_page-14.png_left -> PRONOSTICO DE LLUVIA ACUMULADA AY cosmenom  BM cENAOS (Page 14) [raw: raw/page-14/left.txt]
+full_page-14.png_right -> NORMA CLIMATICA (1991-2020) (Page 14) [raw: raw/page-14/right.txt]
+full_page-15 -> raw/page-15/fullpage.txt
+full_page-15.png_left -> PRONOSTICO DE LLUVIA ACUMULADA AY cosmenom  BM cENAOS (Page 15) [raw: raw/page-15/left.txt]
+full_page-15.png_right -> SEPTIEMBRE 2026 (Page 15) [raw: raw/page-15/right.txt]
+full_page-16 -> raw/page-16/fullpage.txt
+full_page-16.png_left -> PRONOSTICO DE LLUVIA ACUMULADA AY commanon, (Page 16) [raw: raw/page-16/left.txt]
+full_page-16.png_right -> NORMA CLIMATICA (1991-2020) (Page 16) [raw: raw/page-16/right.txt]
+Warning: Full page image not found: report/full_page-17.png
+full_page-17.png_left -> PRONOSTICO DE LLUVIA ACUMULADA (Page 17) [raw: raw/page-17/left.txt]
+full_page-17.png_right -> ANOMALIA %  —— 1. (Page 17) [raw: raw/page-17/right.txt]
+Warning: Full page image not found: report/full_page-18.png
+full_page-18.png_left -> PRONOSTICO DE LLUVIA ACUMULADA 2 comenrons @ @} cenaos (Page 18) [raw: raw/page-18/left.txt]
+full_page-18.png_right -> NORMA CLIMATICA (1991-2020) (Page 18) [raw: raw/page-18/right.txt]
+Warning: Full page image not found: report/full_page-19.png
+full_page-19.png_left -> PRONOSTICO DE LLUVIA ACUMULADA 2 comenrons @ @} cenaos (Page 19) [raw: raw/page-19/left.txt]
+full_page-19.png_right -> ANOMALIA % (22 conten @ cenaos (Page 19) [raw: raw/page-19/right.txt]
+Warning: Full page image not found: report/full_page-20.png
+full_page-20.png_left -> ANOS ANALOGOS 1982, 1997, 2015 y 2023 (Page 20) [raw: raw/page-20/left.txt]
+full_page-20.png_right -> Pronostico de lluvia c/5 dias, (Page 20) [raw: raw/page-20/right.txt]
+Warning: Full page image not found: report/full_page-21.png
+full_page-21.png_left -> ANOS ANALOGOS 1982, 1997, 2015 y 2023 (Page 21) [raw: raw/page-21/left.txt]
+full_page-21.png_right -> Pronostico de lluvia c/5 dias en (Page 21) [raw: raw/page-21/right.txt]
+Warning: Full page image not found: report/full_page-22.png
+full_page-22.png_left -> Pronostico de lluvia c/5 dias, Yoro, (Page 22) [raw: raw/page-22/left.txt]
+full_page-22.png_right -> Pronostico de lluvia c/5 dias, (Page 22) [raw: raw/page-22/right.txt]
+Warning: Full page image not found: report/full_page-23.png
+full_page-23.png_left -> ANOS ANALOGOS 1965, 1972, 1982, 1997, 2015 y 2023 (Page 23) [raw: raw/page-23/left.txt]
+full_page-23.png_right -> Pronostico de anomalias de Temperatura (Page 23) [raw: raw/page-23/right.txt]
+Warning: Full page image not found: report/full_page-24.png
+full_page-24.png_left -> Pronostico de lluvia c/5 dias, S. (Page 24) [raw: raw/page-24/left.txt]
+full_page-24.png_right -> Pronostico de lluvia c/5 dias, La (Page 24) [raw: raw/page-24/right.txt]
+Warning: Full page image not found: report/full_page-25.png
+full_page-25.png_left -> Pronostico de lluvia c/5 (Page 25) [raw: raw/page-25/left.txt]
+full_page-25.png_right -> dias, La Ceiba, 2026 (Page 25) [raw: raw/page-25/right.txt]
+Warning: Full page image not found: report/full_page-26.png
+full_page-26.png_left -> Pronostico de lluvia c/5 dias, (Page 26) [raw: raw/page-26/left.txt]
+full_page-26.png_right -> Pronostico de lluvia c/5 dias, (Page 26) [raw: raw/page-26/right.txt]
+Warning: Full page image not found: report/full_page-27.png
+full_page-27.png_left -> <% 2026 Atlantic Hurricane Season Outlook (Page 27) [raw: raw/page-27/left.txt]
+full_page-27.png_right -> HI) Forecast mean —— Standard deviation [IJ Climate mean (Page 27) [raw: raw/page-27/right.txt]
+Warning: Full page image not found: report/full_page-28.png
+full_page-28.png_left -> 18 municipios bajo alerta v (Page 28) [raw: raw/page-28/left.txt]
+full_page-28.png_right -> erde por sequia 2026 (Page 28) [raw: raw/page-28/right.txt]
+legend -> raw/page-01/legend.txt (1 lines)
+legend -> raw/page-02/legend.txt (3 lines)
+legend -> raw/page-03/legend.txt (2 lines)
+legend -> raw/page-04/legend.txt (6 lines)
+legend -> raw/page-05/legend.txt (5 lines)
+legend -> raw/page-06/legend.txt (5 lines)
+legend -> raw/page-07/legend.txt (7 lines)
+legend -> raw/page-08/legend.txt (6 lines)
+legend -> raw/page-09/legend.txt (13 lines)
+legend -> raw/page-10/legend.txt (8 lines)
+legend -> raw/page-11/legend.txt (3 lines)
+legend -> raw/page-12/legend.txt (5 lines)
+legend -> raw/page-13/legend.txt (6 lines)
+legend -> raw/page-14/legend.txt (9 lines)
+legend -> raw/page-15/legend.txt (8 lines)
+legend -> raw/page-16/legend.txt (7 lines)
+legend -> raw/page-17/legend.txt (3 lines)
+legend -> raw/page-18/legend.txt (3 lines)
+legend -> raw/page-19/legend.txt (3 lines)
+legend -> raw/page-20/legend.txt (1 lines)
+legend -> raw/page-21/legend.txt (2 lines)
+legend -> raw/page-22/legend.txt (3 lines)
+legend -> raw/page-23/legend.txt (2 lines)
+legend -> raw/page-24/legend.txt (2 lines)
+legend -> raw/page-25/legend.txt (0 lines)
+legend -> raw/page-26/legend.txt (2 lines)
+legend -> raw/page-27/legend.txt (10 lines)
+legend -> raw/page-28/legend.txt (0 lines)
+4. Extracting legends...
+ Container datamaps-app-run-3727bdc33f3f Creating 
+ Container datamaps-app-run-3727bdc33f3f Created 
+Extracting legends for all maps...
+Legends extraction complete.
+5. Splitting to JSON-LD datasets...
+ Container datamaps-app-run-71eac0f40200 Creating 
+ Container datamaps-app-run-71eac0f40200 Created 
+Splitting dataset...
+Wrote data_points/page_1_left_REPUBLICA_DE_HONDURAS_Page_1.json (legend lines: 1)
+Wrote data_points/page_1_right_ee_PT_on_a_mt_at_Page_1.json (legend lines: 1)
+Wrote data_points/page_2_left_REPUBLICA_DE_HONDURAS_Page_2.json (legend lines: 3)
+Wrote data_points/page_2_right_ENSO_from_Jun_2026_Page_2.json (legend lines: 3)
+Wrote data_points/page_3_left_REPUBLICA_DE_HONDU_Page_3.json (legend lines: 2)
+Wrote data_points/page_3_right_TS_oa_ae_a_a_Page_3.json (legend lines: 2)
+Wrote data_points/page_4_left_Pronostico_de_anomalia_de_lluvia_Jul_2026_Page_4.json (legend lines: 6)
+Wrote data_points/page_4_right_Pronostico_de_anomalia_de_Temp_C_Julio_2026_Page_4.json (legend lines: 6)
+Wrote data_points/page_5_left_Pronostico_de_anomalia_de_lluvia_Agosto_2026_Page_5.json (legend lines: 5)
+Wrote data_points/page_5_right_Pronostico_de_anomalia_de_Temp_C_Agosto_2026_Page_5.json (legend lines: 5)
+Wrote data_points/page_6_left_Pronostico_de_anomalia_de_lluvia_sep_2026_Page_6.json (legend lines: 5)
+Wrote data_points/page_6_right_Pronostico_de_anomalia_de_Temp_C_septiembre_2026_Page_6.json (legend lines: 5)
+Wrote data_points/page_7_left_Pronostico_de_anomalia_de_lluvia_oct_2026_Page_7.json (legend lines: 7)
+Wrote data_points/page_7_right_Pronostico_de_anomalias_de_Temperatura_Page_7.json (legend lines: 7)
+Wrote data_points/page_8_left_Pronostico_de_anomalia_de_lluvia_Noviembre_2026_Page_8.json (legend lines: 6)
+Wrote data_points/page_8_right_Pronostico_de_anomalias_de_Temperatura_Page_8.json (legend lines: 6)
+Wrote data_points/page_9_left_W_200mm_fj_200_100_j_100_50_50_0_NoSignal_o_50_50_100_fji00.json (legend lines: 13)
+Wrote data_points/page_9_right_Mi_20_20_1_0_Gj_10_05_05_0_NoSignaljo_05_fjos_1_0_fi0_20_J_2.json (legend lines: 13)
+Wrote data_points/page_10_left_PRONOSTICO_DE_LLUVIA_ACUMULADA_G22_GOBIERNO_m1_zt_G_CENAOs_P.json (legend lines: 8)
+Wrote data_points/page_10_right_NORMA_CLIMATICA_1991_2020_Page_10.json (legend lines: 8)
+Wrote data_points/page_11_left_PRONOSTICO_DE_LLUVIA_ACUMULADA_G22_GOBIERNO_m1_Gcenaos_Page.json (legend lines: 3)
+Wrote data_points/page_11_right_ANOMALIA_Page_11.json (legend lines: 3)
+Wrote data_points/page_12_left_PRONOSTICO_DE_LLUVIA_ACUMULADA_Page_12.json (legend lines: 5)
+Wrote data_points/page_12_right_NORMA_CLIMATICA_1991_2020_Page_12.json (legend lines: 5)
+Wrote data_points/page_13_left_PRONOSTICO_DE_LLUVIA_ACUMULADA_a_Page_13.json (legend lines: 6)
+Wrote data_points/page_13_right_AGOSTO_2026_Page_13.json (legend lines: 6)
+Wrote data_points/page_14_left_PRONOSTICO_DE_LLUVIA_ACUMULADA_AY_cosmenom_BM_cENAOS_Page_14.json (legend lines: 9)
+Wrote data_points/page_14_right_NORMA_CLIMATICA_1991_2020_Page_14.json (legend lines: 9)
+Wrote data_points/page_15_left_PRONOSTICO_DE_LLUVIA_ACUMULADA_AY_cosmenom_BM_cENAOS_Page_15.json (legend lines: 8)
+Wrote data_points/page_15_right_SEPTIEMBRE_2026_Page_15.json (legend lines: 8)
+Wrote data_points/page_16_left_PRONOSTICO_DE_LLUVIA_ACUMULADA_AY_commanon_Page_16.json (legend lines: 7)
+Wrote data_points/page_16_right_NORMA_CLIMATICA_1991_2020_Page_16.json (legend lines: 7)
+Wrote data_points/page_17_left_PRONOSTICO_DE_LLUVIA_ACUMULADA_Page_17.json (legend lines: 3)
+Wrote data_points/page_17_right_ANOMALIA_1_Page_17.json (legend lines: 3)
+Wrote data_points/page_18_left_PRONOSTICO_DE_LLUVIA_ACUMULADA_2_comenrons_cenaos_Page_18.json (legend lines: 3)
+Wrote data_points/page_18_right_NORMA_CLIMATICA_1991_2020_Page_18.json (legend lines: 3)
+Wrote data_points/page_19_left_PRONOSTICO_DE_LLUVIA_ACUMULADA_2_comenrons_cenaos_Page_19.json (legend lines: 3)
+Wrote data_points/page_19_right_ANOMALIA_22_conten_cenaos_Page_19.json (legend lines: 3)
+Wrote data_points/page_20_left_ANOS_ANALOGOS_1982_1997_2015_y_2023_Page_20.json (legend lines: 1)
+Wrote data_points/page_20_right_Pronostico_de_lluvia_c_5_dias_Page_20.json (legend lines: 1)
+Wrote data_points/page_21_left_ANOS_ANALOGOS_1982_1997_2015_y_2023_Page_21.json (legend lines: 2)
+Wrote data_points/page_21_right_Pronostico_de_lluvia_c_5_dias_en_Page_21.json (legend lines: 2)
+Wrote data_points/page_22_left_Pronostico_de_lluvia_c_5_dias_Yoro_Page_22.json (legend lines: 3)
+Wrote data_points/page_22_right_Pronostico_de_lluvia_c_5_dias_Page_22.json (legend lines: 3)
+Wrote data_points/page_23_left_ANOS_ANALOGOS_1965_1972_1982_1997_2015_y_2023_Page_23.json (legend lines: 2)
+Wrote data_points/page_23_right_Pronostico_de_anomalias_de_Temperatura_Page_23.json (legend lines: 2)
+Wrote data_points/page_24_left_Pronostico_de_lluvia_c_5_dias_S_Page_24.json (legend lines: 2)
+Wrote data_points/page_24_right_Pronostico_de_lluvia_c_5_dias_La_Page_24.json (legend lines: 2)
+Wrote data_points/page_25_left_Pronostico_de_lluvia_c_5_Page_25.json (legend lines: 0)
+Wrote data_points/page_25_right_dias_La_Ceiba_2026_Page_25.json (legend lines: 0)
+Wrote data_points/page_26_left_Pronostico_de_lluvia_c_5_dias_Page_26.json (legend lines: 2)
+Wrote data_points/page_26_right_Pronostico_de_lluvia_c_5_dias_Page_26.json (legend lines: 2)
+Wrote data_points/page_27_left_2026_Atlantic_Hurricane_Season_Outlook_Page_27.json (legend lines: 10)
+Wrote data_points/page_27_right_HI_Forecast_mean_Standard_deviation_IJ_Climate_mean_Page_27.json (legend lines: 10)
+Wrote data_points/page_28_left_18_municipios_bajo_alerta_v_Page_28.json (legend lines: 0)
+Wrote data_points/page_28_right_erde_por_sequia_2026_Page_28.json (legend lines: 0)
+6. Compiling final CSV report...
+ Container datamaps-app-run-2795ae7c295e Creating 
+ Container datamaps-app-run-2795ae7c295e Created 
+Compiling report...
+Pipeline complete! Check raw/, data_points/, and report/final_heatmap_report.csv
