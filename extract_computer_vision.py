@@ -371,8 +371,14 @@ def analyze_image(image_path, session_dir, model="gemma4:latest"):
                     ai_datamaps_dir = None
                     try:
                         import shutil
+                        import os
                         compose_cmd = ['docker-compose'] if shutil.which('docker-compose') else ['docker', 'compose']
-                        subprocess.run(compose_cmd + ['run', '--rm'] + env_args + ['app', 'bash', '-c', 
+                        user_args = []
+                        if hasattr(os, 'getuid'):
+                            user_args = ['--user', f"{os.getuid()}:{os.getgid()}"]
+                            env_args.extend(['-e', 'HOME=/tmp'])
+                        
+                        subprocess.run(compose_cmd + ['run', '--rm'] + user_args + env_args + ['app', 'bash', '-c', 
                             'python -m datamaps extract && python -m datamaps split && python -m datamaps compile'], 
                             cwd=str(datamaps_dir), check=True)
                             
