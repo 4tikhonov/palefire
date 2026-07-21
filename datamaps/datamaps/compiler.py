@@ -25,7 +25,11 @@ def get_color_name(bgr):
         (144, 212, 253): "Orange",
         (46, 190, 230): "Dark Orange",
         (116, 197, 253): "Dark Orange",
-        (96, 185, 253): "Red"
+        (96, 185, 253): "Red",
+        (135, 232, 198): "Map Green",
+        (131, 228, 194): "Map Green",
+        (234, 234, 234): "Map White",
+        (253, 254, 255): "Map White"
     }
 
     best_dist = float("inf")
@@ -42,10 +46,10 @@ def get_color_name(bgr):
 
 def parse_source(src: str):
     """Parse full_page-02.png_left -> (page_num, side)."""
-    m = re.match(r"full_page-(\d+)\.png_(left|right)$", src)
+    m = re.match(r"full_page-(\d+)\.png(?:_(left|right))?$", src)
     if not m:
         return None, None
-    return int(m.group(1)), m.group(2)
+    return int(m.group(1)), m.group(2) if m.group(2) else "single"
 
 
 def load_raw_legend(raw_dir: str, page_num: int) -> List[str]:
@@ -113,7 +117,16 @@ def split_and_convert_to_jsonld(
 
     for src, points in grouped.items():
         page_num, side = parse_source(src)
-        raw_title = titles.get(src, f"Unknown ({src})")
+        
+        raw_title_data = titles.get(src, {})
+        if isinstance(raw_title_data, str):
+            raw_title = raw_title_data
+            original_filename = src
+            color_anomaly_mapping = {}
+        else:
+            raw_title = raw_title_data.get("title", f"Unknown ({src})")
+            original_filename = raw_title_data.get("original_filename", src)
+            color_anomaly_mapping = raw_title_data.get("color_anomaly_mapping", {})
 
         if page_num not in raw_legend_cache:
             raw_legend_cache[page_num] = load_raw_legend(raw_dir, page_num)
@@ -145,32 +158,57 @@ def split_and_convert_to_jsonld(
                 "@type": "Observation",
                 "location": f"http://maps2ai.org/locations/{safe_id}",
                 "name": loc_name,
+                "color": color_name,
             }
+
+            # Map the color to the extracted anomaly using a fuzzy fallback
+            anomaly = "Unknown"
+            for k, v in color_anomaly_mapping.items():
+                if k.lower() in color_name.lower() or color_name.lower() in k.lower():
+                    anomaly = v
+                    break
+            obs["anomaly"] = anomaly
 
             if color_name == "Grey" or color_name == "No Map":
                 obs["value_range"] = "No Map"
                 obs["value"] = "No Map"
             else:
-                mapping = legend_lookup.get(color_name)
+                mapping = {}
+                
+                # If we have an AI mapping, prioritize it!
+                if color_anomaly_mapping:
+                    if anomaly != "Unknown":
+                        v_range = anomaly
+                        label = "N/A"
+                        absolute_val = "N/A"
+                    else:
+                        v_range = "Unknown"
+                        label = "Unknown"
+                        absolute_val = "N/A"
+                else:
+                    mapping = legend_lookup.get(color_name)
 
-                # Fuzzy fallback if exact color is not found
-                if not mapping:
-                    for k in legend_lookup.keys():
-                        if color_name in k or k in color_name:
-                            mapping = legend_lookup[k]
-                            break
+                    # Fuzzy fallback if exact color is not found
+                    if not mapping:
+                        for k in legend_lookup.keys():
+                            if color_name in k or k in color_name:
+                                mapping = legend_lookup[k]
+                                break
 
-                if not mapping:
-                    mapping = {}
+                    if not mapping:
+                        mapping = {}
 
-                v_range = mapping.get("value_range", "Unknown")
-                label = mapping.get("label", "Unknown")
-                absolute_val = mapping.get("absolute_range", "N/A")
+                    v_range = mapping.get("value_range", "Unknown")
+                    label = mapping.get("label", "Unknown")
+                    absolute_val = mapping.get("absolute_range", "N/A")
 
                 # Determine if it's percentage or temperature based on the string
-                if "%" in v_range:
+                if v_range is None:
+                    v_range = "Unknown"
+                    
+                if "%" in str(v_range):
                     obs["value_percentage"] = v_range
-                elif "°C" in v_range or "C" in v_range:
+                elif "°C" in str(v_range) or "C" in str(v_range):
                     obs["value_temperature"] = v_range
                 else:
                     obs["value_range"] = v_range
@@ -182,7 +220,7 @@ def split_and_convert_to_jsonld(
                 if absolute_val != "N/A":
                     obs["value"] = f"{v_range} ({absolute_val}) ({label})"
                 else:
-                    obs["value"] = f"{v_range} ({label})"
+                    obs["value"] = f"{v_range} ({label})" if label != "N/A" else v_range
 
             graph.append(obs)
 
@@ -203,6 +241,7 @@ def split_and_convert_to_jsonld(
                 "page": "schema:position",
             },
             "source": src,
+            "original_filename": original_filename,
             "page": page_num,
             "side": side,
             "variable_page_title": raw_title,
@@ -248,13 +287,15 @@ def compile_report(data_dir: str, output_csv: str):
             loc_name = urllib.parse.unquote(loc_url.split("/")[-1]).replace("_", " ")
             v = obs.get("value", "No Map")
             vr = obs.get("value_range", "")
-            if vr:
-                points[loc_name] = f"{vr} ({v})"
-            else:
-                points[loc_name] = v
+            points[loc_name] = {
+                "value": vr if vr else v,
+                "color": obs.get("color", "Unknown"),
+                "anomaly": obs.get("anomaly", "Unknown")
+            }
 
         loaded_data[src] = {
             "title": title,
+            "original_filename": content.get("original_filename", ""),
             "page": content.get("page"),
             "legend": content.get("legend", []),
             "points": points,
@@ -275,9 +316,12 @@ def compile_report(data_dir: str, output_csv: str):
     sorted_sources = sorted(loaded_data.keys(), key=lambda x: (get_page_num(x), x))
     sorted_locations = sorted(list(all_locations))
 
-    headers = ["Location"]
-    for src in sorted_sources:
-        headers.append(loaded_data[src]["title"])
+    # Determine headers for the flattened structure
+    # With AI extraction, we process one map at a time, so there's usually just one source.
+    first_src = sorted_sources[0] if sorted_sources else None
+    map_title = loaded_data[first_src]["title"] if first_src else "Variable"
+    
+    headers = ["Location", map_title, "Date", "Color", "Anomaly"]
 
     with open(output_csv, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -291,8 +335,18 @@ def compile_report(data_dir: str, output_csv: str):
         writer.writerow(legend_row)
 
         for loc in sorted_locations:
-            row = [loc]
             for src in sorted_sources:
-                val = loaded_data[src]["points"].get(loc, "No Map")
-                row.append(val)
-            writer.writerow(row)
+                pt = loaded_data[src]["points"].get(loc, {})
+                val = pt.get("value", "No Map")
+                color = pt.get("color", "Unknown")
+                anomaly = pt.get("anomaly", "Unknown")
+                
+                # Parse Date from original_filename (IMG-YYYYMMDD-...)
+                orig_file = loaded_data[src].get("original_filename", "")
+                date_str = "Unknown"
+                m_date = re.search(r"IMG-(\d{4})(\d{2})(\d{2})", orig_file)
+                if m_date:
+                    date_str = f"{m_date.group(1)}-{m_date.group(2)}-{m_date.group(3)}"
+                    
+                row = [loc, val, date_str, color, anomaly]
+                writer.writerow(row)

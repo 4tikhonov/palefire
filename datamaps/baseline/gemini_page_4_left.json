@@ -1,0 +1,108 @@
+{
+  "legend": [
+    {
+      "color": "Dark Grey-Green",
+      "value_range": "> 20%",
+      "value": "Above 20%"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "0% to 20%",
+      "value": "0% to 20%"
+    },
+    {
+      "color": "Yellow",
+      "value_range": "-20% to 0%",
+      "value": "-20% to 0%"
+    },
+    {
+      "color": "Light Orange",
+      "value_range": "-40% to -20%",
+      "value": "-40% to -20%"
+    },
+    {
+      "color": "Dark Red-Orange",
+      "value_range": "-65% to -40%",
+      "value": "-65% to -40%"
+    },
+    {
+      "color": "Red",
+      "value_range": "< -65%",
+      "value": "Below -65%"
+    }
+  ],
+  "data": [
+    {
+      "location": "Atlántida",
+      "value_range": "-20% to 0%"
+    },
+    {
+      "location": "Choluteca",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Colón",
+      "value_range": "-20% to 0%"
+    },
+    {
+      "location": "Comayagua",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Copán",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Cortés",
+      "value_range": "-20% to 0%"
+    },
+    {
+      "location": "El Paraíso",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Francisco Morazán",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Gracias a Dios",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Intibucá",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Islas de la Bahía",
+      "value_range": "-20% to 0%"
+    },
+    {
+      "location": "La Paz",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Lempira",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Ocotepeque",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Olancho",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Santa Bárbara",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Valle",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Yoro",
+      "value_range": "-20% to 0%"
+    }
+  ]
+}

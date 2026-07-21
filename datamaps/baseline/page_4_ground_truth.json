@@ -1,0 +1,98 @@
+{
+  "legend": [
+    {
+      "color": "dark_green",
+      "value_range": ">= 20%"
+    },
+    {
+      "color": "light_green",
+      "value_range": "0% to 20%"
+    },
+    {
+      "color": "yellow",
+      "value_range": "-20% to 0%"
+    },
+    {
+      "color": "orange",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "color": "dark_reddish_brown",
+      "value_range": "-65% to -40%"
+    }
+  ],
+  "data": [
+    {
+      "location": "Atlántida",
+      "value_range": "0% to 20%"
+    },
+    {
+      "location": "Choluteca",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Colón",
+      "value_range": "-20% to 0%"
+    },
+    {
+      "location": "Comayagua",
+      "value_range": "-20% to 0%"
+    },
+    {
+      "location": "Copán",
+      "value_range": "-20% to 0%"
+    },
+    {
+      "location": "Cortés",
+      "value_range": "0% to 20%"
+    },
+    {
+      "location": "El Paraíso",
+      "value_range": "-20% to 0%"
+    },
+    {
+      "location": "Francisco Morazán",
+      "value_range": "-20% to 0%"
+    },
+    {
+      "location": "Gracias a Dios",
+      "value_range": "-20% to 0%"
+    },
+    {
+      "location": "Intibucá",
+      "value_range": "-20% to 0%"
+    },
+    {
+      "location": "Islas de la Bahía",
+      "value_range": "0% to 20%"
+    },
+    {
+      "location": "La Paz",
+      "value_range": "-20% to 0%"
+    },
+    {
+      "location": "Lempira",
+      "value_range": "-20% to 0%"
+    },
+    {
+      "location": "Ocotepeque",
+      "value_range": "-20% to 0%"
+    },
+    {
+      "location": "Olancho",
+      "value_range": "-20% to 0%"
+    },
+    {
+      "location": "Santa Bárbara",
+      "value_range": "-20% to 0%"
+    },
+    {
+      "location": "Valle",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Yoro",
+      "value_range": "-20% to 0%"
+    }
+  ]
+}

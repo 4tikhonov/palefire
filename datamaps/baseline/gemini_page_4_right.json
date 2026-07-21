@@ -1,0 +1,103 @@
+{
+  "legend": [
+    {
+      "color": "Light Green",
+      "value_range": "0 to 0.5",
+      "value": "Temperature anomaly 0 to 0.5 °C"
+    },
+    {
+      "color": "Greenish-Yellow",
+      "value_range": "0.5 to 1",
+      "value": "Temperature anomaly 0.5 to 1 °C"
+    },
+    {
+      "color": "Orange",
+      "value_range": "1 to 1.5",
+      "value": "Temperature anomaly 1 to 1.5 °C"
+    },
+    {
+      "color": "Reddish-Orange",
+      "value_range": "1.5 to 2",
+      "value": "Temperature anomaly 1.5 to 2 °C"
+    },
+    {
+      "color": "Red",
+      "value_range": ">= 2",
+      "value": "Temperature anomaly >= 2 °C"
+    }
+  ],
+  "data": [
+    {
+      "location": "Atlántida",
+      "value_range": "1 to 1.5"
+    },
+    {
+      "location": "Choluteca",
+      "value_range": "1 to 1.5"
+    },
+    {
+      "location": "Colón",
+      "value_range": "1 to 1.5"
+    },
+    {
+      "location": "Comayagua",
+      "value_range": "1 to 1.5"
+    },
+    {
+      "location": "Copán",
+      "value_range": "1 to 1.5"
+    },
+    {
+      "location": "Cortés",
+      "value_range": "1 to 1.5"
+    },
+    {
+      "location": "El Paraíso",
+      "value_range": "1 to 1.5"
+    },
+    {
+      "location": "Francisco Morazán",
+      "value_range": "1 to 1.5"
+    },
+    {
+      "location": "Gracias a Dios",
+      "value_range": "0.5 to 1"
+    },
+    {
+      "location": "Intibucá",
+      "value_range": "1 to 1.5"
+    },
+    {
+      "location": "Islas de la Bahía",
+      "value_range": "1 to 1.5"
+    },
+    {
+      "location": "La Paz",
+      "value_range": "1 to 1.5"
+    },
+    {
+      "location": "Lempira",
+      "value_range": "1 to 1.5"
+    },
+    {
+      "location": "Ocotepeque",
+      "value_range": "1 to 1.5"
+    },
+    {
+      "location": "Olancho",
+      "value_range": "1 to 1.5"
+    },
+    {
+      "location": "Santa Bárbara",
+      "value_range": "1 to 1.5"
+    },
+    {
+      "location": "Valle",
+      "value_range": "1 to 1.5"
+    },
+    {
+      "location": "Yoro",
+      "value_range": "1 to 1.5"
+    }
+  ]
+}

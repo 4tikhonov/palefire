@@ -1,0 +1,126 @@
+{
+  "legend": [
+    {
+      "color": "Green",
+      "value_range": "0% to 20%",
+      "absolute_range": "N/A",
+      "value": "Above Normal"
+    },
+    {
+      "color": "Yellow",
+      "value_range": "-20% to 0%",
+      "absolute_range": "N/A",
+      "value": "Slightly Below Normal"
+    },
+    {
+      "color": "Orange",
+      "value_range": "-40% to -20%",
+      "absolute_range": "N/A",
+      "value": "Below Normal"
+    },
+    {
+      "color": "Dark Orange",
+      "value_range": "-65% to -40%",
+      "absolute_range": "N/A",
+      "value": "Significantly Below Normal"
+    },
+    {
+      "color": "Red",
+      "value_range": "<= -65%",
+      "absolute_range": "N/A",
+      "value": "Severely Below Normal"
+    }
+  ],
+  "data": [
+    {
+      "location": "Atlántida",
+      "value_range": "-20% to 0%",
+      "absolute_range": "N/A"
+    },
+    {
+      "location": "Colón",
+      "value_range": "-40% to -20%",
+      "absolute_range": "N/A"
+    },
+    {
+      "location": "Comayagua",
+      "value_range": "-20% to 0%",
+      "absolute_range": "N/A"
+    },
+    {
+      "location": "Copán",
+      "value_range": "-20% to 0%",
+      "absolute_range": "N/A"
+    },
+    {
+      "location": "Cortés",
+      "value_range": "-20% to 0%",
+      "absolute_range": "N/A"
+    },
+    {
+      "location": "Choluteca",
+      "value_range": "-65% to -40%",
+      "absolute_range": "N/A"
+    },
+    {
+      "location": "El Paraíso",
+      "value_range": "-65% to -40%",
+      "absolute_range": "N/A"
+    },
+    {
+      "location": "Francisco Morazán",
+      "value_range": "-20% to 0%",
+      "absolute_range": "N/A"
+    },
+    {
+      "location": "Gracias a Dios",
+      "value_range": "-65% to -40%",
+      "absolute_range": "N/A"
+    },
+    {
+      "location": "Intibucá",
+      "value_range": "-20% to 0%",
+      "absolute_range": "N/A"
+    },
+    {
+      "location": "Islas de la Bahía",
+      "value_range": "0% to 20%",
+      "absolute_range": "N/A"
+    },
+    {
+      "location": "La Paz",
+      "value_range": "-20% to 0%",
+      "absolute_range": "N/A"
+    },
+    {
+      "location": "Lempira",
+      "value_range": "-20% to 0%",
+      "absolute_range": "N/A"
+    },
+    {
+      "location": "Ocotepeque",
+      "value_range": "-20% to 0%",
+      "absolute_range": "N/A"
+    },
+    {
+      "location": "Olancho",
+      "value_range": "-40% to -20%",
+      "absolute_range": "N/A"
+    },
+    {
+      "location": "Santa Bárbara",
+      "value_range": "-20% to 0%",
+      "absolute_range": "N/A"
+    },
+    {
+      "location": "Valle",
+      "value_range": "-65% to -40%",
+      "absolute_range": "N/A"
+    },
+    {
+      "location": "Yoro",
+      "value_range": "-20% to 0%",
+      "absolute_range": "N/A"
+    }
+  ]
+}

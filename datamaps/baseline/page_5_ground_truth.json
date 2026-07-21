@@ -1,0 +1,102 @@
+{
+  "legend": [
+    {
+      "color": "Dark Green",
+      "value_range": ">= 20%"
+    },
+    {
+      "color": "Light Green",
+      "value_range": "0% to 20%"
+    },
+    {
+      "color": "Yellow-Orange",
+      "value_range": "-20% to 0%"
+    },
+    {
+      "color": "Orange",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "color": "Red-Orange",
+      "value_range": "-60% to -40%"
+    },
+    {
+      "color": "Dark Red",
+      "value_range": "-80% to -60%"
+    }
+  ],
+  "data": [
+    {
+      "location": "Atlántida",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Choluteca",
+      "value_range": "-60% to -40%"
+    },
+    {
+      "location": "Colón",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Comayagua",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Copán",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Cortés",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "El Paraíso",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Francisco Morazán",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Gracias a Dios",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Intibucá",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Islas de la Bahía",
+      "value_range": "-20% to 0%"
+    },
+    {
+      "location": "La Paz",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Lempira",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Ocotepeque",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Olancho",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Santa Bárbara",
+      "value_range": "-40% to -20%"
+    },
+    {
+      "location": "Valle",
+      "value_range": "-60% to -40%"
+    },
+    {
+      "location": "Yoro",
+      "value_range": "-40% to -20%"
+    }
+  ]
+}

@@ -333,14 +333,10 @@ python palefire-cli.py parse-url https://example.com --extract-keywords --keywor
 ### Manage AI Agent Daemon
 
 ```bash
-# Start daemon in background
-python palefire-cli.py agent start --daemon
-
-# Check status
-python palefire-cli.py agent status
-
-# Stop daemon
-python palefire-cli.py agent stop
+### AI Agent Daemon
+*   **Start**: `python palefire-cli.py agent start --daemon`
+*   **Status**: `python palefire-cli.py agent status`
+*   **Stop**: `python palefire-cli.py agent stop`
 
 # Restart daemon
 python palefire-cli.py agent restart --daemon

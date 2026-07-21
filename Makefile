@@ -90,6 +90,14 @@ ingest-demo: ## Ingest demo data
 	docker-compose exec palefire-cli python palefire-cli.py ingest --demo
 	@echo "$(GREEN)Demo data ingested!$(NC)"
 
+extract-vision: ## Test computer vision extraction on a single image
+	@echo "$(BLUE)Testing vision extraction...$(NC)"
+	docker-compose exec palefire-cli python extract_computer_vision.py --image datamaps/data/computer-vision/IMG-20220907-WA0001.jpg
+
+batch-vision: ## Run batch computer vision extraction
+	@echo "$(BLUE)Starting batch vision extraction pipeline...$(NC)"
+	docker-compose exec palefire-cli python batch_process.py
+
 query: ## Run a test query
 	@echo "$(BLUE)Running test query...$(NC)"
 	docker-compose exec palefire-cli python palefire-cli.py query "Who is Kamala Harris?"

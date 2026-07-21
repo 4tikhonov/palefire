@@ -48,6 +48,24 @@ Parse the semantic JSON-LD definitions and dynamically construct a master CSV re
 python -m datamaps compile
 ```
 
+### 4. Computer Vision Automated Extraction (Palefire LLM)
+The most powerful way to use `datamaps` is through the automated LLM-assisted computer vision script located in the parent directory (`extract_computer_vision.py`). This script uses an Ollama vision model to classify maps, extract colors, handle 2x2 grid splitting (forcing 2x1 splits to avoid axis clipping), and automatically runs the `datamaps` spatial extractor.
+
+**Single Image Extraction:**
+```bash
+cd ..
+export OLLAMA_HOST=http://localhost:11434/v1
+python extract_computer_vision.py --image datamaps/data/pdf-extraction/page_18.jpg
+```
+
+**PDF / Batch Directory Extraction:**
+```bash
+cd ..
+export OLLAMA_HOST=http://localhost:11434/v1
+python extract_computer_vision.py --image-dir datamaps/data/pdf-extraction/
+```
+The output JSON-LD data and the `final_heatmap_report.csv` will be saved in `../data/session_<timestamp>/<image_name>_datamaps/`.
+
 ## Development and Testing
 
 Install with development dependencies to run tests:

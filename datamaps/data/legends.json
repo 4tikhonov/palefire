@@ -1,6 +1,24 @@
 {
-  "debug_full_page-01_left.png": [],
-  "debug_full_page-01_right.png": [],
+  "debug_full_page-01.png": [
+    {
+      "color": "Map White",
+      "value_range": "0 - 5 mm",
+      "absolute_range": "0 - 5",
+      "label": "N/A"
+    },
+    {
+      "color": "Map Green",
+      "value_range": "6 - 11 mm",
+      "absolute_range": "6 - 11",
+      "label": "N/A"
+    },
+    {
+      "color": "Grey",
+      "value_range": "12 - 17 mm",
+      "absolute_range": "12 - 17",
+      "label": "N/A"
+    }
+  ],
   "debug_full_page-02_left.png": [],
   "debug_full_page-02_right.png": [
     {
