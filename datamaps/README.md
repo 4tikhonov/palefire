@@ -54,14 +54,28 @@ The most powerful way to use `datamaps` is through the automated LLM-assisted co
 **Single Image Extraction:**
 ```bash
 cd ..
-export OLLAMA_HOST=http://localhost:11434/v1
+export OLLAMA_HOST=http://localhost:11434
 python extract_computer_vision.py --image datamaps/data/pdf-extraction/page_18.jpg
 ```
 
-**PDF / Batch Directory Extraction:**
+**Local PDF Extraction:**
 ```bash
 cd ..
-export OLLAMA_HOST=http://localhost:11434/v1
+export OLLAMA_HOST=http://localhost:11434
+python extract_computer_vision.py --pdf datamaps/data/pronostico.pdf
+```
+
+**PDF URL Direct Download & Extraction:**
+```bash
+cd ..
+export OLLAMA_HOST=http://localhost:11434
+python extract_computer_vision.py --pdf-url "https://example.com/report.pdf"
+```
+
+**Batch Directory Extraction:**
+```bash
+cd ..
+export OLLAMA_HOST=http://localhost:11434
 python extract_computer_vision.py --image-dir datamaps/data/pdf-extraction/
 ```
 The output JSON-LD data and the `final_heatmap_report.csv` will be saved in `../data/session_<timestamp>/<image_name>_datamaps/`.

@@ -371,6 +371,31 @@ python palefire-cli.py ghostwriter ask "What is the article about?" --collection
 python palefire-cli.py ghostwriter search "specific keyword" --collection my-knowledge
 ```
 
+### Computer Vision Map Extraction
+
+Pale Fire includes a powerful computer vision module that can interpret heatmaps and climatological data from images and PDFs, extract spatial longitude/latitude coordinates, read the color scales, and generate a final CSV report using the LLM and the `datamaps` spatial tools.
+
+```bash
+# Ensure your Ollama host is set correctly
+export OLLAMA_HOST=http://localhost:11434
+
+# 1. Process a single map image
+python extract_computer_vision.py --image path/to/map.jpg
+
+# 2. Process a directory of images (e.g., extracted pages)
+python extract_computer_vision.py --image-dir datamaps/data/pdf-extraction/
+
+# 3. Download and process a PDF directly from a URL
+python extract_computer_vision.py --pdf-url "https://example.com/report.pdf"
+
+# 4. Process a local PDF directly
+python extract_computer_vision.py --pdf path/to/report.pdf
+
+# Note: The system will automatically detect multi-panel maps (like 2x2 grids) 
+# and intelligently split them (defaulting to 2x1 vertical splits for stacked maps).
+# Extracted data and CSV reports are placed in `data/session_<timestamp>/`.
+```
+
 ### MCP Server (Model Context Protocol)
 
 Palefire implements the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) to expose Ghostwriter capabilities to LLM clients (like Claude Desktop).
@@ -516,7 +541,7 @@ NEO4J_PASSWORD=your_password
 
 # LLM Provider
 LLM_PROVIDER=ollama
-OLLAMA_BASE_URL=http://localhost:11434/v1
+OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=deepseek-r1:7b
 OLLAMA_VERIFICATION_MODEL=gpt-oss:latest  # Optional: separate model for NER verification
 
@@ -534,7 +559,7 @@ WEIGHT_ENTITY_TYPE=0.15
 # Ghostwriter Configuration
 QDRANT_HOST=localhost
 QDRANT_PORT=6333
-OLLAMA_HOST=http://localhost:11434/v1
+OLLAMA_HOST=http://localhost:11434
 ```
 
 See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for complete documentation.
