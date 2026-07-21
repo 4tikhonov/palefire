@@ -1,0 +1,113 @@
+{
+  "@context": "http://www.w3.org/ns/odrl.jsonld",
+  "@type": "Policy",
+  "uid": "palefire:cv:extraction",
+  "duty": [
+    {
+      "action": "preprocess",
+      "target": "image:light",
+      "assignee": "tool:imagemagick",
+      "constraint": [{
+        "leftOperand": "arguments",
+        "operator": "eq",
+        "rightOperand": [
+          "-resize", "200%",
+          "-contrast-stretch", "1%x1%",
+          "-sharpen", "0x1",
+          "-colorspace", "gray"
+        ]
+      }]
+    },
+    {
+      "action": "preprocess",
+      "target": "image:heavy",
+      "assignee": "tool:imagemagick",
+      "constraint": [{
+        "leftOperand": "arguments",
+        "operator": "eq",
+        "rightOperand": [
+          "-colorspace", "gray",
+          "-level", "10%,90%,1.5",
+          "-unsharp", "0x2+1.5+0.05",
+          "-normalize"
+        ]
+      }]
+    },
+    {
+      "action": "extract",
+      "target": ["image:original", "image:light"],
+      "assignee": "model:gemma4:latest",
+      "constraint": [{
+        "leftOperand": "prompt",
+        "operator": "eq",
+        "rightOperand": "Classify the contents of this image. 1. If it is specifically a single-month precipitation/rain gauge calendar, output ONLY this JSON: {\"type\": \"precipitation_calendar\", \"month\": \"<month>\", \"year\": \"<year>\", \"measurements\": {\"1\": \"<value>\"}}. 2. If it is a multi-month precipitation spreadsheet (with columns for different months), output ONLY this JSON: {\"type\": \"multi_month_calendar\", \"year\": \"<year>\", \"data\": {\"<month1>\": {\"1\": \"<value>\"}, \"<month2>\": {\"1\": \"<value>\"}}}. 3. If it is a geographical or climatological map showing data points or regions, output ONLY this JSON: {\"type\": \"map\", \"map_count\": <integer number of distinct geographical maps. CRITICAL: A single figure containing multiple map sub-panels (like top/bottom panels of the same region or related variables like 'Temperatura' and 'SST Anomaly') MUST be counted as exactly 1 map. DO NOT split panels into multiple maps unless they are completely unrelated figures. DO NOT count legends as maps. Default to 1!>, \"split_grid\": \"<if the image contains multiple sub-panels in a grid, provide the layout like '2x2', '1x2', or '2x1'. Otherwise, output an empty string ''>\", \"description\": \"<description of the map including all titles>\", \"variable_name\": \"<the exact title of the chart, e.g. 'pronostico de anomalia de lluvia' or 'Relative SST Anomaly'>\", \"extracted_locations\": [\"<list of any geographical locations, cities, or municipalities explicitly labeled on the map. If there are NO explicit labels but there ARE longitude/latitude coordinates on the axes, include 'COORDINATES_PRESENT' in this list>\"], \"has_coordinates\": <true if the map has longitude/latitude coordinates on its axes, false otherwise>, \"color_anomaly_mapping\": {\"<color_name>\": \"<exact numerical range from scale, e.g. '20 to 0', '-0.5 to 0.5', '1.5 to 3'>\"}}. For map colors, you MUST use exactly these string keys if applicable: [\"Grey\", \"Light Green\", \"Green\", \"Dark Green\", \"Light Yellow\", \"Yellow\", \"Light Orange\", \"Orange\", \"Dark Orange\", \"Red\", \"Map Green\", \"Map White\"]. CRITICAL: You MUST extract the exact numerical scale ranges EXACTLY as written on the legend (e.g. 20 - 0, -20 to -40, -0.5 to 0.5, 1.5 to 3). DO NOT output text descriptions like 'Mild negative anomaly ranges', ONLY use the exact numbers from the image. CRITICAL: You MUST ALWAYS extract all legends, color scales, and their exact numerical ranges and place them in 'color_anomaly_mapping' for EVERY map, regardless of the map type. NEVER leave it empty if there is a legend on the page! 4. If it is a data chart or graph (e.g. bar chart, line chart), output ONLY this JSON: {\"type\": \"chart\", \"variable_name\": \"<the chart title>\"}. 5. If it is another type of handwritten data log (like a temperature or time record), output ONLY this JSON: {\"type\": \"other_log\", \"description\": \"<describe what the log is tracking>\"}. 6. If it is a regular photograph (like scenery or outdoor equipment), output ONLY this JSON: {\"type\": \"photo\", \"description\": \"<detailed description of the visual scene>\"}. Do not include any extra text outside of the JSON block.\n"
+      }]
+    },
+    {
+      "action": "extract",
+      "target": ["image:original", "image:heavy"],
+      "assignee": "model:gemma4:latest",
+      "constraint": [{
+        "leftOperand": "prompt",
+        "operator": "eq",
+        "rightOperand": "Classify the contents of this image. 1. If it is specifically a single-month precipitation/rain gauge calendar, output ONLY this JSON: {\"type\": \"precipitation_calendar\", \"month\": \"<month>\", \"year\": \"<year>\", \"measurements\": {\"1\": \"<value>\"}}. 2. If it is a multi-month precipitation spreadsheet (with columns for different months), output ONLY this JSON: {\"type\": \"multi_month_calendar\", \"year\": \"<year>\", \"data\": {\"<month1>\": {\"1\": \"<value>\"}, \"<month2>\": {\"1\": \"<value>\"}}}. 3. If it is a geographical or climatological map showing data points or regions, output ONLY this JSON: {\"type\": \"map\", \"map_count\": <integer number of distinct geographical maps. CRITICAL: A single figure containing multiple map sub-panels (like top/bottom panels of the same region or related variables like 'Temperatura' and 'SST Anomaly') MUST be counted as exactly 1 map. DO NOT split panels into multiple maps unless they are completely unrelated figures. DO NOT count legends as maps. Default to 1!>, \"split_grid\": \"<if the image contains multiple sub-panels in a grid, provide the layout like '2x2', '1x2', or '2x1'. Otherwise, output an empty string ''>\", \"description\": \"<description of the map including all titles>\", \"variable_name\": \"<the exact title of the chart, e.g. 'pronostico de anomalia de lluvia' or 'Relative SST Anomaly'>\", \"extracted_locations\": [\"<list of any geographical locations, cities, or municipalities explicitly labeled on the map. If there are NO explicit labels but there ARE longitude/latitude coordinates on the axes, include 'COORDINATES_PRESENT' in this list>\"], \"has_coordinates\": <true if the map has longitude/latitude coordinates on its axes, false otherwise>, \"color_anomaly_mapping\": {\"<color_name>\": \"<exact numerical range from scale, e.g. '20 to 0', '-0.5 to 0.5', '1.5 to 3'>\"}}. For map colors, you MUST use exactly these string keys if applicable: [\"Grey\", \"Light Green\", \"Green\", \"Dark Green\", \"Light Yellow\", \"Yellow\", \"Light Orange\", \"Orange\", \"Dark Orange\", \"Red\", \"Map Green\", \"Map White\"]. CRITICAL: You MUST extract the exact numerical scale ranges EXACTLY as written on the legend (e.g. 20 - 0, -20 to -40, -0.5 to 0.5, 1.5 to 3). DO NOT output text descriptions like 'Mild negative anomaly ranges', ONLY use the exact numbers from the image. CRITICAL: You MUST ALWAYS extract all legends, color scales, and their exact numerical ranges and place them in 'color_anomaly_mapping' for EVERY map, regardless of the map type. NEVER leave it empty if there is a legend on the page! 4. If it is a data chart or graph (e.g. bar chart, line chart), output ONLY this JSON: {\"type\": \"chart\", \"variable_name\": \"<the chart title>\"}. 5. If it is another type of handwritten data log (like a temperature or time record), output ONLY this JSON: {\"type\": \"other_log\", \"description\": \"<describe what the log is tracking>\"}. 6. If it is a regular photograph (like scenery or outdoor equipment), output ONLY this JSON: {\"type\": \"photo\", \"description\": \"<detailed description of the visual scene>\"}. Do not include any extra text outside of the JSON block.\nCRITICAL INSTRUCTION: You are evaluating a heavily contrasted image to resolve ambiguous handwriting. You must ONLY return numerical integer values for measurements. Do not return words like 'mark' or 'line'. Pay EXTREMELY close attention to handwriting nuances. In particular, the number '5' is often misread as a '3'. Look closely at the top horizontal bar and the sharp corner on the left side of the '5'.\n"
+      }]
+    },
+    {
+      "action": "verify",
+      "target": ["image:original", "image:light"],
+      "assignee": "model:gemma4:e2b",
+      "constraint": [{
+        "leftOperand": "prompt",
+        "operator": "eq",
+        "rightOperand": "Review the original image and the high-contrast enhanced image. Also review the raw extracted JSON data provided below. Please verify the extraction results against the images, aggregate the final data, and extract any handwritten numbers, person names, and locations if present. Also catch any unique handwritten characters, signatures, or annotations and classify them to help establish the provenance of the data."
+      }]
+    },
+    {
+      "action": "extract_spatial",
+      "target": ["image:original"],
+      "assignee": "tool:docker_datamaps",
+      "constraint": [{
+        "leftOperand": "extracted_type",
+        "operator": "eq",
+        "rightOperand": "map"
+      }]
+    },
+
+    {
+      "action": "extract_chart",
+      "target": ["image:original"],
+      "assignee": "model:gemma4:latest",
+      "constraint": [{
+        "leftOperand": "extracted_type",
+        "operator": "eq",
+        "rightOperand": "chart"
+      },
+      {
+        "leftOperand": "prompt",
+        "operator": "eq",
+        "rightOperand": "This image contains a data chart or graph. Extract the legend and all corresponding values from the chart. Output ONLY this JSON: {\"chart_legend\": {\"<series_name>\": \"<color_or_style>\"}, \"data_points\": [{\"x\": \"<x_axis_value>\", \"series\": \"<series_name>\", \"y\": \"<y_value>\"}]}"
+      }]
+    },
+    {
+      "action": "extract_ocr_location_values",
+      "target": ["image:original"],
+      "assignee": "model:gemma4:latest",
+      "constraint": [{
+        "leftOperand": "extracted_type",
+        "operator": "eq",
+        "rightOperand": "map"
+      },
+      {
+        "leftOperand": "prompt",
+        "operator": "eq",
+        "rightOperand": "Look at the map in the image. I have drawn LARGE SOLID COLORED DOTS to mark specific geographical locations. Based on the EXACT color of the solid dot, determine the corresponding value from the legend. The location names correspond to the text written on the map near each dot. Output ONLY this JSON format: {\"location_values\": [{\"location\": \"<location_name>\", \"value\": \"<range_or_value_from_legend>\"}]}"
+      }]
+    },
+    {
+      "action": "log",
+      "target": "file:odrl_execution.log",
+      "assignee": "system"
+    }
+  ]
+}
